@@ -1,0 +1,514 @@
+/**
+ * All of the CSS for your admin-specific functionality should be
+ * included in this file.
+ */
+
+/* WP Mux Settings Page Styles */
+.wp-mux-settings-page {
+    max-width: 800px;
+}
+
+.wp-mux-settings-page .form-table th {
+    width: 200px;
+    padding-left: 0;
+}
+
+.wp-mux-settings-page .form-table td {
+    padding-left: 0;
+}
+
+.wp-mux-settings-page .regular-text {
+    width: 300px;
+}
+
+.wp-mux-settings-page .description {
+    color: #666;
+    font-style: italic;
+    margin-top: 5px;
+}
+
+.wp-mux-info {
+    background: #f9f9f9;
+    border: 1px solid #e5e5e5;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 5px;
+}
+
+.wp-mux-info h2 {
+    margin-top: 0;
+    color: #23282d;
+}
+
+.wp-mux-info h3 {
+    color: #23282d;
+    margin-top: 20px;
+}
+
+.wp-mux-info ol {
+    margin-left: 20px;
+}
+
+/* WP Mux Videos Page Styles */
+.wp-mux-videos-page {
+    max-width: 1200px;
+}
+
+/* Upload Section */
+.wp-mux-upload-section {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    margin: 20px 0;
+    border-radius: 4px;
+}
+
+.wp-mux-upload-box {
+    padding: 20px;
+}
+
+.wp-mux-upload-box h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+}
+
+.wp-mux-dropzone {
+    border: 2px dashed #ccd0d4;
+    border-radius: 4px;
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+    background: #fafafa;
+}
+
+.wp-mux-dropzone:hover,
+.wp-mux-dropzone.dragover {
+    border-color: #0073aa;
+    background: #f0f8ff;
+}
+
+.wp-mux-dropzone-content .dashicons {
+    font-size: 48px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.wp-mux-dropzone-content p {
+    margin: 10px 0;
+    font-size: 16px;
+    color: #333;
+}
+
+.wp-mux-dropzone-content .description {
+    font-size: 14px;
+    color: #666;
+}
+
+/* Upload Progress */
+.wp-mux-upload-progress {
+    margin-top: 20px;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 20px;
+    background: #e5e5e5;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.progress-fill {
+    height: 100%;
+    background: #0073aa;
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    text-align: center;
+    margin: 0;
+    font-weight: bold;
+}
+
+/* Videos List */
+.wp-mux-videos-container {
+    margin-top: 20px;
+}
+
+.wp-mux-loading {
+    text-align: center;
+    padding: 40px;
+}
+
+.wp-mux-loading .spinner {
+    float: none;
+    margin-right: 10px;
+}
+
+.wp-mux-videos-list .column-thumbnail {
+    width: 160px;
+}
+
+.wp-mux-videos-list .column-title {
+    width: 200px;
+}
+
+.wp-mux-videos-list .column-status {
+    width: 100px;
+}
+
+.wp-mux-videos-list .column-duration {
+    width: 80px;
+}
+
+.wp-mux-videos-list .column-size {
+    width: 80px;
+}
+
+.wp-mux-videos-list .column-created {
+    width: 120px;
+}
+
+.wp-mux-videos-list .column-actions {
+    width: 150px;
+}
+
+.wp-mux-video-thumbnail {
+    width: 120px;
+    height: 80px;
+    background: #f0f0f0;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #666;
+}
+
+.wp-mux-video-thumbnail img {
+    max-width: 100%;
+    max-height: 100%;
+    border-radius: 4px;
+}
+
+.wp-mux-video-thumbnail img.error {
+    display: none;
+}
+
+.wp-mux-video-thumbnail img.error + .dashicons {
+    display: block;
+}
+
+.wp-mux-status {
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 500;
+    text-transform: uppercase;
+}
+
+.wp-mux-status.ready {
+    background: #d4edda;
+    color: #155724;
+}
+
+.wp-mux-status.processing {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.wp-mux-status.error {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.wp-mux-video-actions {
+    display: flex;
+    gap: 5px;
+}
+
+.wp-mux-video-actions .button {
+    padding: 4px 8px;
+    font-size: 12px;
+    line-height: 1.4;
+}
+
+/* Empty State */
+.wp-mux-empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: #666;
+}
+
+.wp-mux-empty-state .dashicons {
+    font-size: 64px;
+    color: #ccc;
+    margin-bottom: 20px;
+}
+
+.wp-mux-empty-state h3 {
+    margin: 0 0 10px 0;
+    color: #333;
+}
+
+.wp-mux-empty-state p {
+    margin: 0 0 20px 0;
+}
+
+/* No Videos State */
+.wp-mux-no-videos {
+    margin-top: 20px;
+}
+
+/* Responsive */
+@media screen and (max-width: 782px) {
+    .wp-mux-videos-list .wp-list-table {
+        font-size: 14px;
+    }
+    
+    .wp-mux-video-actions {
+        flex-direction: column;
+    }
+    
+    .wp-mux-dropzone {
+        padding: 20px 10px;
+    }
+    
+    .wp-mux-dropzone-content .dashicons {
+        font-size: 32px;
+    }
+}
+
+/* Video Preview Modal */
+body.modal-open {
+    overflow: hidden;
+}
+
+.wp-mux-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 100000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wp-mux-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    cursor: pointer;
+}
+
+.wp-mux-modal-content {
+    position: relative;
+    background: #fff;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 900px;
+    max-height: 90vh;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+    animation: modalFadeIn 0.3s ease-out;
+}
+
+@keyframes modalFadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.wp-mux-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-bottom: 1px solid #e5e5e5;
+    background: #f8f9fa;
+}
+
+.wp-mux-modal-header h3 {
+    margin: 0;
+    color: #333;
+    font-size: 18px;
+}
+
+.wp-mux-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #666;
+    cursor: pointer;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: all 0.2s ease;
+}
+
+.wp-mux-modal-close:hover {
+    background: #e5e5e5;
+    color: #333;
+}
+
+.wp-mux-modal-body {
+    padding: 0;
+    max-height: calc(90vh - 140px);
+    overflow-y: auto;
+}
+
+#video-player-container {
+    position: relative;
+    width: 100%;
+    background: #000;
+    min-height: 300px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#video-player-container video,
+#video-player-container mux-player {
+    width: 100%;
+    height: auto;
+    max-height: 500px;
+}
+
+.wp-mux-video-loading {
+    color: #fff;
+    font-size: 16px;
+}
+
+.wp-mux-video-details {
+    padding: 20px 25px;
+    background: #f8f9fa;
+}
+
+.wp-mux-detail-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.wp-mux-detail-row:last-child {
+    margin-bottom: 0;
+}
+
+.wp-mux-detail-row strong {
+    min-width: 120px;
+    color: #333;
+}
+
+.wp-mux-detail-row span {
+    color: #666;
+    font-family: monospace;
+}
+
+.wp-mux-modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 25px;
+    border-top: 1px solid #e5e5e5;
+    background: #f8f9fa;
+}
+
+.wp-mux-video-thumbnail {
+    cursor: pointer;
+    transition: opacity 0.2s ease;
+    position: relative;
+}
+
+.wp-mux-video-thumbnail:hover {
+    opacity: 0.8;
+}
+
+.wp-mux-video-thumbnail::after {
+    content: '\f126';
+    font-family: dashicons;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 20px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.wp-mux-video-thumbnail:hover::after {
+    opacity: 1;
+}
+
+/* Modal responsive */
+@media screen and (max-width: 782px) {
+    .wp-mux-modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+    
+    .wp-mux-modal-header,
+    .wp-mux-video-details,
+    .wp-mux-modal-footer {
+        padding: 15px 20px;
+    }
+    
+    .wp-mux-detail-row {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .wp-mux-detail-row strong {
+        min-width: auto;
+        margin-bottom: 5px;
+    }
+    
+    .wp-mux-modal-footer {
+        flex-direction: column;
+        gap: 10px;
+    }
+}
+
+.wp-mux-info a {
+    color: #0073aa;
+    text-decoration: none;
+}
+
+.wp-mux-info a:hover {
+    text-decoration: underline;
+}
+
+/* Settings form specific styles */
+#wp_mux_access_token,
+#wp_mux_secret_key {
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+}
+
+.wp-mux-field-description {
+    margin-top: 5px;
+    color: #666;
+    font-size: 13px;
+}
+
+/* Password field eye icon (future enhancement) */
+.wp-mux-password-field-wrapper {
+    position: relative;
+    display: inline-block;
+}
