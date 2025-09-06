@@ -99,16 +99,36 @@ class Wp_Mux_Admin {
 		 */
 
 	wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-admin.js', array( 'jquery' ), $this->version, false );
-	// Enqueue Mux Player for admin/media modal preview
-	wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player@latest/dist/mux-player.js', array(), null, true );
-	// Custom JS for media library enhancements
-	wp_enqueue_script( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-badge.js', array( 'media-views' ), $this->version, true );
-
-		// Enqueue MUX player on videos page
-		$screen = get_current_screen();
-		if ( $screen && $screen->id === 'toplevel_page_wp-mux-videos' ) {
-			wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, true );
-		}
+	
+	// Localize script with necessary data
+	$api = new Wp_Mux_Api();
+	wp_localize_script( $this->plugin_name, 'wpMuxData', array(
+		'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+		'nonce' => wp_create_nonce( 'wp_mux_admin_nonce' ),
+		'uploadNonce' => wp_create_nonce( 'wp_mux_upload_nonce' ),
+		'videosNonce' => wp_create_nonce( 'wp_mux_videos_nonce' ),
+		'isConfigured' => $api->is_configured(),
+		'strings' => array(
+			'uploadError' => __( 'Upload failed. Please try again.', 'wp-mux' ),
+			'deleteConfirm' => __( 'Are you sure you want to delete this video?', 'wp-mux' ),
+		),
+	) );
+	
+	// Only enqueue mux-player once with consistent URL
+	if ( ! wp_script_is( 'mux-player', 'enqueued' ) ) {
+		wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, true );
+	}
+	
+	// Re-enable media badge script with better targeting
+	$screen = get_current_screen();
+	if ( $screen && ( 
+		$screen->id === 'upload' || 
+		$screen->id === 'media' || 
+		strpos( $screen->base, 'media' ) !== false ||
+		strpos( $screen->id, 'page_wp-mux' ) !== false 
+	) ) {
+		wp_enqueue_script( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-badge.js', array( 'media-views' ), $this->version, true );
+	}
 
 	}
 
@@ -392,6 +412,139 @@ class Wp_Mux_Admin {
 		echo '<input type="password" id="wp_mux_secret_key" name="wp_mux_secret_key" value="' . esc_attr( $secret_key ) . '" class="regular-text" placeholder="' . esc_attr( $placeholder_text ) . '" />';
 		echo '</div>';
 		echo '<p class="description wp-mux-field-description">' . __( 'Your MUX secret key (kept private). This field is obfuscated for security.', 'wp-mux' ) . '</p>';
+	}
+
+	/**
+	 * Enqueue block editor assets for Gutenberg support
+	 *
+	 * @since    1.0.0
+	 */
+	public function enqueue_block_editor_assets() {
+		// Only enqueue mux-player once with consistent URL
+		if ( ! wp_script_is( 'mux-player', 'enqueued' ) ) {
+			wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, false );
+		}
+
+		// Enqueue custom block editor script for MUX video handling
+		wp_enqueue_script(
+			$this->plugin_name . '-block-editor',
+			plugin_dir_url( __FILE__ ) . 'js/wp-mux-block-editor.js',
+			array( 'wp-dom-ready', 'wp-blocks', 'wp-hooks', 'mux-player' ),
+			$this->version,
+			false  // Load in head, not footer
+		);
+
+		// Add CSS for mux-video elements in editor
+		wp_enqueue_style(
+			$this->plugin_name . '-block-editor-style',
+			plugin_dir_url( __FILE__ ) . 'css/wp-mux-admin.css',
+			array(),
+			$this->version
+		);
+
+		// Add inline CSS specifically for mux elements in editor
+		$inline_css = '
+			mux-video, mux-player {
+				display: block !important;
+				width: 100% !important;
+				max-width: 100% !important;
+				height: auto !important;
+				background: #000;
+				min-height: 200px;
+			}
+			.wp-block-video mux-video, .wp-block-video mux-player {
+				width: 100% !important;
+				height: auto !important;
+			}
+			.block-editor-block-list__block mux-video, .block-editor-block-list__block mux-player {
+				width: 100% !important;
+				min-height: 200px;
+			}
+		';
+		wp_add_inline_style( $this->plugin_name . '-block-editor-style', $inline_css );
+
+		// Add inline script to ensure MUX elements are working
+		$inline_js = '
+			console.log("WP MUX: Block editor assets loaded");
+
+			// Make sure custom elements are supported
+			if (typeof customElements !== "undefined") {
+				console.log("WP MUX: Custom elements supported");
+				setTimeout(function() {
+					const muxVideoRegistered = customElements.get("mux-video");
+					const muxPlayerRegistered = customElements.get("mux-player");
+
+					console.log("WP MUX: mux-video registered:", !!muxVideoRegistered);
+					console.log("WP MUX: mux-player registered:", !!muxPlayerRegistered);
+
+					if (!muxVideoRegistered && !muxPlayerRegistered) {
+						console.log("WP MUX: Neither MUX element registered - libraries may not be loaded");
+					}
+				}, 1000);
+			}
+		';
+		wp_add_inline_script( $this->plugin_name . '-block-editor', $inline_js );
+	}
+
+	/**
+	 * Allow mux-video and mux-player elements in WordPress content
+	 *
+	 * @since    1.0.0
+	 */
+	public function allow_mux_video_elements() {
+		global $allowedposttags;
+
+		// Add mux-video and mux-player to allowed HTML tags
+		$mux_attributes = array(
+			'playback-id' => true,
+			'controls' => true,
+			'stream-type' => true,
+			'poster' => true,
+			'width' => true,
+			'height' => true,
+			'style' => true,
+			'class' => true,
+			'id' => true,
+			'env-key' => true,
+			'metadata-video-title' => true,
+			'metadata-viewer-user-id' => true,
+			'metadata-video-id' => true,
+		);
+
+		$allowedposttags['mux-video'] = $mux_attributes;
+		$allowedposttags['mux-player'] = $mux_attributes;
+
+		// Also add to wp_kses filters
+		add_filter( 'wp_kses_allowed_html', array( $this, 'allow_mux_video_in_kses' ), 10, 2 );
+	}
+
+	/**
+	 * Allow mux-video and mux-player in wp_kses filtering
+	 *
+	 * @since    1.0.0
+	 */
+	public function allow_mux_video_in_kses( $tags, $context ) {
+		if ( $context === 'post' ) {
+			$mux_attributes = array(
+				'playback-id' => true,
+				'controls' => true,
+				'stream-type' => true,
+				'poster' => true,
+				'width' => true,
+				'height' => true,
+				'style' => true,
+				'class' => true,
+				'id' => true,
+				'env-key' => true,
+				'metadata-video-title' => true,
+				'metadata-viewer-user-id' => true,
+				'metadata-video-id' => true,
+			);
+
+			$tags['mux-video'] = $mux_attributes;
+			$tags['mux-player'] = $mux_attributes;
+		}
+		return $tags;
 	}
 
 }

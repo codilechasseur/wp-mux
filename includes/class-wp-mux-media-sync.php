@@ -107,7 +107,8 @@ class Wp_Mux_Media_Sync {
     public function get_mux_stream_url( $attach_id ) {
         $playback_id = get_post_meta( $attach_id, '_mux_playback_id', true );
         if ( $playback_id ) {
-            return 'https://stream.mux.com/' . $playback_id . '.m3u8';
+            // Return a special MUX URL that our frontend will recognize and convert
+            return 'https://stream.mux.com/' . $playback_id . '.mp4?mux=1';
         }
         return '';
     }

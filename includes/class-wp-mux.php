@@ -171,20 +171,19 @@ class Wp_Mux {
 
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
-
-		// Add admin menu and settings
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_admin_menu' );
-		$this->loader->add_action( 'admin_init', $plugin_admin, 'init_settings' );
 
-		// Add settings link to plugin action links
-		$plugin_basename = plugin_basename( plugin_dir_path( __DIR__ ) . $this->plugin_name . '.php' );
-		$this->loader->add_filter( 'plugin_action_links_' . $plugin_basename, $plugin_admin, 'add_settings_link' );
-
-		// Add AJAX handlers
+		// Add AJAX handlers for admin functionality
 		$this->loader->add_action( 'wp_ajax_wp_mux_create_upload', $plugin_admin, 'ajax_create_upload' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_load_videos', $plugin_admin, 'ajax_load_videos' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_delete_video', $plugin_admin, 'ajax_delete_video' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_get_video_details', $plugin_admin, 'ajax_get_video_details' );
+
+		// Add Gutenberg/Block editor support for MUX videos
+		$this->loader->add_action( 'enqueue_block_editor_assets', $plugin_admin, 'enqueue_block_editor_assets' );
+
+		// Allow mux-video elements in WordPress content
+		$this->loader->add_action( 'init', $plugin_admin, 'allow_mux_video_elements' );
 
 	}
 
@@ -201,6 +200,11 @@ class Wp_Mux {
 
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_styles' );
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
+
+		// Add filters to handle MUX video rendering in different contexts
+		$this->loader->add_filter( 'wp_video_shortcode', $plugin_public, 'render_mux_video', 10, 3 );
+		$this->loader->add_filter( 'the_content', $plugin_public, 'process_content_videos', 20 );
+		$this->loader->add_filter( 'render_block', $plugin_public, 'process_video_blocks', 10, 2 );
 
 	}
 

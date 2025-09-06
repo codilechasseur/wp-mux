@@ -13,7 +13,7 @@
  */
 
 // Include the API class
-require_once plugin_dir_path( dirname( __FILE__ ) ) . '../includes/class-wp-mux-api.php';
+require_once plugin_dir_path( dirname( dirname( __FILE__ ) ) ) . 'includes/class-wp-mux-api.php';
 $api = new Wp_Mux_Api();
 ?>
 
