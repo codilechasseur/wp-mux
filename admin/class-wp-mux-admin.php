@@ -73,7 +73,9 @@ class Wp_Mux_Admin {
 		 * class.
 		 */
 
-		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wp-mux-admin.css', array(), $this->version, 'all' );
+	wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wp-mux-admin.css', array(), $this->version, 'all' );
+	// Add custom styles for MUX badge in media library
+	wp_enqueue_style( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-badge.css', array(), $this->version );
 
 	}
 
@@ -96,7 +98,11 @@ class Wp_Mux_Admin {
 		 * class.
 		 */
 
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-admin.js', array( 'jquery' ), $this->version, false );
+	wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-admin.js', array( 'jquery' ), $this->version, false );
+	// Enqueue Mux Player for admin/media modal preview
+	wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player@latest/dist/mux-player.js', array(), null, true );
+	// Custom JS for media library enhancements
+	wp_enqueue_script( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-badge.js', array( 'media-views' ), $this->version, true );
 
 		// Enqueue MUX player on videos page
 		$screen = get_current_screen();

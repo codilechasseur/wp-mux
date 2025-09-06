@@ -128,6 +128,15 @@ class Wp_Mux {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-wp-mux-public.php';
 
+		/**
+		 * The class responsible for syncing MUX assets into the media library.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-media-sync.php';
+
+		if ( is_admin() ) {
+			new Wp_Mux_Media_Sync();
+		}
+
 		$this->loader = new Wp_Mux_Loader();
 
 	}

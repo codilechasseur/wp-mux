@@ -265,15 +265,15 @@
     .wp-mux-videos-list .wp-list-table {
         font-size: 14px;
     }
-    
+
     .wp-mux-video-actions {
         flex-direction: column;
     }
-    
+
     .wp-mux-dropzone {
         padding: 20px 10px;
     }
-    
+
     .wp-mux-dropzone-content .dashicons {
         font-size: 32px;
     }
@@ -462,23 +462,23 @@ body.modal-open {
         width: 95%;
         margin: 20px;
     }
-    
+
     .wp-mux-modal-header,
     .wp-mux-video-details,
     .wp-mux-modal-footer {
         padding: 15px 20px;
     }
-    
+
     .wp-mux-detail-row {
         flex-direction: column;
         align-items: flex-start;
     }
-    
+
     .wp-mux-detail-row strong {
         min-width: auto;
         margin-bottom: 5px;
     }
-    
+
     .wp-mux-modal-footer {
         flex-direction: column;
         gap: 10px;

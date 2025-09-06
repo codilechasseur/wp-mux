@@ -312,23 +312,23 @@
 	function createVideoRow(video) {
 		// MUX provides thumbnails via their image API using playback ID
 		const playbackId = video.playback_ids && video.playback_ids.length > 0 ? video.playback_ids[0].id : null;
-		
+
 		// Use enhanced thumbnail URL if available, otherwise generate it
-		const thumbnail = video.thumbnail_url 
+		const thumbnail = video.thumbnail_url
 			? `<img src="${video.thumbnail_url}" alt="Video thumbnail" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
 			   <span class="dashicons dashicons-format-video" style="display:none;"></span>`
-			: (playbackId 
+			: (playbackId
 				? `<img src="https://image.mux.com/${playbackId}/thumbnail.jpg?width=240&height=160" alt="Video thumbnail" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
 				   <span class="dashicons dashicons-format-video" style="display:none;"></span>`
 				: '<span class="dashicons dashicons-format-video"></span>');
 
 		const status = getStatusBadge(video.status);
 		const duration = formatDuration(video.duration);
-		
+
 		// Use estimated file size if available, otherwise try to compute
 		const fileSize = video.estimated_file_size || getVideoFileSize(video);
 		const size = formatFileSize(fileSize);
-		
+
 		// Try to get the created date from various possible fields
 		const createdDateValue = getVideoCreatedDate(video);
 		const created = formatDate(createdDateValue);
@@ -349,10 +349,10 @@
 				<td class="column-created">${created}</td>
 				<td class="column-actions">
 					<div class="wp-mux-video-actions">
-						${playbackId ? 
+						${playbackId ?
 							`<button class="button button-small" onclick="copyPlaybackId('${playbackId}')">Copy ID</button>` : ''
 						}
-						${playbackId ? 
+						${playbackId ?
 							`<button class="button button-small" onclick="openVideoPreview('${video.id}', '${playbackId}')">Preview</button>` : ''
 						}
 						<button class="button button-small button-link-delete" onclick="deleteVideo('${video.id}')">Delete</button>
@@ -364,20 +364,20 @@
 
 	function getStatusBadge(status) {
 		const statusClass = status === 'ready' ? 'ready' : status === 'preparing' ? 'processing' : 'error';
-		const statusText = status === 'ready' ? window.wpMuxData.strings.ready : 
-			status === 'preparing' ? window.wpMuxData.strings.processing : 
+		const statusText = status === 'ready' ? window.wpMuxData.strings.ready :
+			status === 'preparing' ? window.wpMuxData.strings.processing :
 			window.wpMuxData.strings.error;
-		
+
 		return `<span class="wp-mux-status ${statusClass}">${statusText}</span>`;
 	}
 
 	function formatDuration(seconds) {
 		if (!seconds) return '--';
-		
+
 		const hours = Math.floor(seconds / 3600);
 		const minutes = Math.floor((seconds % 3600) / 60);
 		const secs = Math.floor(seconds % 60);
-		
+
 		if (hours > 0) {
 			return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
 		} else {
@@ -387,15 +387,15 @@
 
 	function formatFileSize(bytes) {
 		if (!bytes) return '--';
-		
+
 		const units = ['B', 'KB', 'MB', 'GB'];
 		let i = 0;
-		
+
 		while (bytes >= 1024 && i < units.length - 1) {
 			bytes /= 1024;
 			i++;
 		}
-		
+
 		return Math.round(bytes * 100) / 100 + ' ' + units[i];
 	}
 
@@ -408,21 +408,21 @@
 
 		for (let dateValue of possibleDates) {
 			if (!dateValue) continue;
-			
+
 			try {
 				// Handle if it's a video object, extract date fields
 				if (typeof dateValue === 'object') {
 					dateValue = dateValue.created_at || dateValue.created || dateValue.date_created || dateValue.upload_time;
 				}
-				
+
 				if (!dateValue) continue;
-				
+
 				const date = new Date(dateValue);
 				// Check if date is valid
 				if (!isNaN(date.getTime())) {
 					return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
 				}
-				
+
 				// Try parsing Unix timestamp if it's a number
 				if (typeof dateValue === 'number' || (typeof dateValue === 'string' && /^\d+$/.test(dateValue))) {
 					const timestampDate = new Date(parseInt(dateValue) * 1000); // Convert seconds to milliseconds
@@ -430,13 +430,13 @@
 						return timestampDate.toLocaleDateString() + ' ' + timestampDate.toLocaleTimeString();
 					}
 				}
-				
+
 			} catch (e) {
 				console.log('Date parsing error:', e, 'for value:', dateValue);
 				continue;
 			}
 		}
-		
+
 		return '--';
 	}
 
@@ -445,19 +445,19 @@
 		const dateFields = [
 			'created_at',
 			'created',
-			'date_created', 
+			'date_created',
 			'upload_time',
 			'timestamp',
 			'created_date',
 			'date'
 		];
-		
+
 		for (let field of dateFields) {
 			if (video[field]) {
 				return video[field];
 			}
 		}
-		
+
 		return null;
 	}
 
@@ -466,21 +466,21 @@
 		if (video.estimated_file_size) {
 			return video.estimated_file_size;
 		}
-		
+
 		// Check if we have input info with file size
 		if (video.input_info && video.input_info.file_size) {
 			return video.input_info.file_size;
 		}
-		
+
 		// Check if we have it in the input settings
 		if (video.input && video.input.file_size) {
 			return video.input.file_size;
 		}
-		
+
 		// Try to estimate based on duration and resolution
 		if (video.duration) {
 			let estimatedBitrate = 1000000; // 1 Mbps default
-			
+
 			// Adjust bitrate based on resolution if available
 			if (video.aspect_ratio) {
 				if (video.aspect_ratio.includes('1920') || video.aspect_ratio.includes('1080')) {
@@ -489,11 +489,11 @@
 					estimatedBitrate = 2000000; // 2 Mbps for 720p
 				}
 			}
-			
+
 			// Calculate estimated size in bytes
 			return (video.duration * estimatedBitrate) / 8;
 		}
-		
+
 		// Return 0 if no file size information is available
 		return 0;
 	}
@@ -502,7 +502,7 @@
 		// Update page info (this is simplified, you might want to get actual pagination data from API)
 		$('#current-page').val(currentPage);
 		$('#videos-count').text(`${data.data.length} items`);
-		
+
 		// Enable/disable pagination buttons
 		$('#prev-page').prop('disabled', currentPage <= 1);
 		$('#next-page').prop('disabled', data.data.length < 25);
@@ -546,7 +546,7 @@
 				if (response.success) {
 					$(`tr[data-asset-id="${assetId}"]`).fadeOut(function() {
 						$(this).remove();
-						
+
 						// Check if we need to reload the page
 						if ($('#videos-table-body tr').length === 0) {
 							loadVideos();
@@ -600,7 +600,7 @@
 	window.closeVideoPreview = function() {
 		$('#video-preview-modal').fadeOut(300);
 		$('body').removeClass('modal-open');
-		
+
 		// Clean up video player
 		$('#video-player-container').empty();
 	};
@@ -668,7 +668,7 @@
 				if (response.success && response.data.data) {
 					const video = response.data.data;
 					console.log('Detailed video data:', video);
-					
+
 					// Update any other details from the full video object if needed
 					if (video.aspect_ratio) {
 						console.log('Aspect ratio:', video.aspect_ratio);

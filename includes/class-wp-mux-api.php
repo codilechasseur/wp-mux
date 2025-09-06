@@ -135,7 +135,7 @@ class Wp_Mux_Api {
 		$endpoint .= '?' . http_build_query( $params );
 
 		$response = $this->make_request( $endpoint );
-		
+
 		// If successful, enhance the response with computed fields
 		if ( ! is_wp_error( $response ) && isset( $response['data'] ) ) {
 			foreach ( $response['data'] as &$video ) {
@@ -167,7 +167,7 @@ class Wp_Mux_Api {
 	 */
 	public function create_direct_upload( $options = array() ) {
 		$endpoint = '/video/v1/uploads';
-		
+
 		$default_options = array(
 			'cors_origin' => home_url(),
 			'new_asset_settings' => array(
@@ -213,7 +213,7 @@ class Wp_Mux_Api {
 	 */
 	public function get_playback_id( $asset_id ) {
 		$video = $this->get_video( $asset_id );
-		
+
 		if ( is_wp_error( $video ) || ! isset( $video['data']['playback_ids'][0]['id'] ) ) {
 			return false;
 		}
@@ -232,7 +232,7 @@ class Wp_Mux_Api {
 	 */
 	public function get_thumbnail_url( $asset_id, $width = 120, $height = 80 ) {
 		$playback_id = $this->get_playback_id( $asset_id );
-		
+
 		if ( ! $playback_id ) {
 			return false;
 		}
@@ -249,7 +249,7 @@ class Wp_Mux_Api {
 	 */
 	public static function format_file_size( $bytes ) {
 		$units = array( 'B', 'KB', 'MB', 'GB', 'TB' );
-		
+
 		for ( $i = 0; $bytes > 1024 && $i < count( $units ) - 1; $i++ ) {
 			$bytes /= 1024;
 		}
@@ -333,7 +333,7 @@ class Wp_Mux_Api {
 		// Check tracks for video resolution
 		if ( isset( $video['tracks'] ) && is_array( $video['tracks'] ) ) {
 			foreach ( $video['tracks'] as $track ) {
-				if ( isset( $track['type'] ) && $track['type'] === 'video' && 
+				if ( isset( $track['type'] ) && $track['type'] === 'video' &&
 					 isset( $track['width'] ) && isset( $track['height'] ) ) {
 					return $track['width'] . 'x' . $track['height'];
 				}

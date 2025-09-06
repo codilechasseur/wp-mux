@@ -19,7 +19,7 @@ $api = new Wp_Mux_Api();
 
 <div class="wrap wp-mux-videos-page">
     <h1 class="wp-heading-inline"><?php echo esc_html( get_admin_page_title() ); ?></h1>
-    
+
     <?php if ( ! $api->is_configured() ) : ?>
         <div class="notice notice-warning">
             <p>
@@ -28,9 +28,9 @@ $api = new Wp_Mux_Api();
             </p>
         </div>
     <?php else : ?>
-        
+
         <a href="#" id="upload-new-video" class="page-title-action"><?php _e( 'Upload New Video', 'wp-mux' ); ?></a>
-        
+
         <hr class="wp-header-end">
 
         <!-- Upload Section -->
@@ -45,18 +45,18 @@ $api = new Wp_Mux_Api();
                     </div>
                     <input type="file" id="video-file-input" accept="video/*" style="display: none;">
                 </div>
-                
+
                 <div id="upload-progress" class="wp-mux-upload-progress" style="display: none;">
                     <div class="progress-bar">
                         <div class="progress-fill"></div>
                     </div>
                     <p class="progress-text">0%</p>
                 </div>
-                
+
                 <div id="upload-success" class="notice notice-success" style="display: none;">
                     <p><?php _e( 'Video uploaded successfully!', 'wp-mux' ); ?></p>
                 </div>
-                
+
                 <div id="upload-error" class="notice notice-error" style="display: none;">
                     <p></p>
                 </div>
@@ -69,11 +69,11 @@ $api = new Wp_Mux_Api();
                 <span class="spinner is-active"></span>
                 <p><?php _e( 'Loading videos...', 'wp-mux' ); ?></p>
             </div>
-            
+
             <div id="videos-error" class="notice notice-error" style="display: none;">
                 <p></p>
             </div>
-            
+
             <div id="videos-list" class="wp-mux-videos-list" style="display: none;">
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
@@ -91,7 +91,7 @@ $api = new Wp_Mux_Api();
                         <!-- Videos will be loaded here via AJAX -->
                     </tbody>
                 </table>
-                
+
                 <div id="videos-pagination" class="tablenav bottom">
                     <div class="tablenav-pages">
                         <span class="displaying-num" id="videos-count">0 items</span>
@@ -106,7 +106,7 @@ $api = new Wp_Mux_Api();
                     </div>
                 </div>
             </div>
-            
+
             <div id="no-videos" class="wp-mux-no-videos" style="display: none;">
                 <div class="wp-mux-empty-state">
                     <span class="dashicons dashicons-video-alt3"></span>
@@ -139,7 +139,7 @@ $api = new Wp_Mux_Api();
                     <strong>Asset ID:</strong> <span id="modal-asset-id">-</span>
                 </div>
                 <div class="wp-mux-detail-row">
-                    <strong>Playback ID:</strong> 
+                    <strong>Playback ID:</strong>
                     <span id="modal-playback-id">-</span>
                     <button id="copy-playback-url" class="button button-small" style="margin-left: 10px;">Copy URL</button>
                 </div>
