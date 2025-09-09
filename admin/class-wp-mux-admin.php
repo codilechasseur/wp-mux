@@ -77,6 +77,12 @@ class Wp_Mux_Admin {
 	// Add custom styles for MUX badge in media library
 	wp_enqueue_style( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-badge.css', array(), $this->version );
 
+	// Enqueue theme management styles on themes page
+	$screen = get_current_screen();
+	if ( $screen && $screen->id === 'mux-videos_page_wp-mux-themes' ) {
+		wp_enqueue_style( 'wp-mux-themes', plugin_dir_url( __FILE__ ) . 'css/wp-mux-themes.css', array(), $this->version );
+	}
+
 	}
 
 	/**
@@ -99,7 +105,19 @@ class Wp_Mux_Admin {
 		 */
 
 	wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-admin.js', array( 'jquery' ), $this->version, false );
-	
+
+	// Load theme manager for theme data
+	require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+	$theme_manager = new Wp_Mux_Theme_Manager();
+	$themes = $theme_manager->get_themes();
+	$theme_options = array();
+	foreach ( $themes as $theme_id => $theme ) {
+		$theme_options[] = array(
+			'id' => $theme_id,
+			'name' => $theme['name'],
+		);
+	}
+
 	// Localize script with necessary data
 	$api = new Wp_Mux_Api();
 	wp_localize_script( $this->plugin_name, 'wpMuxData', array(
@@ -107,27 +125,46 @@ class Wp_Mux_Admin {
 		'nonce' => wp_create_nonce( 'wp_mux_admin_nonce' ),
 		'uploadNonce' => wp_create_nonce( 'wp_mux_upload_nonce' ),
 		'videosNonce' => wp_create_nonce( 'wp_mux_videos_nonce' ),
+		'themesNonce' => wp_create_nonce( 'wp_mux_themes_nonce' ),
 		'isConfigured' => $api->is_configured(),
+		'themes' => $theme_options,
 		'strings' => array(
 			'uploadError' => __( 'Upload failed. Please try again.', 'wp-mux' ),
 			'deleteConfirm' => __( 'Are you sure you want to delete this video?', 'wp-mux' ),
+			'deleteThemeConfirm' => __( 'Are you sure you want to delete this theme?', 'wp-mux' ),
+			'themeSaved' => __( 'Theme saved successfully', 'wp-mux' ),
+			'themeDeleted' => __( 'Theme deleted successfully', 'wp-mux' ),
+			'defaultThemeSet' => __( 'Default theme updated', 'wp-mux' ),
 		),
 	) );
-	
+
 	// Only enqueue mux-player once with consistent URL
 	if ( ! wp_script_is( 'mux-player', 'enqueued' ) ) {
 		wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, true );
 	}
-	
+
 	// Re-enable media badge script with better targeting
 	$screen = get_current_screen();
-	if ( $screen && ( 
-		$screen->id === 'upload' || 
-		$screen->id === 'media' || 
+	if ( $screen && (
+		$screen->id === 'upload' ||
+		$screen->id === 'media' ||
 		strpos( $screen->base, 'media' ) !== false ||
-		strpos( $screen->id, 'page_wp-mux' ) !== false 
+		strpos( $screen->id, 'page_wp-mux' ) !== false
 	) ) {
 		wp_enqueue_script( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-badge.js', array( 'media-views' ), $this->version, true );
+	}
+
+	// Enqueue theme management script on themes page
+	if ( $screen && $screen->id === 'mux-videos_page_wp-mux-themes' ) {
+		wp_enqueue_script( 'wp-mux-themes', plugin_dir_url( __FILE__ ) . 'js/wp-mux-themes.js', array( 'jquery' ), $this->version, true );
+	}
+
+	// Enqueue block editor script for Gutenberg
+	if ( $screen && ( $screen->is_block_editor() || $screen->id === 'post' || $screen->id === 'page' ) ) {
+		wp_enqueue_script( 'wp-mux-block-editor', plugin_dir_url( __FILE__ ) . 'js/wp-mux-block-editor.js', array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-data' ), $this->version, true );
+
+		// Make themes available to block editor
+		wp_add_inline_script( 'wp-mux-block-editor', 'window.wpMuxThemes = ' . json_encode( $theme_options ) . ';', 'before' );
 	}
 
 	}
@@ -180,6 +217,16 @@ class Wp_Mux_Admin {
 			'manage_options',
 			'wp-mux-settings',
 			array( $this, 'display_settings_page' )
+		);
+
+		// Add submenu for themes
+		add_submenu_page(
+			'wp-mux-videos',
+			__( 'Player Themes', 'wp-mux' ),
+			__( 'Themes', 'wp-mux' ),
+			'manage_options',
+			'wp-mux-themes',
+			array( $this, 'display_themes_page' )
 		);
 	}
 
@@ -253,6 +300,90 @@ class Wp_Mux_Admin {
 	 */
 	public function display_videos_page() {
 		include_once plugin_dir_path( __FILE__ ) . 'partials/wp-mux-admin-videos.php';
+	}
+
+	/**
+	 * Display the themes page.
+	 *
+	 * @since    1.0.0
+	 */
+	public function display_themes_page() {
+		include_once plugin_dir_path( __FILE__ ) . 'partials/wp-mux-admin-themes.php';
+	}
+
+	/**
+	 * Handle theme form submissions and redirects.
+	 *
+	 * @since    1.0.0
+	 */
+	public function handle_theme_form_submissions() {
+		// Only process on our themes page
+		if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'wp-mux-themes' ) {
+			return;
+		}
+
+		if ( ! isset( $_POST['action'] ) || ! wp_verify_nonce( $_POST['wp_mux_themes_nonce'], 'wp_mux_themes_action' ) ) {
+			return;
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+		$theme_manager = new Wp_Mux_Theme_Manager();
+
+		switch ( $_POST['action'] ) {
+			case 'save_theme':
+				$theme_id = sanitize_text_field( $_POST['theme_id'] );
+				$name = sanitize_text_field( $_POST['theme_name'] );
+				$description = sanitize_textarea_field( $_POST['theme_description'] );
+				$controls = isset( $_POST['controls'] ) ? $_POST['controls'] : array();
+				$styles = isset( $_POST['styles'] ) ? $_POST['styles'] : array();
+
+				if ( empty( $theme_id ) ) {
+					$theme_id = $theme_manager->generate_theme_id( $name );
+				}
+
+				$result = $theme_manager->save_theme( $theme_id, $name, $description, $controls, $styles );
+
+				if ( is_wp_error( $result ) ) {
+					set_transient( 'wp_mux_theme_error_' . get_current_user_id(), $result->get_error_message(), 30 );
+					$redirect_url = admin_url( 'admin.php?page=wp-mux-themes&action_completed=1' );
+				} else {
+					$redirect_url = admin_url( 'admin.php?page=wp-mux-themes&edit=' . urlencode( $theme_id ) . '&updated=1' );
+				}
+
+				wp_redirect( $redirect_url );
+				exit;
+				break;
+
+			case 'delete_theme':
+				$theme_id = sanitize_text_field( $_POST['theme_id'] );
+				$result = $theme_manager->delete_theme( $theme_id );
+
+				if ( is_wp_error( $result ) ) {
+					set_transient( 'wp_mux_theme_error_' . get_current_user_id(), $result->get_error_message(), 30 );
+				} else {
+					set_transient( 'wp_mux_theme_success_' . get_current_user_id(), __( 'Theme deleted successfully!', 'wp-mux' ), 30 );
+				}
+
+				$redirect_url = admin_url( 'admin.php?page=wp-mux-themes&action_completed=1' );
+				wp_redirect( $redirect_url );
+				exit;
+				break;
+
+			case 'set_default':
+				$theme_id = sanitize_text_field( $_POST['theme_id'] );
+				$result = $theme_manager->set_default_theme( $theme_id );
+
+				if ( $result ) {
+					set_transient( 'wp_mux_theme_success_' . get_current_user_id(), __( 'Default theme updated!', 'wp-mux' ), 30 );
+				} else {
+					set_transient( 'wp_mux_theme_error_' . get_current_user_id(), __( 'Failed to update default theme.', 'wp-mux' ), 30 );
+				}
+
+				$redirect_url = admin_url( 'admin.php?page=wp-mux-themes&action_completed=1' );
+				wp_redirect( $redirect_url );
+				exit;
+				break;
+		}
 	}
 
 	/**
@@ -376,6 +507,114 @@ class Wp_Mux_Admin {
 		}
 
 		wp_send_json_success( $video );
+	}
+
+	/**
+	 * Handle AJAX request for saving a theme.
+	 *
+	 * @since    1.0.0
+	 */
+	public function ajax_save_theme() {
+		// Verify nonce
+		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_themes_nonce' ) ) {
+			wp_die( __( 'Security check failed', 'wp-mux' ) );
+		}
+
+		// Check user permissions
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+		$theme_manager = new Wp_Mux_Theme_Manager();
+
+		$theme_id = sanitize_text_field( $_POST['theme_id'] );
+		$name = sanitize_text_field( $_POST['name'] );
+		$description = sanitize_textarea_field( $_POST['description'] );
+		$controls = isset( $_POST['controls'] ) ? $_POST['controls'] : array();
+		$styles = isset( $_POST['styles'] ) ? $_POST['styles'] : array();
+
+		// Generate theme ID if creating new theme
+		if ( empty( $theme_id ) ) {
+			$theme_id = $theme_manager->generate_theme_id( $name );
+		}
+
+		$result = $theme_manager->save_theme( $theme_id, $name, $description, $controls, $styles );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		}
+
+		wp_send_json_success( array(
+			'theme_id' => $theme_id,
+			'message' => __( 'Theme saved successfully', 'wp-mux' ),
+		) );
+	}
+
+	/**
+	 * Handle AJAX request for deleting a theme.
+	 *
+	 * @since    1.0.0
+	 */
+	public function ajax_delete_theme() {
+		// Verify nonce
+		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_themes_nonce' ) ) {
+			wp_die( __( 'Security check failed', 'wp-mux' ) );
+		}
+
+		// Check user permissions
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
+		}
+
+		$theme_id = sanitize_text_field( $_POST['theme_id'] );
+		if ( empty( $theme_id ) ) {
+			wp_send_json_error( __( 'Invalid theme ID', 'wp-mux' ) );
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+		$theme_manager = new Wp_Mux_Theme_Manager();
+
+		$result = $theme_manager->delete_theme( $theme_id );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		}
+
+		wp_send_json_success( __( 'Theme deleted successfully', 'wp-mux' ) );
+	}
+
+	/**
+	 * Handle AJAX request for setting default theme.
+	 *
+	 * @since    1.0.0
+	 */
+	public function ajax_set_default_theme() {
+		// Verify nonce
+		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_themes_nonce' ) ) {
+			wp_die( __( 'Security check failed', 'wp-mux' ) );
+		}
+
+		// Check user permissions
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
+		}
+
+		$theme_id = sanitize_text_field( $_POST['theme_id'] );
+		if ( empty( $theme_id ) ) {
+			wp_send_json_error( __( 'Invalid theme ID', 'wp-mux' ) );
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+		$theme_manager = new Wp_Mux_Theme_Manager();
+
+		$result = $theme_manager->set_default_theme( $theme_id );
+
+		if ( ! $result ) {
+			wp_send_json_error( __( 'Failed to set default theme', 'wp-mux' ) );
+		}
+
+		wp_send_json_success( __( 'Default theme updated successfully', 'wp-mux' ) );
 	}
 
 	/**

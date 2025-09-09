@@ -133,6 +133,11 @@ class Wp_Mux {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-media-sync.php';
 
+		/**
+		 * The class responsible for managing MUX player themes.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+
 		if ( is_admin() ) {
 			new Wp_Mux_Media_Sync();
 		}
@@ -172,12 +177,22 @@ class Wp_Mux {
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_styles' );
 		$this->loader->add_action( 'admin_enqueue_scripts', $plugin_admin, 'enqueue_scripts' );
 		$this->loader->add_action( 'admin_menu', $plugin_admin, 'add_admin_menu' );
+		// Register settings fields for the settings page
+		$this->loader->add_action( 'admin_init', $plugin_admin, 'init_settings' );
+
+		// Handle theme form submissions early in admin_init
+		$this->loader->add_action( 'admin_init', $plugin_admin, 'handle_theme_form_submissions' );
 
 		// Add AJAX handlers for admin functionality
 		$this->loader->add_action( 'wp_ajax_wp_mux_create_upload', $plugin_admin, 'ajax_create_upload' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_load_videos', $plugin_admin, 'ajax_load_videos' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_delete_video', $plugin_admin, 'ajax_delete_video' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_get_video_details', $plugin_admin, 'ajax_get_video_details' );
+
+		// Add AJAX handlers for theme functionality
+		$this->loader->add_action( 'wp_ajax_wp_mux_save_theme', $plugin_admin, 'ajax_save_theme' );
+		$this->loader->add_action( 'wp_ajax_wp_mux_delete_theme', $plugin_admin, 'ajax_delete_theme' );
+		$this->loader->add_action( 'wp_ajax_wp_mux_set_default_theme', $plugin_admin, 'ajax_set_default_theme' );
 
 		// Add Gutenberg/Block editor support for MUX videos
 		$this->loader->add_action( 'enqueue_block_editor_assets', $plugin_admin, 'enqueue_block_editor_assets' );

@@ -75,6 +75,9 @@ class Wp_Mux_Public {
 
 		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wp-mux-public.css', array(), $this->version, 'all' );
 
+		// Add theme CSS for MUX players
+		$this->enqueue_theme_styles();
+
 	}	/**
 	 * Register the JavaScript for the public-facing side of the site.
 	 *
@@ -125,12 +128,12 @@ class Wp_Mux_Public {
 			error_log( 'WP MUX: Extracted playback ID: ' . $playback_id );
 
 			$poster = isset( $attr['poster'] ) ? $attr['poster'] : '';
-			
+
 			// If no poster is provided, generate thumbnail URL from MUX
 			if ( empty( $poster ) ) {
 				$poster = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
 			}
-			
+
 			$controls = isset( $attr['controls'] ) ? 'controls' : 'controls';
 			$width = isset( $attr['width'] ) ? $attr['width'] : '';
 			$height = isset( $attr['height'] ) ? $attr['height'] : '';
@@ -154,6 +157,9 @@ class Wp_Mux_Public {
 				esc_attr( $style ),
 				__( 'Your browser does not support HTML5 video.', 'wp-mux' )
 			);
+
+			// Apply theme to the player
+			$html = $this->apply_theme_to_player( $html );
 
 			error_log( 'WP MUX: Generated HTML: ' . $html );
 		}
@@ -194,6 +200,9 @@ class Wp_Mux_Public {
 
 				$content = str_replace( $full_match, $replacement, $content );
 
+				// Also replace closing video tags with mux-player
+				$content = str_replace( '</video>', '</mux-player>', $content );
+
 				error_log( 'WP MUX: Replaced with: ' . $replacement );
 			}
 		}
@@ -208,6 +217,7 @@ class Wp_Mux_Public {
 		if ( $block['blockName'] === 'core/video' ) {
 			error_log( 'WP MUX: Processing video block' );
 			error_log( 'WP MUX: Block content: ' . $block_content );
+			error_log( 'WP MUX: Block data: ' . print_r( $block, true ) );
 
 			// Check if this block contains a MUX video (both .m3u8 and .mp4)
 			if ( strpos( $block_content, 'stream.mux.com' ) !== false && ( strpos( $block_content, '.m3u8' ) !== false || strpos( $block_content, '.mp4' ) !== false ) ) {
@@ -226,6 +236,11 @@ class Wp_Mux_Public {
 					// Generate thumbnail URL
 					$thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
 
+					// Get theme from block attributes
+					$theme_id = isset( $block['attrs']['mux_theme'] ) ? $block['attrs']['mux_theme'] : '';
+					error_log( 'WP MUX: Theme ID from block attributes: "' . $theme_id . '"' );
+					error_log( 'WP MUX: Available block attributes: ' . print_r( $block['attrs'], true ) );
+
 					// Replace video element with mux-player
 					$block_content = preg_replace(
 						'/<video([^>]*)>/',
@@ -233,8 +248,18 @@ class Wp_Mux_Public {
 						$block_content
 					);
 
-					// Remove the src attribute since mux-video doesn't need it
+					// Replace closing video tag with mux-player
+					$block_content = str_replace( '</video>', '</mux-player>', $block_content );
+
+					// Remove the src attribute since mux-player doesn't need it
 					$block_content = preg_replace( '/src=["\'][^"\']*["\']/', '', $block_content );
+
+					// Apply theme to the player
+					if ( ! empty( $theme_id ) ) {
+						$block_content = $this->apply_theme_to_player( $block_content, $theme_id );
+					} else {
+						$block_content = $this->apply_theme_to_player( $block_content );
+					}
 
 					error_log( 'WP MUX: Modified block content: ' . $block_content );
 				}
@@ -242,6 +267,143 @@ class Wp_Mux_Public {
 		}
 
 		return $block_content;
+	}
+
+	/**
+	 * Enqueue theme styles for MUX players.
+	 *
+	 * @since    1.0.0
+	 */
+	private function enqueue_theme_styles() {
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+		$theme_manager = new Wp_Mux_Theme_Manager();
+
+		// Get all themes and generate CSS
+		$themes = $theme_manager->get_themes();
+		$css = '';
+
+		foreach ( $themes as $theme_id => $theme_data ) {
+			$theme_css = $theme_manager->generate_theme_css( $theme_id );
+			if ( ! empty( $theme_css ) ) {
+				// Apply theme-specific class to the CSS selector
+				$css .= ".wp-mux-theme-{$theme_id} mux-player,\n.wp-mux-theme-{$theme_id}.wp-block-video mux-player {\n";
+				if ( strpos( $theme_css, 'mux-player' ) === 0 ) {
+					// Extract the CSS from inside the mux-player selector
+					$inner_css = str_replace( 'mux-player { ', '', $theme_css );
+					$inner_css = rtrim( $inner_css, ' }' );
+					$css .= $inner_css . "\n";
+				} else {
+					$css .= $theme_css . "\n";
+				}
+				$css .= "}\n";
+			}
+		}
+
+		// Add default theme CSS
+		$default_theme_id = $theme_manager->get_default_theme_id();
+		$default_css = $theme_manager->generate_theme_css( $default_theme_id );
+		if ( ! empty( $default_css ) ) {
+			$css .= $default_css . "\n";
+		}
+
+		if ( ! empty( $css ) ) {
+			wp_add_inline_style( $this->plugin_name, $css );
+		}
+	}
+
+	/**
+	 * Apply theme to MUX player element.
+	 *
+	 * @since    1.0.0
+	 * @param    string    $player_html    The player HTML.
+	 * @param    string    $theme_id       Optional theme ID to apply.
+	 * @return   string                    Modified player HTML.
+	 */
+	public function apply_theme_to_player( $player_html, $theme_id = null ) {
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+		$theme_manager = new Wp_Mux_Theme_Manager();
+
+		// Log what theme ID we received
+		error_log( 'WP MUX: apply_theme_to_player called with theme_id: "' . $theme_id . '"' );
+
+		// Use default theme if none specified or if explicitly empty
+		if ( empty( $theme_id ) ) {
+			$theme_id = $theme_manager->get_default_theme_id();
+			error_log( 'WP MUX: No theme specified, using default theme ID: "' . $theme_id . '"' );
+		}
+
+		// Get theme data
+		$theme = $theme_manager->get_theme( $theme_id );
+		if ( ! $theme ) {
+			error_log( 'WP MUX: Theme not found for ID: "' . $theme_id . '"' );
+			return $player_html;
+		}
+
+		error_log( 'WP MUX: Found theme: "' . $theme['name'] . '" for ID: "' . $theme_id . '"' );
+
+		// Check if main controls are enabled
+		$main_controls_enabled = isset( $theme['controls']['controls'] ) ? $theme['controls']['controls'] : true;
+
+		error_log( 'WP MUX: Theme ID: ' . $theme_id );
+		error_log( 'WP MUX: Main controls enabled: ' . ( $main_controls_enabled ? 'true' : 'false' ) );
+		error_log( 'WP MUX: Theme controls data: ' . print_r( $theme['controls'], true ) );
+
+		// Always ensure controls attribute is present - CSS will handle visibility
+		error_log( 'WP MUX: Ensuring controls attribute is present (CSS will handle visibility)' );
+		if ( strpos( $player_html, 'controls' ) === false ) {
+			$player_html = preg_replace(
+				'/(<mux-player[^>]*?)>/',
+				'$1 controls>',
+				$player_html
+			);
+		}
+
+		// Always add theme class regardless of controls state
+		$class_addition = 'class="wp-mux-theme-' . esc_attr( $theme_id ) . '"';
+
+		// Check if class attribute exists
+		if ( strpos( $player_html, 'class=' ) !== false ) {
+			// Add to existing class
+			$player_html = preg_replace(
+				'/class=(["\'])([^"\']*)\1/',
+				'class=$1$2 wp-mux-theme-' . esc_attr( $theme_id ) . '$1',
+				$player_html
+			);
+		} else {
+			// Add new class attribute
+			$player_html = preg_replace(
+				'/(<mux-player[^>]*?)>/',
+				'$1 ' . $class_addition . '>',
+				$player_html
+			);
+		}
+
+		// Get theme styles (will return empty string if main controls disabled)
+		$theme_styles = $theme_manager->get_theme_style_attributes( $theme_id );
+
+		if ( ! empty( $theme_styles ) ) {
+			// Add inline styles
+			$style_addition = 'style="' . esc_attr( $theme_styles ) . '"';
+
+			// Check if style attribute exists
+			if ( strpos( $player_html, 'style=' ) !== false ) {
+				// Add to existing style
+				$player_html = preg_replace(
+					'/style=(["\'])([^"\']*)\1/',
+					'style=$1$2; ' . $theme_styles . '$1',
+					$player_html
+				);
+			} else {
+				// Add new style attribute
+				$player_html = preg_replace(
+					'/(<mux-player[^>]*?)>/',
+					'$1 ' . $style_addition . '>',
+					$player_html
+				);
+			}
+		}
+
+		return $player_html;
 	}
 
 }

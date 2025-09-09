@@ -1,0 +1,531 @@
+/**
+ * WP MUX Theme Management Styles
+ *
+ * Styles for the theme management interface.
+ *
+ * @since    1.0.0
+ */
+
+/* Theme Management Layout */
+.wp-mux-themes-container {
+    display: flex;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.wp-mux-themes-sidebar {
+    flex: 0 0 350px;
+}
+
+.wp-mux-themes-main {
+    flex: 1;
+}
+
+/* Theme Form */
+.wp-mux-theme-form {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    padding: 20px;
+    border-radius: 4px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.wp-mux-theme-form h2 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #1d2327;
+}
+
+/* Controls Sections */
+.wp-mux-controls-sections {
+    margin: 20px 0;
+}
+
+.wp-mux-control-section {
+    margin-bottom: 25px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f0f0f1;
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.wp-mux-control-section:last-child {
+    border-bottom: none;
+}
+
+.wp-mux-control-section h4 {
+    margin: 0 0 10px 0;
+    color: #1d2327;
+    text-transform: capitalize;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+/* Notice for when controls are disabled */
+.wp-mux-controls-notice {
+    margin-top: 15px !important;
+    padding: 12px 15px !important;
+    background: #f0f6fc !important;
+    border: 1px solid #c3dbf2 !important;
+    border-radius: 4px !important;
+    animation: slideInNotice 0.3s ease-out;
+}
+
+.wp-mux-controls-notice p {
+    margin: 0 !important;
+    color: #0073aa !important;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+}
+
+.wp-mux-controls-notice .dashicons {
+    margin-right: 8px !important;
+    font-size: 16px;
+}
+
+@keyframes slideInNotice {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.wp-mux-control-item {
+    margin-bottom: 12px;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    background: #fff;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+
+.wp-mux-control-item:hover {
+    border-color: #c3c4c7;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.wp-mux-control-item.control-enabled {
+    background: #f8fbff;
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px rgba(34, 113, 177, 0.1);
+}
+
+.control-header {
+    padding: 12px 15px;
+    margin: 0;
+    background: transparent;
+    border-bottom: 1px solid transparent;
+}
+
+.wp-mux-control-item.control-enabled .control-header {
+    border-bottom-color: #e5e7eb;
+}
+
+.control-header label {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    line-height: 1.4;
+    margin: 0;
+    cursor: pointer;
+}
+
+.control-header input[type="checkbox"] {
+    margin: 0 10px 0 0;
+    transform: scale(1.1);
+}
+
+.control-header strong {
+    flex: 1;
+    color: #1d2327;
+}
+
+.control-header .description {
+    color: #646970;
+    font-style: normal;
+    font-size: 12px;
+    margin: 4px 0 0 30px;
+    display: block;
+    line-height: 1.3;
+}
+
+/* Control Styling Options */
+.control-styles {
+    padding: 12px 15px;
+    background: #f9f9f9;
+    border-top: 1px solid #e5e7eb;
+}
+
+.wp-mux-control-item.control-enabled .control-styles {
+    background: #f0f6fc;
+}
+
+.style-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+}
+
+.style-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 12px;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 4px;
+    transition: border-color 0.2s ease;
+}
+
+.style-option:hover {
+    border-color: #c3c4c7;
+}
+
+.style-option:focus-within {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px rgba(34, 113, 177, 0.3);
+}
+
+.style-option label {
+    font-size: 13px;
+    font-weight: 500;
+    color: #1d2327;
+    margin: 0;
+    flex: 1;
+    min-width: 0;
+}
+
+.style-option input[type="color"] {
+    width: 35px;
+    height: 28px;
+    border: 1px solid #c3c4c7;
+    border-radius: 3px;
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 2px;
+}
+
+.style-option input[type="text"] {
+    padding: 4px 8px;
+    border: 1px solid #c3c4c7;
+    border-radius: 3px;
+    font-size: 13px;
+    width: 80px;
+    flex-shrink: 0;
+    text-align: center;
+}
+
+.style-option input[type="text"]:focus,
+.style-option input[type="color"]:focus {
+    border-color: #2271b1;
+    outline: none;
+    box-shadow: 0 0 0 1px rgba(34, 113, 177, 0.3);
+}
+
+/* Theme Grid */
+.wp-mux-themes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+/* Theme Cards */
+.wp-mux-theme-card {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    border-radius: 6px;
+    padding: 20px;
+    position: relative;
+    transition: all 0.2s ease;
+}
+
+.wp-mux-theme-card:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+}
+
+/* Default theme styling - more subtle */
+.wp-mux-theme-card.is-default {
+    border-color: #00a32a;
+}
+
+.wp-mux-theme-card.is-default::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #00a32a, #4ade80);
+    border-radius: 6px 6px 0 0;
+}
+
+/* Currently editing theme - distinct styling */
+.wp-mux-theme-card.is-editing {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 2px rgba(34, 113, 177, 0.3);
+    background: #f8fbff;
+}
+
+.wp-mux-theme-card.is-editing::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #2271b1, #5b9dd9);
+    border-radius: 6px 6px 0 0;
+}
+
+.wp-mux-theme-card.is-editing .wp-mux-theme-header::after {
+    content: 'Editing';
+    background: #2271b1;
+    color: white;
+    padding: 2px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 10px;
+}
+
+.wp-mux-theme-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.wp-mux-theme-header h3 {
+    margin: 0;
+    font-size: 18px;
+    color: #1d2327;
+}
+
+.wp-mux-default-badge {
+    background: #00a32a;
+    color: white;
+    padding: 3px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.wp-mux-default-badge::before {
+    content: '★';
+    font-size: 10px;
+}
+
+.wp-mux-theme-description {
+    color: #646970;
+    margin-bottom: 15px;
+    font-size: 14px;
+    line-height: 1.4;
+}
+
+/* Theme Preview */
+.wp-mux-theme-preview {
+    margin: 15px 0;
+}
+
+.preview-player {
+    background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+    border-radius: 4px;
+    padding: 40px 20px;
+    text-align: center;
+    position: relative;
+    min-height: 80px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid #3a3a3a;
+}
+
+.preview-controls {
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+}
+
+/* Theme Meta */
+.wp-mux-theme-meta {
+    margin: 15px 0;
+    color: #646970;
+    font-size: 12px;
+}
+
+.wp-mux-theme-meta small {
+    font-size: inherit;
+}
+
+/* Theme Actions */
+.wp-mux-theme-actions {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #f0f0f1;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.wp-mux-theme-actions .button {
+    margin: 0;
+    font-size: 13px;
+}
+
+.wp-mux-theme-actions form {
+    display: inline-block;
+}
+
+/* Theme Usage Info */
+.wp-mux-theme-usage {
+    background: #f6f7f7;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin-top: 30px;
+}
+
+.wp-mux-theme-usage h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #1d2327;
+}
+
+.wp-mux-theme-usage p {
+    margin-bottom: 10px;
+    color: #646970;
+    line-height: 1.5;
+}
+
+.wp-mux-theme-usage code {
+    display: block;
+    background: #2c3338;
+    color: #fff;
+    padding: 10px;
+    border-radius: 3px;
+    margin-top: 10px;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+    overflow-x: auto;
+    white-space: nowrap;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+    .wp-mux-themes-container {
+        flex-direction: column;
+    }
+
+    .wp-mux-themes-sidebar {
+        flex: none;
+    }
+
+    .wp-mux-themes-grid {
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    }
+}
+
+@media (max-width: 768px) {
+    .wp-mux-themes-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wp-mux-theme-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+
+    .wp-mux-theme-actions {
+        flex-direction: column;
+    }
+
+    .wp-mux-theme-actions .button {
+        width: 100%;
+    }
+}
+
+/* Admin Notice Styling */
+.wp-mux-themes-page .notice {
+    margin: 20px 0;
+}
+
+/* Loading States */
+.wp-mux-theme-card.loading {
+    opacity: 0.6;
+    pointer-events: none;
+}
+
+.wp-mux-theme-card.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #ccc;
+    border-top-color: #0073aa;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Form Validation */
+.wp-mux-theme-form .error {
+    border-color: #dc3232;
+    box-shadow: 0 0 2px rgba(220, 50, 50, 0.8);
+}
+
+.wp-mux-theme-form .error-message {
+    color: #dc3232;
+    font-size: 12px;
+    margin-top: 5px;
+    display: block;
+}
+
+/* Control Categories Styling */
+.wp-mux-control-section[data-category="global"] h4 {
+    color: #d63384;
+}
+
+.wp-mux-control-section[data-category="buttons"] h4 {
+    color: #0d6efd;
+}
+
+.wp-mux-control-section[data-category="controls"] h4 {
+    color: #198754;
+}
+
+.wp-mux-control-section[data-category="sections"] h4 {
+    color: #fd7e14;
+}
+
+/* Preview Animation */
+.preview-player {
+    transition: all 0.3s ease;
+}
+
+.preview-player:hover {
+    transform: scale(1.02);
+}

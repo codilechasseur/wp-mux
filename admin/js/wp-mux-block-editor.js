@@ -28,6 +28,100 @@
                 return settings;
             }
         );
+
+        // Add theme selector to video block
+        wp.hooks.addFilter(
+            'blocks.registerBlockType',
+            'wp-mux/add-theme-selector',
+            function(settings, name) {
+                if (name === 'core/video') {
+                    // Add mux_theme attribute
+                    if (!settings.attributes) {
+                        settings.attributes = {};
+                    }
+                    settings.attributes.mux_theme = {
+                        type: 'string',
+                        default: ''
+                    };
+
+                    // Store original edit function
+                    const originalEdit = settings.edit;
+
+                    // Extend edit function to add theme selector
+                    settings.edit = function(props) {
+                        const { InspectorControls } = wp.blockEditor;
+                        const { PanelBody, SelectControl } = wp.components;
+                        const { Fragment } = wp.element;
+
+                        // Get original edit component
+                        const originalComponent = originalEdit(props);
+
+                        // Check if this is a MUX video (by checking src or other indicators)
+                        const isMuxVideo = props.attributes.src &&
+                            (props.attributes.src.includes('mux.com') ||
+                             props.attributes.src.includes('muxed.s3.amazonaws.com'));
+
+                        if (!isMuxVideo) {
+                            return originalComponent;
+                        }
+
+                        // Debug themes
+                        console.log('WP MUX: Available themes:', window.wpMuxThemes);
+                        console.log('WP MUX: Current theme attribute:', props.attributes.mux_theme);
+
+                        // Log individual themes
+                        if (window.wpMuxThemes) {
+                            window.wpMuxThemes.forEach(theme => {
+                                console.log('WP MUX: Theme -', 'ID:', theme.id, 'Name:', theme.name);
+                            });
+                        }
+
+                        // Create theme options
+                        const themeOptions = [
+                            // Add all themes including default, but show proper names
+                            ...(window.wpMuxThemes || []).map(theme => ({
+                                label: theme.id === 'default' ? `${theme.name} (Default)` : theme.name,
+                                value: theme.id
+                            }))
+                        ];
+                        console.log('WP MUX: Theme options for selector:', themeOptions);
+
+                        // Theme selector component
+                        const themeSelector = wp.element.createElement(
+                            InspectorControls,
+                            {},
+                            wp.element.createElement(
+                                PanelBody,
+                                {
+                                    title: 'MUX Player Theme',
+                                    initialOpen: false
+                                },
+                                wp.element.createElement(
+                                    SelectControl,
+                                    {
+                                        label: 'Player Theme',
+                                        value: props.attributes.mux_theme || 'default',
+                                        options: themeOptions,
+                                        onChange: function(value) {
+                                            console.log('WP MUX: Theme changed to:', value);
+                                            props.setAttributes({ mux_theme: value });
+                                        }
+                                    }
+                                )
+                            )
+                        );
+
+                        return wp.element.createElement(
+                            Fragment,
+                            {},
+                            originalComponent,
+                            themeSelector
+                        );
+                    };
+                }
+                return settings;
+            }
+        );
     }
 
     // Function to convert MUX videos
@@ -170,7 +264,7 @@
 
                                 // Create thumbnail URL from playback ID
                                 const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?width=640&height=360`;
-                                
+
                                 // Add a thumbnail preview div inside the mux element
                                 const placeholder = doc.createElement('div');
                                 placeholder.style.cssText = `
@@ -190,7 +284,7 @@
                                     position: relative;
                                     cursor: pointer;
                                 `;
-                                
+
                                 // Add overlay with play button and info
                                 placeholder.innerHTML = `
                                     <div style="
@@ -207,7 +301,7 @@
                                     ">
                                         <div style="text-align: center;">
                                             <div style="
-                                                font-size: 48px; 
+                                                font-size: 48px;
                                                 margin-bottom: 8px;
                                                 text-shadow: 0 2px 4px rgba(0,0,0,0.5);
                                             ">▶</div>
@@ -217,7 +311,7 @@
                                                 margin-bottom: 4px;
                                             ">MUX Video Preview</div>
                                             <div style="
-                                                font-size: 11px; 
+                                                font-size: 11px;
                                                 opacity: 0.9;
                                                 text-shadow: 0 1px 2px rgba(0,0,0,0.7);
                                             ">Will play on frontend</div>
