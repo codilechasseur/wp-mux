@@ -97,13 +97,6 @@
 		var analytics = attachment.mux_analytics || {};
 
 		var html = '<div class="mux-video-stats">';
-		html += '<h2 class="mux-stats-title">';
-		html += '<span class="dashicons dashicons-chart-bar"></span> ';
-		html += 'Video Analytics';
-		html += '<button type="button" class="button button-small mux-refresh-stats" data-attachment-id="' + attachment.id + '" title="Refresh Analytics">';
-		html += '<span class="dashicons dashicons-update"></span>';
-		html += '</button>';
-		html += '</h2>';
 
 		html += '<div class="mux-stats-grid">';
 
@@ -138,9 +131,12 @@
 
 		html += '</div>'; // End stats-grid
 
-		// Last updated timestamp
+		// Footer with last updated timestamp and refresh button
 		html += '<div class="mux-stats-footer">';
 		html += '<span class="mux-stats-updated">Updated: ' + (analytics.last_updated || 'Never') + '</span>';
+		html += '<button type="button" class="button button-small mux-refresh-stats" data-attachment-id="' + attachment.id + '" title="Refresh Analytics">';
+		html += '<span class="dashicons dashicons-update"></span> Refresh';
+		html += '</button>';
 		html += '</div>';
 
 		html += '</div>'; // End mux-video-stats
@@ -227,8 +223,8 @@
 			}
 		});
 
-		// Update timestamp
-		$stats.find('.mux-stats-updated').text('Updated: ' + (analytics.last_updated || 'Just now'));
+		// Update timestamp - always show "Just now" after a manual refresh
+		$stats.find('.mux-stats-updated').text('Updated: Just now');
 	}
 
 	/**

@@ -21,7 +21,14 @@
 	border-radius: 4px;
 }
 
-/* Stats Title with Icon and Refresh Button */
+/* Stats Header with Refresh Button */
+.mux-stats-header {
+	display: flex;
+	justify-content: flex-end;
+	margin-bottom: 12px;
+}
+
+/* Deprecated - kept for backwards compatibility */
 .mux-stats-title {
 	display: flex;
 	align-items: center;
@@ -47,23 +54,28 @@
 	padding: 4px 8px;
 	height: auto;
 	line-height: 1;
+	font-size: 12px;
 	background: #fff;
-	border: 1px solid #2271b1;
-	color: #2271b1;
+	border: 1px solid #ddd;
+	color: #50575e;
 	cursor: pointer;
 	transition: all 0.2s ease;
+	display: inline-flex !important;
+	align-items: center;
+	gap: 4px;
 }
 
 .mux-refresh-stats:hover {
-	background: #2271b1;
-	color: #fff;
-	border-color: #135e96;
+	background: #f0f0f1;
+	border-color: #2271b1;
+	color: #2271b1;
 }
 
 .mux-refresh-stats .dashicons {
 	font-size: 16px;
 	width: 16px;
 	height: 16px;
+	line-height: 1;
 }
 
 .mux-refresh-stats:disabled,
@@ -156,9 +168,11 @@
 
 /* Stats Footer */
 .mux-stats-footer {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
 	padding-top: 10px;
 	border-top: 1px solid #ddd;
-	text-align: center;
 }
 
 .mux-stats-updated {

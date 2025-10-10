@@ -70,7 +70,7 @@ class Wp_Mux {
 		if ( defined( 'WP_MUX_VERSION' ) ) {
 			$this->version = WP_MUX_VERSION;
 		} else {
-			$this->version = '1.0.0';
+			$this->version = '1.0.1';
 		}
 		$this->plugin_name = 'wp-mux';
 
@@ -212,6 +212,12 @@ class Wp_Mux {
 
 		// Add AJAX handler for video analytics refresh
 		$this->loader->add_action( 'wp_ajax_wp_mux_refresh_video_analytics', $plugin_admin, 'ajax_refresh_video_analytics' );
+
+		// Add AJAX handlers for bulk migration
+		$this->loader->add_action( 'wp_ajax_wp_mux_scan_local_videos', $plugin_admin, 'ajax_scan_local_videos' );
+		$this->loader->add_action( 'wp_ajax_wp_mux_migrate_single_video', $plugin_admin, 'ajax_migrate_single_video' );
+		$this->loader->add_action( 'wp_ajax_wp_mux_get_migration_status', $plugin_admin, 'ajax_get_migration_status' );
+		$this->loader->add_action( 'wp_ajax_wp_mux_save_delete_option', $plugin_admin, 'ajax_save_delete_option' );
 
 		// Add Gutenberg/Block editor support for MUX videos
 		$this->loader->add_action( 'enqueue_block_editor_assets', $plugin_admin, 'enqueue_block_editor_assets' );

@@ -145,11 +145,18 @@ class Wp_Mux_Media_Sync {
             }
         }
 
+        // Generate a friendly title for the imported video
+        $video_title = 'MUX Video';
+        if ( ! empty( $asset['created_at'] ) ) {
+            $created_date = date( 'Y-m-d H:i', strtotime( $asset['created_at'] ) );
+            $video_title = 'MUX Video - ' . $created_date;
+        }
+
         // Insert attachment post
         $attachment = array(
             'guid'           => $mux_id,
             'post_mime_type' => 'video/mux',
-            'post_title'     => $mux_id,
+            'post_title'     => $video_title,
             'post_content'   => '',
             'post_status'    => 'inherit',
             'post_type'      => 'attachment',
@@ -161,6 +168,7 @@ class Wp_Mux_Media_Sync {
             update_post_meta( $attach_id, '_mux_thumbnail_url', $asset['thumbnail_url'] ?? '' );
             update_post_meta( $attach_id, '_mux_duration', $asset['duration'] ?? '' );
             update_post_meta( $attach_id, '_mux_created_at', $asset['created_at'] ?? '' );
+            update_post_meta( $attach_id, '_wp_mux_status', 'complete' );
             // Set post_date and post_date_gmt to MUX asset creation date
             if ( !empty($asset['created_at']) ) {
                 global $wpdb;
