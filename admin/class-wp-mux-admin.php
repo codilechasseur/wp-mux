@@ -272,6 +272,38 @@ class Wp_Mux_Admin {
 	}
 
 	/**
+	 * Inject MUX data on attachment edit pages
+	 *
+	 * @since    1.2.0
+	 */
+	public function inject_mux_data_on_attachment_edit() {
+		$screen = get_current_screen();
+		
+		// Check if we're on an attachment edit page
+		if ( $screen && $screen->id === 'attachment' && isset( $_GET['post'] ) ) {
+			$attachment_id = intval( $_GET['post'] );
+			$attachment = get_post( $attachment_id );
+			
+			// Check if this is a MUX video
+			if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
+				$playback_id = get_post_meta( $attachment_id, '_mux_playback_id', true );
+				
+				if ( $playback_id ) {
+					// Inject playback ID for JavaScript to use
+					?>
+					<script type="text/javascript">
+						window.wpMuxAttachment = {
+							playback_id: '<?php echo esc_js( $playback_id ); ?>',
+							attachment_id: <?php echo intval( $attachment_id ); ?>
+						};
+					</script>
+					<?php
+				}
+			}
+		}
+	}
+
+	/**
 	 * Add settings link to plugin action links.
 	 *
 	 * @since    1.0.0
@@ -1096,13 +1128,16 @@ class Wp_Mux_Admin {
 
 		$this->mux_debug_log( 'Intercepting AJAX video upload', $file );
 
-		// Process with MUX
-		$result = $this->process_mux_video_upload( $file );
+		// Let WordPress handle the file upload first, then queue for MUX processing
+		// This is handled by queue_video_for_mux_processing hook on add_attachment
+		$this->mux_debug_log( 'Letting WordPress handle upload, will queue for MUX via add_attachment hook' );
+		return;
 
-		if ( is_wp_error( $result ) ) {
-			$this->mux_debug_log( 'MUX upload failed', [ 'error' => $result->get_error_message() ] );
+		// Note: The following code is unreachable but kept for reference
+		if ( false ) {
+			$this->mux_debug_log( 'MUX upload failed (unreachable)', [ 'error' => 'Method removed' ] );
 			wp_send_json_error( array(
-				'message' => $result->get_error_message()
+				'message' => 'Method removed'
 			));
 		} else {
 			$this->mux_debug_log( 'MUX upload successful', [ 'attachment_id' => $result ] );

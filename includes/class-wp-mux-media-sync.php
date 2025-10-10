@@ -15,6 +15,10 @@ class Wp_Mux_Media_Sync {
         add_filter( 'ajax_query_attachments_args', [ $this, 'filter_media_library_query' ] );
         // Render custom fields/thumbnails for MUX assets
         add_filter( 'wp_prepare_attachment_for_js', [ $this, 'prepare_mux_attachment_for_js' ], 10, 3 );
+        // Filter attachment image src for list view thumbnails
+        add_filter( 'wp_get_attachment_image_src', [ $this, 'filter_attachment_image_src' ], 10, 4 );
+        // Filter attachment metadata for thumbnails
+        add_filter( 'wp_get_attachment_metadata', [ $this, 'filter_attachment_metadata' ], 10, 2 );
     }
 
     /**
@@ -194,15 +198,59 @@ class Wp_Mux_Media_Sync {
         if ( $attachment->post_mime_type === 'video/mux' ) {
             $response['type'] = 'video';
             $response['subtype'] = 'mux';
-            $response['icon'] = $response['image'] = get_post_meta( $attachment->ID, '_mux_thumbnail_url', true );
-            $response['url'] = $this->get_mux_stream_url( $attachment->ID );
-            $response['mux'] = true;
-            $response['playback_id'] = get_post_meta( $attachment->ID, '_mux_playback_id', true );
+            
+            // Get MUX metadata
+            $thumbnail_url = get_post_meta( $attachment->ID, '_mux_thumbnail_url', true );
+            $playback_id = get_post_meta( $attachment->ID, '_mux_playback_id', true );
             $duration = get_post_meta( $attachment->ID, '_mux_duration', true );
+            $stream_url = $this->get_mux_stream_url( $attachment->ID );
+            
+            // Set icon and image for list view thumbnails
+            $response['icon'] = $thumbnail_url;
+            $response['image'] = array(
+                'src' => $thumbnail_url,
+                'width' => 640,
+                'height' => 360
+            );
+            
+            // Add sizes array for different thumbnail sizes used in list and grid views
+            $response['sizes'] = array(
+                'thumbnail' => array(
+                    'url' => $thumbnail_url,
+                    'width' => 150,
+                    'height' => 150,
+                    'orientation' => 'landscape'
+                ),
+                'medium' => array(
+                    'url' => $thumbnail_url,
+                    'width' => 300,
+                    'height' => 300,
+                    'orientation' => 'landscape'
+                ),
+                'full' => array(
+                    'url' => $thumbnail_url,
+                    'width' => 640,
+                    'height' => 360,
+                    'orientation' => 'landscape'
+                )
+            );
+            
+            // Use MUX stream URL instead of local file
+            $response['url'] = $stream_url;
+            
+            // Add MUX-specific properties
+            $response['mux'] = true;
+            $response['playback_id'] = $playback_id;
             $response['duration'] = $duration;
             $response['created_at'] = get_post_meta( $attachment->ID, '_mux_created_at', true );
-            // Remove 'View media file' link by setting non-existent file URL
+            
+            // Set filename to empty to hide it (no local file exists)
+            $response['filename'] = '';
             $response['file'] = '';
+            
+            // Override edit URL to use attachment page (not direct file link)
+            $response['editLink'] = get_edit_post_link( $attachment->ID, 'raw' );
+            $response['link'] = $stream_url; // Use stream URL for "View" link
         }
         return $response;
     }
@@ -217,5 +265,70 @@ class Wp_Mux_Media_Sync {
             return 'https://stream.mux.com/' . $playback_id . '.mp4?mux=1';
         }
         return '';
+    }
+
+    /**
+     * Filter attachment image src to provide MUX thumbnails for list view
+     */
+    public function filter_attachment_image_src( $image, $attachment_id, $size, $icon ) {
+        $attachment = get_post( $attachment_id );
+        
+        if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
+            $thumbnail_url = get_post_meta( $attachment_id, '_mux_thumbnail_url', true );
+            
+            if ( $thumbnail_url ) {
+                // Return array with thumbnail URL and dimensions
+                // WordPress expects: [ url, width, height, is_intermediate ]
+                return array(
+                    $thumbnail_url,
+                    150, // width
+                    150, // height
+                    false // is_intermediate
+                );
+            }
+        }
+        
+        return $image;
+    }
+
+    /**
+     * Filter attachment metadata to include MUX thumbnail info
+     */
+    public function filter_attachment_metadata( $data, $attachment_id ) {
+        $attachment = get_post( $attachment_id );
+        
+        if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
+            $thumbnail_url = get_post_meta( $attachment_id, '_mux_thumbnail_url', true );
+            
+            if ( $thumbnail_url && is_array( $data ) ) {
+                // Add thumbnail to metadata
+                if ( ! isset( $data['sizes'] ) ) {
+                    $data['sizes'] = array();
+                }
+                
+                $data['sizes']['thumbnail'] = array(
+                    'file' => $thumbnail_url,
+                    'width' => 150,
+                    'height' => 150,
+                    'mime-type' => 'image/jpeg'
+                );
+                
+                $data['sizes']['medium'] = array(
+                    'file' => $thumbnail_url,
+                    'width' => 300,
+                    'height' => 300,
+                    'mime-type' => 'image/jpeg'
+                );
+                
+                $data['sizes']['full'] = array(
+                    'file' => $thumbnail_url,
+                    'width' => 640,
+                    'height' => 360,
+                    'mime-type' => 'image/jpeg'
+                );
+            }
+        }
+        
+        return $data;
     }
 }

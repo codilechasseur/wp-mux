@@ -50,10 +50,35 @@
             // Error formatting date - silently fail
           }
         }
-        // Remove 'View media file' link
-        $el.find('.view-attachment').remove();
+        
+        // Update 'View media file' link to use MUX stream URL instead of removing it
+        var $viewLink = $el.find('a[href*="?attachment_id="]');
+        if ($viewLink.length > 0 && model.url) {
+          $viewLink.attr('href', model.url);
+          $viewLink.attr('target', '_blank');
+          $viewLink.attr('rel', 'noopener noreferrer');
+        }
       }
       return this;
     }
   );
+  
+  // Hook into post edit page to show MUX player for video attachments
+  if ($('body').hasClass('post-type-attachment')) {
+    $(document).ready(function() {
+      // Check if MUX data was injected
+      if (typeof window.wpMuxAttachment !== 'undefined' && window.wpMuxAttachment.playback_id) {
+        var playbackId = window.wpMuxAttachment.playback_id;
+        
+        // Replace the default player
+        var $mediaPreview = $('#attachment-preview, .wp_attachment_holder');
+        if ($mediaPreview.length > 0) {
+          $mediaPreview.html(
+            '<mux-player class="mux-player" style="width:100%;max-width:800px;min-height:450px;margin:20px auto;display:block;" ' +
+            'stream-type="on-demand" playback-id="' + playbackId + '" controls></mux-player>'
+          );
+        }
+      }
+    });
+  }
 })(jQuery);
