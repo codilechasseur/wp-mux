@@ -225,6 +225,16 @@
 	function showUploadSuccess() {
 		$('#upload-progress').hide();
 		$('#upload-success').show();
+		// Refresh the media library frame if present
+		if (window.wp && window.wp.media && window.wp.media.frame) {
+			try {
+				window.wp.media.frame.content.get().collection.props.set('ignore', Date.now());
+			} catch (e) {
+				window.location.reload();
+			}
+		} else {
+			window.location.reload();
+		}
 	}
 
 	function showUploadError(message) {

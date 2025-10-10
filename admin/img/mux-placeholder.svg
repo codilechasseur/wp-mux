@@ -1,0 +1,7 @@
+<svg width="240" height="160" viewBox="0 0 240 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="240" height="160" fill="#f0f0f1"/>
+<rect x="80" y="50" width="80" height="60" rx="8" fill="#646970"/>
+<path d="M110 75L125 85L110 95V75Z" fill="white"/>
+<text x="120" y="125" text-anchor="middle" fill="#646970" font-family="system-ui" font-size="12">MUX Video</text>
+<text x="120" y="140" text-anchor="middle" fill="#646970" font-family="system-ui" font-size="10">Processing...</text>
+</svg>

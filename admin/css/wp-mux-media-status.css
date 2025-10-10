@@ -1,0 +1,324 @@
+/* MUX Status Badges for Media Library - Subtle Design */
+.wp-mux-status-badge {
+    position: absolute !important;
+    top: 8px !important;
+    right: 8px !important;
+    background: rgba(255, 255, 255, 0.95) !important;
+    color: #333 !important;
+    border-radius: 50% !important;
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 10px !important;
+    line-height: 20px !important;
+    z-index: 999 !important;
+    text-align: center !important;
+    font-weight: 600 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+.wp-mux-status-badge.wp-mux-queued {
+    background: rgba(255, 248, 225, 0.95) !important;
+    color: #d69e2e !important;
+    border-color: rgba(213, 158, 46, 0.3) !important;
+}
+
+.wp-mux-status-badge.wp-mux-processing {
+    background: rgba(235, 248, 255, 0.95) !important;
+    color: #3182ce !important;
+    border-color: rgba(49, 130, 206, 0.3) !important;
+    animation: wp-mux-subtle-pulse 2s infinite ease-in-out;
+}
+
+.wp-mux-status-badge.wp-mux-complete {
+    background: rgba(240, 253, 244, 0.95) !important;
+    color: #38a169 !important;
+    border-color: rgba(56, 161, 105, 0.3) !important;
+}
+
+.wp-mux-status-badge.wp-mux-failed {
+    background: rgba(255, 245, 245, 0.95) !important;
+    color: #e53e3e !important;
+    border-color: rgba(229, 62, 62, 0.3) !important;
+}
+
+/* Subtle pulse animation for processing status */
+@keyframes wp-mux-subtle-pulse {
+    0%, 100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: scale(1.02);
+    }
+}
+
+/* Use simple dots instead of emoji */
+.wp-mux-status-badge.wp-mux-queued .badge-icon {
+    width: 6px !important;
+    height: 6px !important;
+    border-radius: 50% !important;
+    background: currentColor !important;
+    display: inline-block !important;
+}
+
+.wp-mux-status-badge.wp-mux-processing .badge-icon {
+    width: 8px !important;
+    height: 8px !important;
+    border: 2px solid currentColor !important;
+    border-top-color: transparent !important;
+    border-radius: 50% !important;
+    animation: wp-mux-spin 1s linear infinite;
+    display: inline-block !important;
+}
+
+.wp-mux-status-badge.wp-mux-complete .badge-icon::before {
+    content: "✓" !important;
+    font-size: 10px !important;
+    font-weight: bold !important;
+}
+
+.wp-mux-status-badge.wp-mux-failed .badge-icon::before {
+    content: "!" !important;
+    font-size: 11px !important;
+    font-weight: bold !important;
+}
+
+@keyframes wp-mux-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Ensure parent containers support positioning for all possible views */
+.media-frame .attachment .thumbnail,
+.media-frame .attachment-preview .thumbnail,
+.wp-list-table .media-icon,
+.media-item .thumbnail,
+.attachments-browser .attachment .thumbnail,
+.attachments-browser .attachment-preview,
+.attachment .thumbnail,
+.attachment .attachment-preview,
+.wp-list-table .column-title .media-icon,
+div[data-id] .thumbnail,
+.media-sidebar .attachment-info .thumbnail {
+    position: relative !important;
+}
+
+/* Force positioning on common WordPress media containers */
+.media-modal .attachment,
+.media-modal .attachment-preview,
+.media-frame-content .attachment,
+.media-frame-content .attachment-preview {
+    position: relative !important;
+}
+
+/* List view specific styles */
+.wp-list-table tr[id*="post-"] .media-icon {
+    position: relative !important;
+    display: inline-block !important;
+}
+
+/* Grid view */
+.attachments .attachment .thumbnail {
+    position: relative !important;
+}
+
+/* Modal view specific adjustments */
+.media-modal-content .attachment .thumbnail,
+.media-sidebar .attachment-details .thumbnail {
+    position: relative !important;
+}
+
+/* Ensure badges don't interfere with clicks */
+.wp-mux-status-badge {
+    pointer-events: none !important;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .wp-mux-status-badge {
+        width: 16px !important;
+        height: 16px !important;
+        font-size: 8px !important;
+        line-height: 16px !important;
+        top: 4px !important;
+        right: 4px !important;
+    }
+}
+
+/* Hover effect - subtle scale */
+.attachment:hover .wp-mux-status-badge {
+    transform: scale(1.1) !important;
+    transition: transform 0.15s ease !important;
+}
+
+/* Ensure visibility over video thumbnails */
+.attachment[data-subtype="mp4"] .wp-mux-status-badge,
+.attachment[data-subtype="mov"] .wp-mux-status-badge,
+.attachment[data-subtype="avi"] .wp-mux-status-badge,
+.attachment.video .wp-mux-status-badge {
+    z-index: 1001 !important;
+}
+
+/* Ensure parent containers support positioning for all possible views */
+.media-frame .attachment .thumbnail,
+.media-frame .attachment-preview .thumbnail,
+.wp-list-table .media-icon,
+.media-item .thumbnail,
+.attachments-browser .attachment .thumbnail,
+.attachments-browser .attachment-preview,
+.attachment .thumbnail,
+.attachment .attachment-preview,
+.wp-list-table .column-title .media-icon,
+div[data-id] .thumbnail,
+.media-sidebar .attachment-info .thumbnail {
+    position: relative !important;
+}
+
+/* Force positioning on common WordPress media containers */
+.media-modal .attachment,
+.media-modal .attachment-preview,
+.media-frame-content .attachment,
+.media-frame-content .attachment-preview {
+    position: relative !important;
+}
+
+/* List view specific styles - ensure icons show on media icons */
+.wp-list-table tr[id*="post-"] .media-icon {
+    position: relative !important;
+    display: inline-block !important;
+}
+
+/* Grid view - ensure badges appear on thumbnails */
+.attachments .attachment .thumbnail {
+    position: relative !important;
+}
+
+/* Modal view specific adjustments */
+.media-modal-content .attachment .thumbnail,
+.media-sidebar .attachment-details .thumbnail {
+    position: relative !important;
+}
+
+/* Ensure badges appear above all other elements including selection overlays */
+.wp-mux-status-badge {
+    pointer-events: none !important; /* Allow clicks to pass through to thumbnail */
+}
+
+.wp-mux-status-badge .badge-icon {
+    display: inline-block !important;
+    line-height: 1 !important;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+    .wp-mux-status-badge {
+        font-size: 12px !important;
+        padding: 3px 6px !important;
+        min-width: 20px !important;
+    }
+}
+
+/* Hover effects for better UX */
+.wp-mux-status-badge:hover {
+    transform: scale(1.1) !important;
+    transition: transform 0.2s ease !important;
+    pointer-events: auto !important;
+}
+
+/* Ensure badges don't interfere with selection but remain visible */
+.attachment.selected .wp-mux-status-badge {
+    opacity: 0.95 !important;
+    z-index: 1000 !important;
+}
+
+/* Handle different thumbnail sizes */
+.attachment.landscape .wp-mux-status-badge,
+.attachment.portrait .wp-mux-status-badge {
+    top: 5px !important;
+    right: 5px !important;
+}
+
+/* Additional fallback positioning for stubborn cases */
+.wp-mux-status-badge {
+    /* If all else fails, use fixed positioning relative to viewport */
+    transform: translateZ(0) !important; /* Force hardware acceleration */
+}
+
+/* Ensure visibility over video thumbnails */
+.attachment[data-subtype="mp4"] .wp-mux-status-badge,
+.attachment[data-subtype="mov"] .wp-mux-status-badge,
+.attachment[data-subtype="avi"] .wp-mux-status-badge,
+.attachment.video .wp-mux-status-badge {
+    z-index: 1001 !important;
+}
+
+/* Debug: Add a subtle border to thumbnails that have badges (remove in production) */
+.thumbnail:has(.wp-mux-status-badge) {
+    border: 1px solid rgba(0, 123, 255, 0.3) !important;
+}
+
+/* Fix video thumbnail alignment for square thumbnails */
+.attachment.video .thumbnail img,
+.attachment[data-subtype="mp4"] .thumbnail img,
+.attachment[data-subtype="mov"] .thumbnail img,
+.attachment[data-subtype="avi"] .thumbnail img,
+.attachment[data-subtype="quicktime"] .thumbnail img {
+    object-fit: cover !important;
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: 1 / 1 !important;
+}
+
+/* Fix default video.svg icon alignment */
+.attachment.video .thumbnail img[src*="video.svg"],
+.attachment .thumbnail img[src*="video.svg"] {
+    object-fit: contain !important;
+    padding: 20% !important;
+    background: #f0f0f1 !important;
+    border-radius: 4px !important;
+}
+
+/* Ensure video thumbnails maintain square aspect ratio */
+.attachment.video .thumbnail,
+.attachment[data-subtype="mp4"] .thumbnail,
+.attachment[data-subtype="mov"] .thumbnail,
+.attachment[data-subtype="avi"] .thumbnail,
+.attachment[data-subtype="quicktime"] .thumbnail {
+    aspect-ratio: 1 / 1 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+}
+
+/* Smooth transition for thumbnail updates */
+.attachment .thumbnail img {
+    transition: opacity 0.3s ease !important;
+}
+
+/* Loading state for thumbnails being updated */
+.wp-mux-thumbnail-updating {
+    opacity: 0.6 !important;
+    position: relative !important;
+}
+
+.wp-mux-thumbnail-updating::after {
+    content: '' !important;
+    position: absolute !important;
+    top: 50% !important;
+    left: 50% !important;
+    width: 20px !important;
+    height: 20px !important;
+    margin: -10px 0 0 -10px !important;
+    border: 2px solid #0073aa !important;
+    border-top-color: transparent !important;
+    border-radius: 50% !important;
+    animation: wp-mux-spin 1s linear infinite !important;
+}

@@ -183,6 +183,22 @@ class Wp_Mux {
 		// Handle theme form submissions early in admin_init
 		$this->loader->add_action( 'admin_init', $plugin_admin, 'handle_theme_form_submissions' );
 
+		// Post-upload video processing queue system
+		$this->loader->add_action( 'add_attachment', $plugin_admin, 'queue_video_for_mux_processing' );
+		$this->loader->add_action( 'wp_ajax_wp_mux_process_queue', $plugin_admin, 'process_mux_queue' );
+		$this->loader->add_action( 'wp_ajax_wp_mux_get_queue_status', $plugin_admin, 'get_queue_status' );
+		$this->loader->add_action( 'wp_ajax_wp_mux_get_attachment_info', $plugin_admin, 'get_attachment_info' );
+		$this->loader->add_action( 'wp_mux_process_queue_event', $plugin_admin, 'process_mux_queue_cron' );
+
+		// Add heartbeat to regularly process queue
+		$this->loader->add_filter( 'heartbeat_received', $plugin_admin, 'heartbeat_process_queue', 10, 2 );
+
+		// Debug: log all AJAX requests to see what action is actually used
+		$this->loader->add_action( 'wp_loaded', $plugin_admin, 'debug_all_ajax' );
+
+		// Hook into attachment preparation for AJAX responses (for existing MUX attachments)
+		$this->loader->add_filter( 'wp_prepare_attachment_for_js', $plugin_admin, 'prepare_mux_attachment_for_js', 10, 3 );
+
 		// Add AJAX handlers for admin functionality
 		$this->loader->add_action( 'wp_ajax_wp_mux_create_upload', $plugin_admin, 'ajax_create_upload' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_load_videos', $plugin_admin, 'ajax_load_videos' );

@@ -30,6 +30,53 @@ class Wp_Mux_Media_Sync {
         foreach ( $mux_assets['data'] as $asset ) {
             $this->maybe_create_mux_attachment( $asset );
         }
+
+        // Also update any placeholder attachments that are still processing
+        $this->update_processing_attachments( $api );
+    }
+
+    /**
+     * Update attachments that are still processing.
+     */
+    public function update_processing_attachments( $api ) {
+        $processing_attachments = get_posts( array(
+            'post_type'  => 'attachment',
+            'post_status'=> 'inherit',
+            'meta_key'   => '_mux_processing',
+            'meta_value' => '1',
+            'fields'     => 'ids',
+            'posts_per_page' => 20,
+        ) );
+
+        foreach ( $processing_attachments as $attach_id ) {
+            $upload_id = get_post_meta( $attach_id, '_mux_upload_id', true );
+            if ( $upload_id ) {
+                $upload_status = $api->get_upload( $upload_id );
+                if ( ! is_wp_error( $upload_status ) && ! empty( $upload_status['data']['asset_id'] ) ) {
+                    $asset_id = $upload_status['data']['asset_id'];
+                    $asset = $api->get_video( $asset_id );
+                    if ( ! is_wp_error( $asset ) && ! empty( $asset['data'] ) ) {
+                        // Update the attachment with real MUX data
+                        update_post_meta( $attach_id, '_mux_asset_id', $asset_id );
+                        update_post_meta( $attach_id, '_mux_playback_id', $asset['data']['playback_ids'][0]['id'] ?? '' );
+                        update_post_meta( $attach_id, '_mux_duration', $asset['data']['duration'] ?? '' );
+                        update_post_meta( $attach_id, '_mux_created_at', $asset['data']['created_at'] ?? '' );
+
+                        // Update thumbnail if available
+                        if ( ! empty( $asset['data']['playback_ids'][0]['id'] ) ) {
+                            $playback_id = $asset['data']['playback_ids'][0]['id'];
+                            $thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=240&height=160";
+                            update_post_meta( $attach_id, '_mux_thumbnail_url', $thumbnail_url );
+                        }
+
+                        // Remove processing flags
+                        delete_post_meta( $attach_id, '_mux_processing' );
+                        delete_post_meta( $attach_id, '_mux_upload_id' );
+                        delete_post_meta( $attach_id, '_mux_from_upload' );
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -37,6 +84,7 @@ class Wp_Mux_Media_Sync {
      */
     public function maybe_create_mux_attachment( $asset ) {
         $mux_id = sanitize_text_field( $asset['id'] );
+
         // Check for existing attachment by _mux_asset_id meta
         $existing = get_posts( array(
             'post_type'  => 'attachment',
@@ -47,6 +95,56 @@ class Wp_Mux_Media_Sync {
             'posts_per_page' => 1,
         ) );
         if ( !empty($existing) ) return;
+
+        // Also check for uploads that already have this asset ID or are processing
+        // (prevents duplicates during upload->sync workflow)
+        $existing_with_upload = get_posts( array(
+            'post_type'  => 'attachment',
+            'post_status'=> 'inherit',
+            'meta_query' => array(
+                'relation' => 'OR',
+                array(
+                    'key'   => '_mux_processing',
+                    'value' => '1',
+                ),
+                array(
+                    'key'   => '_wp_mux_status',
+                    'value' => array('queued', 'processing', 'complete'),
+                    'compare' => 'IN'
+                ),
+                array(
+                    'key'   => '_mux_upload_id',
+                    'compare' => 'EXISTS'
+                )
+            ),
+            'fields'     => 'ids',
+            'posts_per_page' => 20,
+        ) );
+
+        // Check if any of these existing attachments might correspond to this asset
+        foreach ($existing_with_upload as $attach_id) {
+            $upload_id = get_post_meta( $attach_id, '_mux_upload_id', true );
+            $existing_asset_id = get_post_meta( $attach_id, '_mux_asset_id', true );
+
+            // If this attachment already has the same asset ID, skip
+            if ($existing_asset_id === $mux_id) {
+                return;
+            }
+
+            // If there's an upload in progress, check the asset via API to avoid duplicates
+            if ($upload_id) {
+                require_once plugin_dir_path( __FILE__ ) . 'class-wp-mux-api.php';
+                $api = new Wp_Mux_Api();
+                $upload_status = $api->get_upload( $upload_id );
+                if ( ! is_wp_error( $upload_status ) &&
+                     ! empty( $upload_status['data']['asset_id'] ) &&
+                     $upload_status['data']['asset_id'] === $mux_id ) {
+                    // This asset is from an upload we're tracking, skip creating virtual attachment
+                    return;
+                }
+            }
+        }
+
         // Insert attachment post
         $attachment = array(
             'guid'           => $mux_id,
