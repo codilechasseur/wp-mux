@@ -1,0 +1,283 @@
+/**
+ * WP MUX Media Library Stats Styles
+ *
+ * Styles for video analytics display in media library sidepanel.
+ *
+ * @package    Wp_Mux
+ * @subpackage Wp_Mux/admin/css
+ */
+
+/* Fix hanging pipe separator in actions menu for MUX videos */
+.attachment-details[data-subtype="mux"] .actions .links-separator:first-child {
+	display: none;
+}
+
+/* Stats Container */
+.mux-video-stats {
+	margin-top: 20px;
+	padding: 15px;
+	background: #f9f9f9;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+}
+
+/* Stats Title with Icon and Refresh Button */
+.mux-stats-title {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin: 0 0 15px 0;
+	padding-bottom: 10px;
+	border-bottom: 2px solid #2271b1;
+	font-size: 14px;
+	font-weight: 600;
+	color: #2271b1;
+}
+
+.mux-stats-title .dashicons {
+	font-size: 18px;
+	width: 18px;
+	height: 18px;
+	margin-right: 5px;
+}
+
+/* Refresh Button */
+.mux-refresh-stats {
+	min-width: auto;
+	padding: 4px 8px;
+	height: auto;
+	line-height: 1;
+	background: #fff;
+	border: 1px solid #2271b1;
+	color: #2271b1;
+	cursor: pointer;
+	transition: all 0.2s ease;
+}
+
+.mux-refresh-stats:hover {
+	background: #2271b1;
+	color: #fff;
+	border-color: #135e96;
+}
+
+.mux-refresh-stats .dashicons {
+	font-size: 16px;
+	width: 16px;
+	height: 16px;
+}
+
+.mux-refresh-stats:disabled,
+.mux-refresh-stats.mux-stats-loading {
+	opacity: 0.6;
+	cursor: not-allowed;
+}
+
+.mux-stats-loading .dashicons {
+	animation: mux-spin 1s linear infinite;
+}
+
+@keyframes mux-spin {
+	from { transform: rotate(0deg); }
+	to { transform: rotate(360deg); }
+}
+
+/* Stats Grid */
+.mux-stats-grid {
+	display: grid;
+	grid-template-columns: repeat(2, 1fr);
+	gap: 12px;
+	margin-bottom: 15px;
+}
+
+/* Stat Card */
+.mux-stat-card {
+	background: #fff;
+	padding: 12px;
+	border-radius: 4px;
+	border: 1px solid #ddd;
+	text-align: center;
+	transition: all 0.2s ease;
+}
+
+.mux-stat-card:hover {
+	border-color: #2271b1;
+	box-shadow: 0 2px 4px rgba(34, 113, 177, 0.1);
+}
+
+/* Primary stats get emphasis */
+.mux-stat-card.mux-stat-primary {
+	background: linear-gradient(135deg, #2271b1 0%, #135e96 100%);
+	color: #fff;
+	border-color: #135e96;
+}
+
+.mux-stat-card.mux-stat-primary .mux-stat-value {
+	color: #fff;
+	font-weight: 700;
+}
+
+.mux-stat-card.mux-stat-primary .mux-stat-label {
+	color: rgba(255, 255, 255, 0.9);
+}
+
+/* Quality score card */
+.mux-stat-card.mux-stat-quality {
+	background: linear-gradient(135deg, #00a32a 0%, #008a20 100%);
+	color: #fff;
+	border-color: #008a20;
+}
+
+.mux-stat-card.mux-stat-quality .mux-stat-value {
+	color: #fff;
+	font-weight: 700;
+}
+
+.mux-stat-card.mux-stat-quality .mux-stat-label {
+	color: rgba(255, 255, 255, 0.9);
+}
+
+/* Stat Value */
+.mux-stat-value {
+	font-size: 20px;
+	font-weight: 600;
+	color: #2271b1;
+	margin-bottom: 5px;
+	line-height: 1.2;
+}
+
+/* Stat Label */
+.mux-stat-label {
+	font-size: 11px;
+	color: #666;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	font-weight: 500;
+}
+
+/* Stats Footer */
+.mux-stats-footer {
+	padding-top: 10px;
+	border-top: 1px solid #ddd;
+	text-align: center;
+}
+
+.mux-stats-updated {
+	font-size: 11px;
+	color: #666;
+	font-style: italic;
+}
+
+/* Refresh Messages */
+.mux-stats-message {
+	padding: 8px 12px;
+	margin-bottom: 10px;
+	border-radius: 3px;
+	font-size: 12px;
+	font-weight: 500;
+	text-align: center;
+}
+
+.mux-stats-message-success {
+	background: #d4edda;
+	color: #155724;
+	border: 1px solid #c3e6cb;
+}
+
+.mux-stats-message-error {
+	background: #f8d7da;
+	color: #721c24;
+	border: 1px solid #f5c6cb;
+}
+
+/* Responsive adjustments for smaller sidebars */
+@media screen and (max-width: 782px) {
+	.mux-stats-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.mux-stat-value {
+		font-size: 18px;
+	}
+
+	.mux-video-stats {
+		padding: 12px;
+	}
+}
+
+/* Adjustments when in modal */
+.media-modal .mux-video-stats {
+	margin-top: 15px;
+}
+
+.media-modal .mux-stats-grid {
+	gap: 10px;
+}
+
+/* Ensure proper spacing in attachment info section */
+.attachment-info .mux-video-stats {
+	margin-top: 20px;
+}
+
+/* Details section variant */
+.details .mux-video-stats {
+	margin: 20px 0;
+}
+
+/* Loading state for stats container */
+.mux-video-stats.mux-stats-loading-container {
+	opacity: 0.6;
+	pointer-events: none;
+}
+
+/* Empty state (no analytics yet) */
+.mux-stats-empty {
+	text-align: center;
+	padding: 30px 15px;
+	color: #666;
+}
+
+.mux-stats-empty .dashicons {
+	font-size: 48px;
+	width: 48px;
+	height: 48px;
+	color: #ccc;
+	margin-bottom: 10px;
+}
+
+.mux-stats-empty-text {
+	font-size: 13px;
+	line-height: 1.5;
+}
+
+/* Tooltip styles for additional info */
+.mux-stat-tooltip {
+	position: relative;
+	cursor: help;
+}
+
+.mux-stat-tooltip:hover::after {
+	content: attr(data-tooltip);
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	padding: 5px 10px;
+	background: #333;
+	color: #fff;
+	font-size: 11px;
+	white-space: nowrap;
+	border-radius: 3px;
+	z-index: 1000;
+	margin-bottom: 5px;
+}
+
+.mux-stat-tooltip:hover::before {
+	content: '';
+	position: absolute;
+	bottom: 100%;
+	left: 50%;
+	transform: translateX(-50%);
+	border: 5px solid transparent;
+	border-top-color: #333;
+	z-index: 1000;
+}

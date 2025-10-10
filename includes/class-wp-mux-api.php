@@ -377,4 +377,195 @@ class Wp_Mux_Api {
 
 		return '--';
 	}
+
+	/**
+	 * Get video view statistics from MUX Data API.
+	 *
+	 * @since    1.1.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @param    array     $timeframe   Array with 'start' and 'end' timestamps (optional).
+	 * @return   array|WP_Error         The view statistics or WP_Error on failure.
+	 */
+	public function get_video_views( $asset_id, $timeframe = array() ) {
+		// MUX Data API endpoint for overall metrics
+		$endpoint = '/data/v1/metrics/video-views';
+
+		$params = array(
+			'filters' => array( 'asset_id:' . sanitize_text_field( $asset_id ) ),
+		);
+
+		if ( ! empty( $timeframe['start'] ) && ! empty( $timeframe['end'] ) ) {
+			$params['timeframe'] = array( $timeframe['start'], $timeframe['end'] );
+		}
+
+		$endpoint .= '?' . http_build_query( $params );
+
+		$response = $this->make_request( $endpoint );
+
+		if ( is_wp_error( $response ) ) {
+			// If it's a 404, the asset might not have any views yet
+			if ( isset( $response->errors['api_error'][0] ) ) {
+				return array(
+					'total_views' => 0,
+					'data' => array(),
+				);
+			}
+		}
+
+		return $response;
+	}
+
+	/**
+	 * Get overall video metrics including engagement data.
+	 *
+	 * @since    1.1.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @return   array|WP_Error         The overall metrics or WP_Error on failure.
+	 */
+	public function get_video_overall_metrics( $asset_id ) {
+		$asset_id = sanitize_text_field( $asset_id );
+
+		// Get overall metrics from MUX Data API
+		$endpoint = '/data/v1/metrics/overall';
+
+		$params = array(
+			'filters' => array( 'asset_id:' . $asset_id ),
+		);
+
+		$endpoint .= '?' . http_build_query( $params );
+
+		$response = $this->make_request( $endpoint );
+
+		// If the request fails or returns no data, return default values
+		if ( is_wp_error( $response ) ) {
+			return array(
+				'total_views' => 0,
+				'total_watch_time' => 0,
+				'average_view_duration' => 0,
+				'unique_viewers' => 0,
+			);
+		}
+
+		// Parse and format the response
+		$metrics = array(
+			'total_views' => isset( $response['data']['total_views'] ) ? $response['data']['total_views'] : 0,
+			'total_watch_time' => isset( $response['data']['total_watch_time'] ) ? $response['data']['total_watch_time'] : 0,
+			'average_view_duration' => isset( $response['data']['average_view_duration'] ) ? $response['data']['average_view_duration'] : 0,
+			'unique_viewers' => isset( $response['data']['unique_viewers'] ) ? $response['data']['unique_viewers'] : 0,
+		);
+
+		return $metrics;
+	}
+
+	/**
+	 * Get engagement metrics for a video.
+	 *
+	 * @since    1.1.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @return   array|WP_Error         The engagement metrics or WP_Error on failure.
+	 */
+	public function get_video_engagement_metrics( $asset_id ) {
+		$asset_id = sanitize_text_field( $asset_id );
+
+		// Get video quality score and engagement metrics
+		$endpoint = '/data/v1/metrics/video-quality-score';
+
+		$params = array(
+			'filters' => array( 'asset_id:' . $asset_id ),
+			'measurement' => '95th',
+		);
+
+		$endpoint .= '?' . http_build_query( $params );
+
+		$response = $this->make_request( $endpoint );
+
+		// If the request fails, return default values
+		if ( is_wp_error( $response ) ) {
+			return array(
+				'video_quality_score' => 0,
+				'rebuffer_percentage' => 0,
+				'video_startup_time' => 0,
+			);
+		}
+
+		// Parse metrics
+		$metrics = array(
+			'video_quality_score' => isset( $response['data']['value'] ) ? round( $response['data']['value'], 2 ) : 0,
+			'rebuffer_percentage' => isset( $response['data']['rebuffer_percentage'] ) ? round( $response['data']['rebuffer_percentage'], 2 ) : 0,
+			'video_startup_time' => isset( $response['data']['video_startup_time'] ) ? round( $response['data']['video_startup_time'] ) : 0,
+		);
+
+		return $metrics;
+	}
+
+	/**
+	 * Get comprehensive analytics for a video asset.
+	 *
+	 * @since    1.1.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @return   array                  Combined analytics data.
+	 */
+	public function get_video_analytics( $asset_id ) {
+		$asset_id = sanitize_text_field( $asset_id );
+
+		// Try to get views from the simpler endpoint first
+		$views_response = $this->get_video_views( $asset_id );
+		$overall_metrics = $this->get_video_overall_metrics( $asset_id );
+		$engagement_metrics = $this->get_video_engagement_metrics( $asset_id );
+
+		// Combine all metrics
+		$analytics = array(
+			'total_views' => 0,
+			'unique_viewers' => 0,
+			'total_watch_time' => 0,
+			'average_view_duration' => 0,
+			'video_quality_score' => 0,
+			'rebuffer_percentage' => 0,
+			'video_startup_time' => 0,
+			'last_updated' => current_time( 'timestamp' ),
+		);
+
+		// Extract view count from views response
+		if ( ! is_wp_error( $views_response ) ) {
+			if ( isset( $views_response['total_row_count'] ) ) {
+				$analytics['total_views'] = intval( $views_response['total_row_count'] );
+			} elseif ( isset( $views_response['data']['total_views'] ) ) {
+				$analytics['total_views'] = intval( $views_response['data']['total_views'] );
+			}
+		}
+
+		// Merge overall metrics
+		if ( ! is_wp_error( $overall_metrics ) && is_array( $overall_metrics ) ) {
+			$analytics = array_merge( $analytics, $overall_metrics );
+		}
+
+		// Merge engagement metrics
+		if ( ! is_wp_error( $engagement_metrics ) && is_array( $engagement_metrics ) ) {
+			$analytics = array_merge( $analytics, $engagement_metrics );
+		}
+
+		return $analytics;
+	}
+
+	/**
+	 * Format watch time for display.
+	 *
+	 * @since    1.1.0
+	 * @param    int    $seconds    Watch time in seconds.
+	 * @return   string            Formatted watch time.
+	 */
+	public static function format_watch_time( $seconds ) {
+		if ( empty( $seconds ) || $seconds < 0 ) {
+			return '0 min';
+		}
+
+		$hours = floor( $seconds / 3600 );
+		$minutes = floor( ( $seconds % 3600 ) / 60 );
+
+		if ( $hours > 0 ) {
+			return sprintf( '%d hr %d min', $hours, $minutes );
+		} else {
+			return sprintf( '%d min', $minutes );
+		}
+	}
 }

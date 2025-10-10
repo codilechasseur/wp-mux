@@ -31,17 +31,12 @@
         if (playbackId && !$el.find('.mux-player').length) {
           $el.find('.attachment-media-view').html('<mux-player class="mux-player" style="width:100%;max-width:100%;min-height:300px;" stream-type="on-demand" playback-id="'+playbackId+'" controls></mux-player>');
         }
-        // 2 & 3. Hide filename and filesize
+        // Hide filename and filesize
         $el.find('.filename').hide();
         $el.find('.filesize').hide();
         $el.find('.file-size').hide();
-        // Add details
-        var duration = model.duration ? (Math.round(model.duration) + 's') : '--';
-        var details = '<div class="mux-details"><strong>Asset ID:</strong> '+(model.mux_asset_id||model.id)+'<br><strong>Duration:</strong> '+duration+'</div>';
-        if (!$el.find('.mux-details').length) {
-          $el.find('.attachment-info').append(details);
-        }
-        // 5. Update uploaded date to MUX creation date
+
+        // Update uploaded date to MUX creation date
         if (model.created_at) {
           try {
             console.log('MUX created_at:', model.created_at);

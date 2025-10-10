@@ -108,6 +108,18 @@ class Wp_Mux_Public {
 	 * Handle video rendering for MUX videos
 	 */
 	public function render_mux_video( $html, $url, $attr ) {
+		// Handle case where $url might be an array (from wp_video_shortcode filter)
+		if ( is_array( $url ) ) {
+			// If $url is array, it's actually the attributes, shift parameters
+			$attr = $url;
+			$url = isset( $attr['src'] ) ? $attr['src'] : '';
+		}
+
+		// Ensure $url is a string
+		if ( ! is_string( $url ) || empty( $url ) ) {
+			return $html;
+		}
+
 		// Debug logging
 		error_log( 'WP MUX: render_mux_video called with URL: ' . $url );
 

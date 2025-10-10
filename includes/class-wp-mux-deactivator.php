@@ -23,14 +23,18 @@
 class Wp_Mux_Deactivator {
 
 	/**
-	 * Short Description. (use period)
+	 * Cleanup on plugin deactivation.
 	 *
-	 * Long Description.
+	 * Clears scheduled cron events for analytics refresh.
 	 *
 	 * @since    1.0.0
 	 */
 	public static function deactivate() {
-
+		// Clear the analytics refresh cron
+		$timestamp = wp_next_scheduled( 'wp_mux_refresh_analytics_event' );
+		if ( $timestamp ) {
+			wp_unschedule_event( $timestamp, 'wp_mux_refresh_analytics_event' );
+		}
 	}
 
 }

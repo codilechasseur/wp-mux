@@ -244,64 +244,44 @@ jQuery(document).ready(function($) {
     function scanForVideoAttachments() {
         var videoAttachments = new Set();
 
-        console.log('WP MUX: Scanning for video attachments...');
-
-        // Grid view - look for video attachments
+        // Grid view - look for MUX video attachments
         $('.attachment').each(function() {
             var $this = $(this);
             var attachmentId = $this.data('id');
 
+            // Check if it's a MUX video by looking for MUX-specific attributes
             if (attachmentId && (
-                $this.hasClass('video') ||
-                $this.find('.media-icon img[src*="video"]').length > 0 ||
-                $this.find('[class*="video"]').length > 0 ||
-                $this.attr('data-subtype') === 'mp4' ||
-                $this.attr('data-subtype') === 'mov' ||
-                $this.attr('data-subtype') === 'avi'
+                $this.attr('data-subtype') === 'mux' ||
+                $this.find('.mux-badge, .wp-mux-status-badge').length > 0 ||
+                $this.find('.mux-player').length > 0 ||
+                $this.hasClass('subtype-mux') ||
+                $this.find('.subtype-mux').length > 0
             )) {
                 videoAttachments.add(attachmentId);
-                console.log('WP MUX: Found video attachment (grid view):', attachmentId);
             }
         });
 
-        // List view - look for video mime types
-        $('.wp-list-table .attachment, tr[id*="post-"]').each(function() {
+        // List view - look for MUX videos
+        $('.wp-list-table tr[id*="post-"]').each(function() {
             var $this = $(this);
             var id = $this.attr('id');
             if (id && id.indexOf('post-') === 0) {
                 var attachmentId = parseInt(id.replace('post-', ''));
-                var $mimeCell = $this.find('.column-mime_type, .column-parent');
+                var $mimeCell = $this.find('.column-mime_type');
                 var mimeText = $mimeCell.text().toLowerCase();
 
-                if (mimeText.indexOf('video') !== -1 ||
-                    $this.find('.media-icon img[src*="video"]').length > 0) {
+                // Check if it's a MUX video (video/mux mime type) or has MUX badge
+                if (mimeText.indexOf('video/mux') !== -1 ||
+                    mimeText === 'mux' ||
+                    $this.find('.mux-badge, .wp-mux-status-badge').length > 0) {
                     videoAttachments.add(attachmentId);
-                    console.log('WP MUX: Found video attachment (list view):', attachmentId);
                 }
             }
         });
 
-        // Also scan all attachments that might have MUX status regardless of detected type
-        // This catches video/mux types and other edge cases
-        if (typeof wpMuxMedia !== 'undefined') {
-            $('.attachment[data-id]').each(function() {
-                var attachmentId = $(this).data('id');
-                if (attachmentId) {
-                    // Add to scan list - checkMuxStatus will handle non-video types gracefully
-                    videoAttachments.add(attachmentId);
-                }
-            });
-
-            $('tr[id*="post-"]').each(function() {
-                var id = $(this).attr('id');
-                if (id && id.indexOf('post-') === 0) {
-                    var attachmentId = parseInt(id.replace('post-', ''));
-                    videoAttachments.add(attachmentId);
-                }
-            });
+        if (videoAttachments.size > 0) {
+            console.log('WP MUX: Checking status for', videoAttachments.size, 'MUX video(s)');
         }
-
-        console.log('WP MUX: Total attachments to check:', videoAttachments.size);
 
         // Check MUX status for each potential video attachment
         videoAttachments.forEach(function(attachmentId) {
@@ -446,6 +426,82 @@ jQuery(document).ready(function($) {
             clearInterval(statusCheckInterval);
         }
     });
+
+    /**
+     * Add View link to actions menu for MUX videos if missing
+     * This ensures MUX videos have a "View media file" link in the attachment details
+     */
+    function addViewLinkForMuxVideos(attachment) {
+        if (!attachment || attachment.subtype !== 'mux') {
+            return;
+        }
+
+        setTimeout(function() {
+            var $actions = $('.attachment-details[data-id="' + attachment.id + '"] .actions');
+
+            if ($actions.length === 0) {
+                $actions = $('.attachment-details .actions');
+            }
+
+            if ($actions.length === 0) {
+                return;
+            }
+
+            // Check if View link already exists
+            if ($actions.find('a:contains("View")').length > 0) {
+                return;
+            }
+
+            // Use the link property (attachment page) or fallback to url (stream URL)
+            var viewUrl = attachment.link || attachment.url;
+
+            if (!viewUrl) {
+                return;
+            }
+
+            // Create View link without separator - WordPress template adds it
+            var viewHtml = '<a href="' + viewUrl + '" target="_blank" rel="noopener noreferrer">View media file</a>';
+
+            // Prepend to actions (so it appears first)
+            $actions.prepend(viewHtml);
+        }, 200);
+    }
+
+    /**
+     * Hook into WordPress media library events to add View link
+     */
+    if (typeof wp !== 'undefined' && wp.media) {
+        // Hook into attachment details render
+        var originalRender = wp.media.view.Attachment.Details.prototype.render;
+        wp.media.view.Attachment.Details.prototype.render = function() {
+            var result = originalRender.apply(this, arguments);
+
+            var self = this;
+            setTimeout(function() {
+                if (self.model) {
+                    var attachment = self.model.toJSON();
+                    addViewLinkForMuxVideos(attachment);
+                }
+            }, 100);
+
+            return result;
+        };
+
+        // Also hook into ready event
+        var originalReady = wp.media.view.Attachment.Details.prototype.ready;
+        if (originalReady) {
+            wp.media.view.Attachment.Details.prototype.ready = function() {
+                if (originalReady) {
+                    originalReady.apply(this, arguments);
+                }
+
+                if (this.model) {
+                    var attachment = this.model.toJSON();
+                    addViewLinkForMuxVideos(attachment);
+                }
+            };
+        }
+    }
 
     console.log('WP MUX Media Library: Setup complete');
 });

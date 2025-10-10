@@ -205,6 +205,21 @@ class Wp_Mux_Admin {
 		wp_enqueue_script( 'wp-mux-media-library', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-library.js', array( 'jquery' ), $this->version, true );
 		wp_enqueue_style( 'wp-mux-media-status', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-status.css', array(), $this->version );
 
+		// Enqueue media stats script and styles
+		wp_enqueue_script( 'wp-mux-media-stats', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-stats.js', array( 'jquery', 'media-views' ), $this->version, true );
+		wp_enqueue_style( 'wp-mux-media-stats', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-stats.css', array(), $this->version );
+
+		// Provide data to the media stats script
+		wp_localize_script( 'wp-mux-media-stats', 'wpMuxAnalytics', array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'wp_mux_analytics_nonce' ),
+			'strings' => array(
+				'refreshing' => __( 'Refreshing...', 'wp-mux' ),
+				'refreshed' => __( 'Stats refreshed!', 'wp-mux' ),
+				'error' => __( 'Failed to refresh stats', 'wp-mux' )
+			)
+		) );
+
 		// Provide data to the media library script
 		wp_localize_script( 'wp-mux-media-library', 'wpMuxMedia', array(
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
@@ -705,6 +720,55 @@ class Wp_Mux_Admin {
 		}
 
 		wp_send_json_success( __( 'Default theme updated successfully', 'wp-mux' ) );
+	}
+
+	/**
+	 * AJAX handler to refresh video analytics.
+	 *
+	 * @since    1.1.0
+	 */
+	public function ajax_refresh_video_analytics() {
+		// Verify nonce
+		check_ajax_referer( 'wp_mux_analytics_nonce', 'nonce' );
+
+		// Check user permissions
+		if ( ! current_user_can( 'upload_files' ) ) {
+			wp_send_json_error( array(
+				'message' => __( 'Insufficient permissions', 'wp-mux' ),
+			) );
+		}
+
+		$attachment_id = intval( $_POST['attachment_id'] ?? 0 );
+		if ( empty( $attachment_id ) ) {
+			wp_send_json_error( array(
+				'message' => __( 'Invalid attachment ID', 'wp-mux' ),
+			) );
+		}
+
+		// Verify this is a MUX video
+		$mux_asset_id = get_post_meta( $attachment_id, '_mux_asset_id', true );
+		if ( empty( $mux_asset_id ) ) {
+			wp_send_json_error( array(
+				'message' => __( 'This is not a MUX video', 'wp-mux' ),
+			) );
+		}
+
+		// Force refresh analytics
+		$analytics = $this->get_video_analytics( $attachment_id, true );
+
+		if ( empty( $analytics ) ) {
+			wp_send_json_error( array(
+				'message' => __( 'Failed to fetch analytics. The video may not have any views yet.', 'wp-mux' ),
+			) );
+		}
+
+		// Format for display
+		$formatted = $this->format_analytics_for_display( $analytics );
+
+		wp_send_json_success( array(
+			'message' => __( 'Analytics refreshed successfully', 'wp-mux' ),
+			'analytics' => $formatted,
+		) );
 	}
 
 	/**
@@ -1350,6 +1414,27 @@ class Wp_Mux_Admin {
 			$mux_processing = get_post_meta( $attachment->ID, '_mux_processing', true );
 			$mux_thumbnail_url = get_post_meta( $attachment->ID, '_mux_thumbnail_url', true );
 			$mux_error = get_post_meta( $attachment->ID, '_wp_mux_error', true );
+			$mux_asset_id = get_post_meta( $attachment->ID, '_mux_asset_id', true );
+			$mux_playback_id = get_post_meta( $attachment->ID, '_mux_playback_id', true );
+
+			// Set the playback URL for the "View" link
+			if ( ! empty( $mux_playback_id ) ) {
+				$playback_url = 'https://stream.mux.com/' . $mux_playback_id . '.m3u8';
+				$response['url'] = $playback_url;
+
+				// Get the attachment page URL for the View link
+				$attachment_url = get_attachment_link( $attachment->ID );
+				$response['link'] = $attachment_url;
+
+				// Set noembed property - WordPress uses this for the View link
+				$response['noembed'] = array(
+					'html' => sprintf(
+						'<mux-player playback-id="%s" metadata-video-title="%s" style="width: 100%%; max-width: 100%%;"></mux-player>',
+						esc_attr( $mux_playback_id ),
+						esc_attr( $attachment->post_title )
+					)
+				);
+			}
 
 			// Set status-specific captions and states
 			switch ($mux_status) {
@@ -1380,7 +1465,12 @@ class Wp_Mux_Admin {
 			}
 
 			if ( $mux_thumbnail_url ) {
-				$response['url'] = $mux_thumbnail_url;
+				// Use thumbnail for display preview in media library
+				$response['image'] = array(
+					'src' => $mux_thumbnail_url,
+					'width' => 640,
+					'height' => 360
+				);
 				$response['sizes'] = array(
 					'full' => array(
 						'url' => $mux_thumbnail_url,
@@ -1395,6 +1485,10 @@ class Wp_Mux_Admin {
 						'orientation' => 'landscape'
 					)
 				);
+				// Keep the playback URL if we set it earlier
+				if ( empty( $response['url'] ) ) {
+					$response['url'] = $mux_thumbnail_url;
+				}
 			}
 
 			if ( $mux_processing ) {
@@ -1404,9 +1498,162 @@ class Wp_Mux_Admin {
 
 			$response['mux_upload_id'] = $mux_upload_id;
 			$response['mux_processing'] = $mux_processing;
+
+			// Add analytics data if video is complete
+			if ( $mux_status === 'complete' ) {
+				$analytics = $this->get_video_analytics( $attachment->ID, false );
+
+				if ( ! empty( $analytics ) && is_array( $analytics ) ) {
+					$response['mux_analytics'] = $this->format_analytics_for_display( $analytics );
+					$response['mux_has_analytics'] = true;
+				} else {
+					// Still set flag but with empty/zero analytics
+					$response['mux_analytics'] = $this->format_analytics_for_display( null );
+					$response['mux_has_analytics'] = true; // Show section even with zero views
+				}
+			}
 		}
 
 		return $response;
+	}
+
+	/**
+	 * Get cached video analytics or fetch fresh data.
+	 *
+	 * @since    1.1.0
+	 * @param    int    $attachment_id    The attachment post ID.
+	 * @param    bool   $force_refresh    Whether to force a fresh API call.
+	 * @return   array|null               Analytics data or null if unavailable.
+	 */
+	public function get_video_analytics( $attachment_id, $force_refresh = false ) {
+		$mux_asset_id = get_post_meta( $attachment_id, '_mux_asset_id', true );
+
+		if ( empty( $mux_asset_id ) ) {
+			return null;
+		}
+
+		// Check cache unless force refresh
+		if ( ! $force_refresh ) {
+			$cached_stats = get_post_meta( $attachment_id, '_mux_analytics_cache', true );
+			$cache_timestamp = get_post_meta( $attachment_id, '_mux_analytics_timestamp', true );
+
+			// Cache valid for 1 hour
+			if ( ! empty( $cached_stats ) && ! empty( $cache_timestamp ) ) {
+				$cache_age = current_time( 'timestamp' ) - intval( $cache_timestamp );
+				if ( $cache_age < 3600 ) {
+					return $cached_stats;
+				}
+			}
+		}
+
+		// Fetch fresh analytics from MUX API
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
+		$api = new Wp_Mux_Api();
+
+		$analytics = $api->get_video_analytics( $mux_asset_id );
+
+		if ( ! is_wp_error( $analytics ) && is_array( $analytics ) ) {
+			// Cache the results
+			update_post_meta( $attachment_id, '_mux_analytics_cache', $analytics );
+			update_post_meta( $attachment_id, '_mux_analytics_timestamp', current_time( 'timestamp' ) );
+
+			return $analytics;
+		}
+
+		return null;
+	}
+
+	/**
+	 * Clear analytics cache for a specific attachment.
+	 *
+	 * @since    1.1.0
+	 * @param    int    $attachment_id    The attachment post ID.
+	 * @return   bool                     Whether cache was cleared.
+	 */
+	public function clear_analytics_cache( $attachment_id ) {
+		delete_post_meta( $attachment_id, '_mux_analytics_cache' );
+		delete_post_meta( $attachment_id, '_mux_analytics_timestamp' );
+		return true;
+	}
+
+	/**
+	 * Format analytics data for display.
+	 *
+	 * @since    1.1.0
+	 * @param    array    $analytics    Raw analytics data.
+	 * @return   array                  Formatted analytics data.
+	 */
+	public function format_analytics_for_display( $analytics ) {
+		if ( empty( $analytics ) || ! is_array( $analytics ) ) {
+			return array(
+				'total_views' => '0',
+				'total_watch_time' => '0 min',
+				'average_view_duration' => '0 min',
+				'unique_viewers' => '0',
+				'video_quality_score' => 'N/A',
+				'last_updated' => 'Never',
+			);
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
+
+		$formatted = array(
+			'total_views' => number_format( intval( $analytics['total_views'] ?? 0 ) ),
+			'total_watch_time' => Wp_Mux_Api::format_watch_time( intval( $analytics['total_watch_time'] ?? 0 ) ),
+			'average_view_duration' => Wp_Mux_Api::format_duration( floatval( $analytics['average_view_duration'] ?? 0 ) ),
+			'unique_viewers' => number_format( intval( $analytics['unique_viewers'] ?? 0 ) ),
+			'video_quality_score' => ! empty( $analytics['video_quality_score'] ) ? round( $analytics['video_quality_score'], 1 ) . '%' : 'N/A',
+			'rebuffer_percentage' => ! empty( $analytics['rebuffer_percentage'] ) ? round( $analytics['rebuffer_percentage'], 1 ) . '%' : '0%',
+			'video_startup_time' => ! empty( $analytics['video_startup_time'] ) ? round( $analytics['video_startup_time'] ) . 'ms' : 'N/A',
+			'last_updated' => ! empty( $analytics['last_updated'] ) ?
+				human_time_diff( $analytics['last_updated'], current_time( 'timestamp' ) ) . ' ago' :
+				'Never',
+		);
+
+		return $formatted;
+	}
+
+	/**
+	 * Cron job handler to refresh analytics for all MUX videos.
+	 *
+	 * @since    1.1.0
+	 */
+	public function cron_refresh_analytics() {
+		// Get all MUX video attachments
+		$args = array(
+			'post_type'      => 'attachment',
+			'post_status'    => 'inherit',
+			'posts_per_page' => 50, // Process 50 videos per run
+			'meta_query'     => array(
+				array(
+					'key'     => '_mux_asset_id',
+					'compare' => 'EXISTS',
+				),
+				array(
+					'key'     => '_wp_mux_status',
+					'value'   => 'complete',
+					'compare' => '=',
+				),
+			),
+			'orderby'        => 'date',
+			'order'          => 'DESC',
+		);
+
+		$attachments = get_posts( $args );
+
+		foreach ( $attachments as $attachment ) {
+			// Check cache age - only refresh if older than 1 hour
+			$cache_timestamp = get_post_meta( $attachment->ID, '_mux_analytics_timestamp', true );
+			$cache_age = current_time( 'timestamp' ) - intval( $cache_timestamp );
+
+			// Refresh if cache is older than 1 hour
+			if ( empty( $cache_timestamp ) || $cache_age > 3600 ) {
+				$this->get_video_analytics( $attachment->ID, true );
+
+				// Add a small delay to avoid rate limiting
+				usleep( 100000 ); // 0.1 second delay
+			}
+		}
 	}
 
 	/**

@@ -210,11 +210,20 @@ class Wp_Mux {
 		$this->loader->add_action( 'wp_ajax_wp_mux_delete_theme', $plugin_admin, 'ajax_delete_theme' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_set_default_theme', $plugin_admin, 'ajax_set_default_theme' );
 
+		// Add AJAX handler for video analytics refresh
+		$this->loader->add_action( 'wp_ajax_wp_mux_refresh_video_analytics', $plugin_admin, 'ajax_refresh_video_analytics' );
+
 		// Add Gutenberg/Block editor support for MUX videos
 		$this->loader->add_action( 'enqueue_block_editor_assets', $plugin_admin, 'enqueue_block_editor_assets' );
 
 		// Allow mux-video elements in WordPress content
 		$this->loader->add_action( 'init', $plugin_admin, 'allow_mux_video_elements' );
+
+		// Schedule analytics refresh cron
+		$this->loader->add_action( 'wp_mux_refresh_analytics_event', $plugin_admin, 'cron_refresh_analytics' );
+		if ( ! wp_next_scheduled( 'wp_mux_refresh_analytics_event' ) ) {
+			wp_schedule_event( time(), 'hourly', 'wp_mux_refresh_analytics_event' );
+		}
 
 	}
 
