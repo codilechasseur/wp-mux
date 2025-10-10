@@ -15,8 +15,7 @@
   $(document).on('DOMNodeInserted', '.attachments', addMuxBadgeToGrid);
   $(document).on('ready ajaxComplete', addMuxBadgeToGrid);
 
-  // Also watch for changes in the media grid specifically
-  setInterval(addMuxBadgeToGrid, 1000);
+  // Removed aggressive 1-second interval - badges are now added via event listeners only
 
   // Patch details modal for preview and details
   wp.media.view.Attachment.Details.prototype.render = _.wrap(
@@ -39,20 +38,16 @@
         // Update uploaded date to MUX creation date
         if (model.created_at) {
           try {
-            console.log('MUX created_at:', model.created_at);
             // MUX returns Unix timestamp in seconds, convert to milliseconds
             var timestamp = parseInt(model.created_at) * 1000;
             var createdDate = new Date(timestamp);
-            console.log('Parsed date:', createdDate);
             if (!isNaN(createdDate.getTime()) && createdDate.getFullYear() > 1970) {
               var formatOptions = { year: 'numeric', month: 'long', day: 'numeric' };
               var formattedDate = createdDate.toLocaleDateString('en-US', formatOptions);
               $el.find('.uploaded').text('Created on ' + formattedDate);
-            } else {
-              console.log('Invalid date or 1970 date detected');
             }
           } catch(e) {
-            console.log('Error formatting MUX date:', e);
+            // Error formatting date - silently fail
           }
         }
         // Remove 'View media file' link

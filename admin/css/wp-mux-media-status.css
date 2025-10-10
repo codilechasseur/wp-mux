@@ -1,97 +1,45 @@
-/* MUX Status Badges for Media Library - Subtle Design */
+/* MUX Status Badges for Media Library - Simple Dots */
 .wp-mux-status-badge {
     position: absolute !important;
     top: 8px !important;
     right: 8px !important;
-    background: rgba(255, 255, 255, 0.95) !important;
-    color: #333 !important;
     border-radius: 50% !important;
-    width: 20px !important;
-    height: 20px !important;
-    font-size: 10px !important;
-    line-height: 20px !important;
+    width: 10px !important;
+    height: 10px !important;
     z-index: 999 !important;
-    text-align: center !important;
-    font-weight: 600 !important;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
-    border: 1px solid rgba(0, 0, 0, 0.1) !important;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+    border: none !important;
+    transition: transform 0.15s ease !important;
+}
+
+.wp-mux-status-badge:hover {
+    transform: scale(1.2) !important;
 }
 
 .wp-mux-status-badge.wp-mux-queued {
-    background: rgba(255, 248, 225, 0.95) !important;
-    color: #d69e2e !important;
-    border-color: rgba(213, 158, 46, 0.3) !important;
+    background: #f59e0b !important;
 }
 
 .wp-mux-status-badge.wp-mux-processing {
-    background: rgba(235, 248, 255, 0.95) !important;
-    color: #3182ce !important;
-    border-color: rgba(49, 130, 206, 0.3) !important;
+    background: #3b82f6 !important;
     animation: wp-mux-subtle-pulse 2s infinite ease-in-out;
 }
 
 .wp-mux-status-badge.wp-mux-complete {
-    background: rgba(240, 253, 244, 0.95) !important;
-    color: #38a169 !important;
-    border-color: rgba(56, 161, 105, 0.3) !important;
+    background: #10b981 !important;
 }
 
 .wp-mux-status-badge.wp-mux-failed {
-    background: rgba(255, 245, 245, 0.95) !important;
-    color: #e53e3e !important;
-    border-color: rgba(229, 62, 62, 0.3) !important;
+    background: #ef4444 !important;
 }
 
 /* Subtle pulse animation for processing status */
 @keyframes wp-mux-subtle-pulse {
     0%, 100% {
         opacity: 1;
-        transform: scale(1);
     }
     50% {
-        opacity: 0.8;
-        transform: scale(1.02);
-    }
-}
-
-/* Use simple dots instead of emoji */
-.wp-mux-status-badge.wp-mux-queued .badge-icon {
-    width: 6px !important;
-    height: 6px !important;
-    border-radius: 50% !important;
-    background: currentColor !important;
-    display: inline-block !important;
-}
-
-.wp-mux-status-badge.wp-mux-processing .badge-icon {
-    width: 8px !important;
-    height: 8px !important;
-    border: 2px solid currentColor !important;
-    border-top-color: transparent !important;
-    border-radius: 50% !important;
-    animation: wp-mux-spin 1s linear infinite;
-    display: inline-block !important;
-}
-
-.wp-mux-status-badge.wp-mux-complete .badge-icon::before {
-    content: "✓" !important;
-    font-size: 10px !important;
-    font-weight: bold !important;
-}
-
-.wp-mux-status-badge.wp-mux-failed .badge-icon::before {
-    content: "!" !important;
-    font-size: 11px !important;
-    font-weight: bold !important;
-}
-
-@keyframes wp-mux-spin {
-    to {
-        transform: rotate(360deg);
+        opacity: 0.5;
     }
 }
 
@@ -135,27 +83,14 @@ div[data-id] .thumbnail,
     position: relative !important;
 }
 
-/* Ensure badges don't interfere with clicks */
-.wp-mux-status-badge {
-    pointer-events: none !important;
-}
-
 /* Mobile responsive adjustments */
 @media (max-width: 768px) {
     .wp-mux-status-badge {
-        width: 16px !important;
-        height: 16px !important;
-        font-size: 8px !important;
-        line-height: 16px !important;
-        top: 4px !important;
-        right: 4px !important;
+        width: 8px !important;
+        height: 8px !important;
+        top: 6px !important;
+        right: 6px !important;
     }
-}
-
-/* Hover effect - subtle scale */
-.attachment:hover .wp-mux-status-badge {
-    transform: scale(1.1) !important;
-    transition: transform 0.15s ease !important;
 }
 
 /* Ensure visibility over video thumbnails */

@@ -48,7 +48,6 @@
 	}
 
 	function scanForLocalVideos() {
-		console.log('WP MUX: Scanning for local videos...');
 
 		// Show progress
 		$('#scan-progress').show();
@@ -73,7 +72,6 @@
 				}
 			},
 			error: function(xhr, status, error) {
-				console.error('WP MUX: Scan error:', error);
 				showError('Failed to scan videos: ' + error);
 			},
 			complete: function() {
@@ -84,7 +82,6 @@
 	}
 
 	function displayScanResults(data) {
-		console.log('WP MUX: Scan results:', data);
 
 		if (data.total === 0) {
 			$('#scan-progress').hide();
@@ -134,7 +131,6 @@
 	}
 
 	function startMigration() {
-		console.log('WP MUX: Starting migration...');
 
 		// Reset counters
 		currentIndex = 0;
@@ -177,7 +173,6 @@
 	}
 
 	function pauseMigration() {
-		console.log('WP MUX: Pausing migration...');
 		isPaused = true;
 		$('#pause-migration').hide();
 		$('#resume-migration').show();
@@ -185,7 +180,6 @@
 	}
 
 	function resumeMigration() {
-		console.log('WP MUX: Resuming migration...');
 		isPaused = false;
 		$('#pause-migration').show();
 		$('#resume-migration').hide();
@@ -206,7 +200,6 @@
 		}
 
 		const video = videos[currentIndex];
-		console.log('WP MUX: Processing video:', video);
 
 		// Update UI
 		updateVideoStatus(currentIndex, 'processing');
@@ -306,7 +299,6 @@
 	}
 
 	function completeMigration() {
-		console.log('WP MUX: Migration complete!');
 
 		// Hide migration progress
 		$('#migration-progress').hide();

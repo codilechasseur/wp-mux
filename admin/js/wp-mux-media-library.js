@@ -1,13 +1,6 @@
 jQuery(document).ready(function($) {
     'use strict';
 
-    console.log('WP MUX Media Library: Script loaded, checking environment...');
-
-    // Debug environment info
-    console.log('WP MUX Media Library: pagenow =', window.pagenow);
-    console.log('WP MUX Media Library: body classes =', $('body').attr('class'));
-    console.log('WP MUX Media Library: wpMuxMedia available =', typeof wpMuxMedia !== 'undefined');
-
     // Check if we're on a media library page with more flexible detection
     var isMediaLibrary = window.pagenow === 'upload' ||
                         window.pagenow === 'media' ||
@@ -20,24 +13,21 @@ jQuery(document).ready(function($) {
                             $('.wp-list-table.media').length > 0
                         );
 
-    console.log('WP MUX Media Library: isMediaLibrary =', isMediaLibrary);
-
     if (!isMediaLibrary) {
-        console.log('WP MUX Media Library: Not on media library page, but will initialize anyway for modal support');
         // Don't exit - media modals might be opened from other pages
     }
 
     var statusCheckInterval;
     var processedAttachments = new Set();
+    var activeProcessingVideos = new Set(); // Track videos currently processing
 
     /**
      * Add MUX status badge to attachment thumbnail
      */
-    function addMuxStatusBadge(attachmentId, status, $thumbnail) {
-        console.log('WP MUX: Adding status badge', {attachmentId, status, thumbnailCount: $thumbnail.length});
+    function addStatusBadge(attachmentId, status) {
+        var $thumbnail = findAttachmentThumbnails(attachmentId);
 
         if ($thumbnail.length === 0) {
-            console.log('WP MUX: No thumbnail found for attachment', attachmentId);
             return;
         }
 
@@ -46,38 +36,31 @@ jQuery(document).ready(function($) {
 
         var badgeClass = 'wp-mux-status-badge';
         var badgeText = '';
-        var badgeIcon = '';
 
         switch (status) {
             case 'queued':
                 badgeClass += ' wp-mux-queued';
-                badgeIcon = '<span class="badge-icon"></span>'; // Dot
                 badgeText = 'Queued for MUX';
                 break;
             case 'processing':
                 badgeClass += ' wp-mux-processing';
-                badgeIcon = '<span class="badge-icon"></span>'; // Spinner
-                badgeText = 'Processing...';
+                badgeText = 'Processing Video...';
                 break;
             case 'complete':
                 badgeClass += ' wp-mux-complete';
-                badgeIcon = '<span class="badge-icon"></span>'; // Checkmark
-                badgeText = 'Ready';
+                badgeText = 'Ready to Use';
                 break;
             case 'failed':
                 badgeClass += ' wp-mux-failed';
-                badgeIcon = '<span class="badge-icon"></span>'; // Exclamation
-                badgeText = 'Failed';
+                badgeText = 'Processing Failed';
                 break;
             default:
-                console.log('WP MUX: Unknown status:', status);
                 return; // Don't add badge for unknown status
         }
 
         var $badge = $('<div>')
             .addClass(badgeClass)
-            .attr('title', badgeText)
-            .html(badgeIcon);
+            .attr('title', badgeText);
 
         // Ensure parent has relative positioning
         $thumbnail.css('position', 'relative');
@@ -94,16 +77,12 @@ jQuery(document).ready(function($) {
             // Also update the thumbnail with MUX thumbnail
             updateThumbnailWithMuxImage(attachmentId, $thumbnail);
         }
-
-        console.log('WP MUX: Badge added successfully for attachment', attachmentId);
     }
 
     /**
      * Update thumbnail with MUX generated thumbnail
      */
     function updateThumbnailWithMuxImage(attachmentId, $thumbnail) {
-        console.log('WP MUX: Updating thumbnail for attachment', attachmentId);
-
         if (typeof wpMuxMedia === 'undefined') {
             return;
         }
@@ -140,7 +119,6 @@ jQuery(document).ready(function($) {
                             });
                         };
                         testImg.onerror = function() {
-                            console.log('WP MUX: Failed to load MUX thumbnail:', thumbnailUrl);
                             $thumbnail.removeClass('wp-mux-thumbnail-updating');
                         };
                         testImg.src = thumbnailUrl;
@@ -148,12 +126,10 @@ jQuery(document).ready(function($) {
                         $thumbnail.removeClass('wp-mux-thumbnail-updating');
                     }
                 } else {
-                    console.log('WP MUX: No thumbnail URL in response for attachment', attachmentId);
                     $thumbnail.removeClass('wp-mux-thumbnail-updating');
                 }
             },
             error: function() {
-                console.log('WP MUX: Failed to get attachment info for', attachmentId);
                 $thumbnail.removeClass('wp-mux-thumbnail-updating');
             }
         });
@@ -167,10 +143,7 @@ jQuery(document).ready(function($) {
             return;
         }
 
-        console.log('WP MUX: Checking status for attachment', attachmentId);
-
         if (typeof wpMuxMedia === 'undefined') {
-            console.log('WP MUX: wpMuxMedia not available, cannot check status');
             return;
         }
 
@@ -183,28 +156,38 @@ jQuery(document).ready(function($) {
                 nonce: wpMuxMedia.nonce || ''
             },
             success: function(response) {
-                console.log('WP MUX: AJAX response for attachment', attachmentId, response);
-
                 if (response.success && response.data.status) {
                     var status = response.data.status;
                     var $thumbnails = findAttachmentThumbnails(attachmentId);
 
-                    console.log('WP MUX: Found', $thumbnails.length, 'thumbnails for attachment', attachmentId);
+                    // Only show badges for queued, processing, or failed
+                    // Don't show badge for "complete" - that's the normal state
+                    if (status === 'queued' || status === 'processing' || status === 'failed') {
+                        $thumbnails.each(function() {
+                            addMuxStatusBadge(attachmentId, status, $(this));
+                        });
+                    } else if (status === 'complete') {
+                        // Remove any existing badges for completed videos
+                        $thumbnails.find('.wp-mux-status-badge').fadeOut(300, function() {
+                            $(this).remove();
+                        });
+                    }
 
-                    $thumbnails.each(function() {
-                        addMuxStatusBadge(attachmentId, status, $(this));
-                    });
+                    // Track active processing videos
+                    if (status === 'queued' || status === 'processing') {
+                        activeProcessingVideos.add(attachmentId);
+                    } else {
+                        activeProcessingVideos.delete(attachmentId);
+                    }
 
                     // If status is complete or failed, mark as processed
                     if (status === 'complete' || status === 'failed') {
                         processedAttachments.add(attachmentId);
                     }
-                } else {
-                    console.log('WP MUX: No valid status returned for attachment', attachmentId);
                 }
             },
             error: function(xhr, status, error) {
-                console.log('WP MUX: AJAX error for attachment', attachmentId, {xhr, status, error});
+                // Silent error handling
             }
         });
     }
@@ -233,8 +216,6 @@ jQuery(document).ready(function($) {
         $thumbnails = $thumbnails.add($('[data-attachment-id="' + attachmentId + '"] .thumbnail'));
         $thumbnails = $thumbnails.add($('#attachment-' + attachmentId + ' .thumbnail'));
 
-        console.log('WP MUX: Found', $thumbnails.length, 'thumbnail elements for attachment', attachmentId);
-
         return $thumbnails;
     }
 
@@ -242,12 +223,22 @@ jQuery(document).ready(function($) {
      * Scan for video attachments and check their MUX status
      */
     function scanForVideoAttachments() {
+        // Early exit if no actively processing videos and we've done initial scan
+        if (activeProcessingVideos.size === 0 && processedAttachments.size > 0) {
+            return;
+        }
+
         var videoAttachments = new Set();
 
         // Grid view - look for MUX video attachments
         $('.attachment').each(function() {
             var $this = $(this);
             var attachmentId = $this.data('id');
+
+            // Skip already processed attachments
+            if (attachmentId && processedAttachments.has(attachmentId)) {
+                return;
+            }
 
             // Check if it's a MUX video by looking for MUX-specific attributes
             if (attachmentId && (
@@ -267,6 +258,12 @@ jQuery(document).ready(function($) {
             var id = $this.attr('id');
             if (id && id.indexOf('post-') === 0) {
                 var attachmentId = parseInt(id.replace('post-', ''));
+
+                // Skip already processed attachments
+                if (processedAttachments.has(attachmentId)) {
+                    return;
+                }
+
                 var $mimeCell = $this.find('.column-mime_type');
                 var mimeText = $mimeCell.text().toLowerCase();
 
@@ -279,22 +276,21 @@ jQuery(document).ready(function($) {
             }
         });
 
-        if (videoAttachments.size > 0) {
-            console.log('WP MUX: Checking status for', videoAttachments.size, 'MUX video(s)');
-        }
-
         // Check MUX status for each potential video attachment
         videoAttachments.forEach(function(attachmentId) {
             checkMuxStatus(attachmentId);
         });
+
+        // If no videos found and no active processing, stop the interval
+        if (videoAttachments.size === 0 && activeProcessingVideos.size === 0) {
+            stopStatusChecking();
+        }
     }
 
     /**
      * Initialize status checking
      */
     function initStatusChecking() {
-        console.log('WP MUX: Initializing status checking...');
-
         // Initial scan
         scanForVideoAttachments();
 
@@ -306,11 +302,21 @@ jQuery(document).ready(function($) {
         statusCheckInterval = setInterval(function() {
             scanForVideoAttachments();
 
-            // Also trigger queue processing in background if needed
-            triggerQueueProcessing();
-        }, 5000); // Check every 5 seconds
+            // Only trigger queue processing if we have active videos
+            if (activeProcessingVideos.size > 0) {
+                triggerQueueProcessing();
+            }
+        }, 10000); // Check every 10 seconds (reduced from 5s for better performance)
+    }
 
-        console.log('WP MUX: Status checking initialized with 5s interval');
+    /**
+     * Stop status checking when no videos need monitoring
+     */
+    function stopStatusChecking() {
+        if (statusCheckInterval) {
+            clearInterval(statusCheckInterval);
+            statusCheckInterval = null;
+        }
     }
 
     /**
@@ -330,9 +336,7 @@ jQuery(document).ready(function($) {
             },
             timeout: 100, // Very short timeout since it's meant to be non-blocking
             success: function(response) {
-                if (response.success) {
-                    console.log('WP MUX: Queue processing triggered');
-                }
+                // Silent success
             },
             error: function() {
                 // Silently handle errors - this is background processing
@@ -344,12 +348,9 @@ jQuery(document).ready(function($) {
      * Handle new uploads
      */
     function handleNewUploads() {
-        console.log('WP MUX: Setting up upload handlers...');
-
         // Watch for new uploads in the media library
         if (typeof wp !== 'undefined' && wp.Uploader) {
             wp.Uploader.queue.on('add', function(attachment) {
-                console.log('WP MUX: New upload detected:', attachment);
                 if (attachment.get('type') === 'video') {
                     // Wait a bit for the attachment to be processed, then check status
                     setTimeout(function() {
@@ -376,7 +377,6 @@ jQuery(document).ready(function($) {
                 });
 
                 if (shouldRescan) {
-                    console.log('WP MUX: DOM changes detected, rescanning...');
                     setTimeout(scanForVideoAttachments, 500);
                 }
             });
@@ -390,7 +390,6 @@ jQuery(document).ready(function($) {
                         childList: true,
                         subtree: true
                     });
-                    console.log('WP MUX: Observing DOM changes in:', selector);
                 }
             });
         }
@@ -398,14 +397,12 @@ jQuery(document).ready(function($) {
 
     // Force initialization after a short delay to ensure DOM is ready
     setTimeout(function() {
-        console.log('WP MUX: Starting initialization...');
         initStatusChecking();
         handleNewUploads();
     }, 1000);
 
     // Re-initialize when media library view changes
     $(document).on('click', '.view-switch a, .media-toolbar-secondary .media-button', function() {
-        console.log('WP MUX: View switch detected, reinitializing...');
         setTimeout(function() {
             processedAttachments.clear(); // Reset processed list
             initStatusChecking();
@@ -415,7 +412,6 @@ jQuery(document).ready(function($) {
     // Initialize when media modal opens
     $(document).on('click', '.add_media, .insert-media', function() {
         setTimeout(function() {
-            console.log('WP MUX: Media modal opened, initializing...');
             initStatusChecking();
         }, 1500);
     });
@@ -502,6 +498,4 @@ jQuery(document).ready(function($) {
             };
         }
     }
-
-    console.log('WP MUX Media Library: Setup complete');
 });

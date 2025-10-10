@@ -291,18 +291,6 @@
 		const videos = data.data || [];
 		const $tbody = $('#videos-table-body');
 
-		// Debug: Log the first video to see the structure
-		if (videos.length > 0) {
-			console.log('MUX Video Data Structure:', videos[0]);
-			console.log('Available date fields:', {
-				created_at: videos[0].created_at,
-				created: videos[0].created,
-				date_created: videos[0].date_created,
-				upload_time: videos[0].upload_time,
-				timestamp: videos[0].timestamp
-			});
-		}
-
 		if (videos.length === 0) {
 			$('#no-videos').show();
 			return;
@@ -442,7 +430,6 @@
 				}
 
 			} catch (e) {
-				console.log('Date parsing error:', e, 'for value:', dateValue);
 				continue;
 			}
 		}
@@ -586,7 +573,6 @@
 		const duration = $row.find('.column-duration').text();
 		const created = $row.find('.column-created').text();
 
-		console.log('Opening preview for asset:', assetId, 'with created date:', created);
 
 		// Populate modal with video data
 		$('#modal-video-title').text(`Video Preview - ${assetId}`);
@@ -677,17 +663,14 @@
 			success: function(response) {
 				if (response.success && response.data.data) {
 					const video = response.data.data;
-					console.log('Detailed video data:', video);
 
 					// Update any other details from the full video object if needed
 					if (video.aspect_ratio) {
-						console.log('Aspect ratio:', video.aspect_ratio);
 					}
 				}
 			},
 			error: function() {
 				// Silently fail
-				console.log('Failed to load detailed video info');
 			}
 		});
 	}

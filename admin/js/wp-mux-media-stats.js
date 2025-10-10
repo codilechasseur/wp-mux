@@ -10,8 +10,6 @@
 (function($) {
 	'use strict';
 
-	console.log('WP MUX Media Stats: Script loaded');
-
 	// Track if we've already added stats to avoid duplicates
 	var statsAddedForAttachment = {};
 
@@ -36,15 +34,6 @@
 		if (statsAddedForAttachment[attachment.id]) {
 			return;
 		}
-
-		console.log('WP MUX Media Stats: Adding stats for attachment', attachment.id);
-		console.log('WP MUX Media Stats: Attachment properties:', {
-			url: attachment.url,
-			link: attachment.link,
-			noembed: attachment.noembed,
-			type: attachment.type,
-			subtype: attachment.subtype
-		});
 
 		// Wait for the DOM to be ready
 		setTimeout(function() {
@@ -82,7 +71,6 @@
 			if ($insertionPoint.length > 0) {
 				$insertionPoint.append(statsHtml);
 				statsAddedForAttachment[attachment.id] = true;
-				console.log('WP MUX Media Stats: Stats displayed successfully');
 
 				// Attach event handler for refresh button
 				attachRefreshHandler(attachment.id);
@@ -157,8 +145,8 @@
 	/**
 	 * Refresh stats via AJAX
 	 */
-	function refreshStats(attachmentId, $button) {
-		console.log('WP MUX Media Stats: Refreshing stats for attachment', attachmentId);
+	function refreshStats(attachmentId) {
+		var $button = $('.mux-stats-refresh[data-attachment-id="' + attachmentId + '"]');
 
 		// Disable button and show loading state
 		$button.prop('disabled', true).addClass('mux-stats-loading');
@@ -172,8 +160,6 @@
 				attachment_id: attachmentId
 			},
 			success: function(response) {
-				console.log('WP MUX Media Stats: Refresh response', response);
-
 				if (response.success && response.data.analytics) {
 					// Update the stats display
 					updateStatsDisplay(attachmentId, response.data.analytics);
@@ -185,7 +171,6 @@
 				}
 			},
 			error: function(xhr, status, error) {
-				console.error('WP MUX Media Stats: Refresh error', error);
 				showRefreshMessage('error', 'Failed to refresh stats');
 			},
 			complete: function() {

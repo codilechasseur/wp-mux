@@ -1,7 +1,6 @@
 (function() {
     'use strict';
 
-    console.log('WP MUX: Block editor script loading...');
 
     // Register mux-video as a valid element for Gutenberg
     if (typeof wp !== 'undefined' && wp.blocks) {
@@ -66,13 +65,10 @@
                         }
 
                         // Debug themes
-                        console.log('WP MUX: Available themes:', window.wpMuxThemes);
-                        console.log('WP MUX: Current theme attribute:', props.attributes.mux_theme);
 
                         // Log individual themes
                         if (window.wpMuxThemes) {
                             window.wpMuxThemes.forEach(theme => {
-                                console.log('WP MUX: Theme -', 'ID:', theme.id, 'Name:', theme.name);
                             });
                         }
 
@@ -84,7 +80,6 @@
                                 value: theme.id
                             }))
                         ];
-                        console.log('WP MUX: Theme options for selector:', themeOptions);
 
                         // Theme selector component
                         const themeSelector = wp.element.createElement(
@@ -103,7 +98,6 @@
                                         value: props.attributes.mux_theme || 'default',
                                         options: themeOptions,
                                         onChange: function(value) {
-                                            console.log('WP MUX: Theme changed to:', value);
                                             props.setAttributes({ mux_theme: value });
                                         }
                                     }
@@ -126,7 +120,6 @@
 
     // Function to convert MUX videos
     function convertMuxVideos() {
-        console.log('WP MUX: Looking for videos to convert...');
 
         // Look in multiple contexts - main document, iframes, etc.
         const contexts = [document];
@@ -148,12 +141,10 @@
         contexts.forEach(function(doc) {
             const videos = doc.querySelectorAll('video[src*="stream.mux.com"]');
             totalVideos += videos.length;
-            console.log('WP MUX: Found', videos.length, 'MUX videos in context');
 
             videos.forEach(function(video) {
                 const src = video.getAttribute('src');
                 if (src && (src.includes('.mp4') || src.includes('.m3u8') || src.includes('mux=1'))) {
-                    console.log('WP MUX: Converting video with src:', src);
 
                     try {
                         // Extract playback ID
@@ -168,7 +159,6 @@
                             playbackId = playbackId.slice(0, -5);
                         }
 
-                        console.log('WP MUX: Extracted playback ID:', playbackId);
 
                         // Create thumbnail URL for poster attribute
                         const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?width=640&height=360`;
@@ -176,21 +166,18 @@
                         // Try creating mux-player first (might be more reliable)
                         let muxElement;
                         if (customElements.get('mux-player')) {
-                            console.log('WP MUX: Using mux-player element');
                             muxElement = doc.createElement('mux-player');
                             muxElement.setAttribute('playback-id', playbackId);
                             muxElement.setAttribute('controls', '');
                             muxElement.setAttribute('stream-type', 'on-demand');
                             muxElement.setAttribute('poster', thumbnailUrl);
                         } else if (customElements.get('mux-video')) {
-                            console.log('WP MUX: Using mux-video element');
                             muxElement = doc.createElement('mux-video');
                             muxElement.setAttribute('playback-id', playbackId);
                             muxElement.setAttribute('controls', '');
                             muxElement.setAttribute('stream-type', 'on-demand');
                             muxElement.setAttribute('poster', thumbnailUrl);
                         } else {
-                            console.log('WP MUX: No MUX elements available, falling back to regular video');
                             // Fall back to regular video element but with some enhancements
                             muxElement = doc.createElement('video');
                             muxElement.setAttribute('controls', '');
@@ -218,24 +205,18 @@
                         // Replace the video element
                         video.parentNode.replaceChild(muxElement, video);
 
-                        console.log('WP MUX: Successfully replaced video element with:', muxElement.tagName);
 
                         // Force the element to initialize
                         setTimeout(function() {
-                            console.log('WP MUX: Checking element initialization...');
-                            console.log('WP MUX: Element children:', muxElement.children.length);
-                            console.log('WP MUX: Element innerHTML length:', muxElement.innerHTML.length);
 
                             // If it's a MUX element and has no children, try to force initialization
                             if ((muxElement.tagName === 'MUX-VIDEO' || muxElement.tagName === 'MUX-PLAYER') && muxElement.children.length === 0) {
-                                console.log('WP MUX: No children found, trying to force initialization...');
 
                                 // Try different initialization methods
                                 if (muxElement.connectedCallback) {
                                     try {
                                         muxElement.connectedCallback();
                                     } catch (e) {
-                                        console.log('WP MUX: connectedCallback failed:', e);
                                     }
                                 }
 
@@ -252,7 +233,6 @@
                                     const event = new CustomEvent('loadstart');
                                     muxElement.dispatchEvent(event);
                                 } catch (e) {
-                                    console.log('WP MUX: Event dispatch failed:', e);
                                 }
                             }
                         }, 500);
@@ -260,7 +240,6 @@
                         // Final check after 2 seconds
                         setTimeout(function() {
                             if ((muxElement.tagName === 'MUX-VIDEO' || muxElement.tagName === 'MUX-PLAYER') && muxElement.children.length === 0) {
-                                console.log('WP MUX: MUX element still not working, adding thumbnail preview for editor');
 
                                 // Create thumbnail URL from playback ID
                                 const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?width=640&height=360`;
@@ -320,19 +299,15 @@
                                 `;
 
                                 muxElement.appendChild(placeholder);
-                                console.log('WP MUX: Added thumbnail preview for playback ID:', playbackId);
                             } else {
-                                console.log('WP MUX: Element appears to be working correctly');
                             }
                         }, 2000);
                     } catch (error) {
-                        console.error('WP MUX: Error converting video:', error);
                     }
                 }
             });
         });
 
-        console.log('WP MUX: Total videos found across all contexts:', totalVideos);
     }
 
     // Function to set up observers for each context
@@ -374,7 +349,6 @@
                 });
 
                 if (shouldConvert) {
-                    console.log('WP MUX: New video detected, converting...');
                     setTimeout(convertMuxVideos, 100);
                 }
             });
@@ -389,7 +363,6 @@
     // Wait for WordPress to be ready
     if (typeof wp !== 'undefined' && wp.domReady) {
         wp.domReady(function() {
-            console.log('WP MUX: Block editor DOM ready');
 
             // Add CSS to make mux-video elements display properly in editor
             const style = document.createElement('style');
@@ -414,20 +387,17 @@
 
     // Also try with regular DOM ready
     document.addEventListener('DOMContentLoaded', function() {
-        console.log('WP MUX: DOM content loaded');
         setTimeout(convertMuxVideos, 500);
         setTimeout(setupObservers, 500);
     });
 
     // Try multiple times with delays to catch dynamically loaded content
     setTimeout(function() {
-        console.log('WP MUX: 1 second delay check');
         convertMuxVideos();
         setupObservers();
     }, 1000);
 
     setTimeout(function() {
-        console.log('WP MUX: 3 second delay check');
         convertMuxVideos();
     }, 3000);
 
@@ -435,7 +405,6 @@
     setInterval(function() {
         const videos = document.querySelectorAll('video[src*="stream.mux.com"]');
         if (videos.length > 0) {
-            console.log('WP MUX: Periodic check found', videos.length, 'videos');
             convertMuxVideos();
         }
     }, 3000);

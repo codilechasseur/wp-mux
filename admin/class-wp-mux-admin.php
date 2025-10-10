@@ -236,12 +236,6 @@ class Wp_Mux_Admin {
 				'failed' => __( 'Failed', 'wp-mux' )
 			)
 		) );
-
-		// Add debug info to help troubleshoot
-		wp_add_inline_script( 'wp-mux-media-library',
-			'console.log("WP MUX: Script enqueued on screen: ' . $screen->id . ', base: ' . $screen->base . '");',
-			'before'
-		);
 	}
 
 	// Enqueue theme management script on themes page
@@ -952,28 +946,6 @@ class Wp_Mux_Admin {
 			}
 		';
 		wp_add_inline_style( $this->plugin_name . '-block-editor-style', $inline_css );
-
-		// Add inline script to ensure MUX elements are working
-		$inline_js = '
-			console.log("WP MUX: Block editor assets loaded");
-
-			// Make sure custom elements are supported
-			if (typeof customElements !== "undefined") {
-				console.log("WP MUX: Custom elements supported");
-				setTimeout(function() {
-					const muxVideoRegistered = customElements.get("mux-video");
-					const muxPlayerRegistered = customElements.get("mux-player");
-
-					console.log("WP MUX: mux-video registered:", !!muxVideoRegistered);
-					console.log("WP MUX: mux-player registered:", !!muxPlayerRegistered);
-
-					if (!muxVideoRegistered && !muxPlayerRegistered) {
-						console.log("WP MUX: Neither MUX element registered - libraries may not be loaded");
-					}
-				}, 1000);
-			}
-		';
-		wp_add_inline_script( $this->plugin_name . '-block-editor', $inline_js );
 	}
 
 	/**

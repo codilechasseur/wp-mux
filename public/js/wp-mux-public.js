@@ -1,25 +1,17 @@
 (function( $ ) {
 	'use strict';
 
-	console.log('WP MUX: Public script loading...');
-
 	/**
 	 * Convert MUX videos from regular video elements to mux-player elements
 	 */
 	function convertMuxVideos() {
-		console.log('WP MUX: Looking for videos to convert...');
-
 		// Find all video elements with MUX URLs
 		const videos = document.querySelectorAll('video[src*="stream.mux.com"]');
-		console.log('WP MUX: Found', videos.length, 'potential MUX videos');
 
 		videos.forEach(function(video) {
 			const src = video.getAttribute('src');
-			console.log('WP MUX: Checking video with src:', src);
 
 			if (src && (src.includes('.mp4') || src.includes('.m3u8') || src.includes('mux=1'))) {
-				console.log('WP MUX: Converting video with src:', src);
-
 				// Extract playback ID
 				try {
 					const url = new URL(src);
@@ -32,8 +24,6 @@
 					} else if (playbackId.endsWith('.m3u8')) {
 						playbackId = playbackId.slice(0, -5);
 					}
-
-					console.log('WP MUX: Extracted playback ID:', playbackId);
 
 					// Create thumbnail URL for poster attribute
 					const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?width=640&height=360`;
@@ -60,10 +50,8 @@
 
 					// Replace the video element
 					video.parentNode.replaceChild(muxPlayer, video);
-
-					console.log('WP MUX: Successfully replaced video element with mux-player');
 				} catch (error) {
-					console.error('WP MUX: Error converting video:', error);
+					// Silent error handling
 				}
 			}
 		});
@@ -71,14 +59,12 @@
 
 	// Convert videos when DOM is ready
 	$(document).ready(function() {
-		console.log('WP MUX: DOM ready, converting videos');
 		convertMuxVideos();
 	});
 
 	// Also convert videos after a short delay (for dynamically loaded content)
 	$(window).on('load', function() {
 		setTimeout(function() {
-			console.log('WP MUX: Window loaded, converting videos again');
 			convertMuxVideos();
 		}, 500);
 	});
@@ -103,7 +89,6 @@
 			});
 
 			if (shouldConvert) {
-				console.log('WP MUX: New video detected via observer, converting...');
 				setTimeout(convertMuxVideos, 100);
 			}
 		});
@@ -114,7 +99,6 @@
 				childList: true,
 				subtree: true
 			});
-			console.log('WP MUX: MutationObserver set up');
 		});
 	}
 
@@ -122,7 +106,6 @@
 	setInterval(function() {
 		const videos = document.querySelectorAll('video[src*="stream.mux.com"]');
 		if (videos.length > 0) {
-			console.log('WP MUX: Periodic check found videos, converting...');
 			convertMuxVideos();
 		}
 	}, 2000);

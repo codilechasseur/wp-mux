@@ -21,8 +21,6 @@
 
                                 // Check if this is a MUX upload success
                                 if (resp.success && resp.data && resp.data.subtype === 'mux') {
-                                    console.log('MUX upload completed successfully', resp.data);
-
                                     // The attachment is already created by our PHP code
                                     // Just refresh the media library to show it
                                     setTimeout(function() {
@@ -30,7 +28,7 @@
                                     }, 500);
                                 }
                             } catch (e) {
-                                console.log('Could not parse upload response', e);
+                                // Silent error handling
                             }
                         });
 
@@ -40,7 +38,6 @@
                                 // Check if this might be a MUX file that was already processed
                                 var filename = error.file.name.toLowerCase();
                                 if (filename.match(/\.(mp4|mov|avi|wmv|flv|webm|mkv)$/)) {
-                                    console.log('Suppressing error for video file (likely handled by MUX):', error.file.name);
                                     // Don't show the error - it was likely handled by our MUX upload
                                     return false;
                                 }
@@ -58,14 +55,12 @@
                 var contentView = wp.media.frame.content.get();
                 if (contentView && contentView.collection) {
                     contentView.collection.fetch({reset: true});
-                    console.log('Media library refreshed via wp.media');
                 }
             }
 
             // Method 2: Refresh via media library browser if available
             if (wp.media.frame && wp.media.frame.library) {
                 wp.media.frame.library.fetch({reset: true});
-                console.log('Media library refreshed via frame.library');
             }
 
             // Method 3: If we're in the media library page, trigger a soft refresh
