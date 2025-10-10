@@ -186,6 +186,9 @@ class Wp_Mux {
 		// Inject MUX data on attachment edit pages
 		$this->loader->add_action( 'admin_head', $plugin_admin, 'inject_mux_data_on_attachment_edit' );
 
+		// Display MUX player on attachment edit page
+		$this->loader->add_action( 'edit_form_after_title', $plugin_admin, 'display_mux_player_on_edit_page' );
+
 		// Post-upload video processing queue system
 		$this->loader->add_action( 'add_attachment', $plugin_admin, 'queue_video_for_mux_processing' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_process_queue', $plugin_admin, 'process_mux_queue' );

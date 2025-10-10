@@ -424,43 +424,13 @@ jQuery(document).ready(function($) {
     });
 
     /**
-     * Add View link to actions menu for MUX videos if missing
-     * This ensures MUX videos have a "View media file" link in the attachment details
+     * DISABLED: Previously added View link to actions menu for MUX videos
+     * Now disabled because local files don't exist and would cause 404 errors
+     * Users should use Edit button to preview MUX videos
      */
     function addViewLinkForMuxVideos(attachment) {
-        if (!attachment || attachment.subtype !== 'mux') {
-            return;
-        }
-
-        setTimeout(function() {
-            var $actions = $('.attachment-details[data-id="' + attachment.id + '"] .actions');
-
-            if ($actions.length === 0) {
-                $actions = $('.attachment-details .actions');
-            }
-
-            if ($actions.length === 0) {
-                return;
-            }
-
-            // Check if View link already exists
-            if ($actions.find('a:contains("View")').length > 0) {
-                return;
-            }
-
-            // Use the link property (attachment page) or fallback to url (stream URL)
-            var viewUrl = attachment.link || attachment.url;
-
-            if (!viewUrl) {
-                return;
-            }
-
-            // Create View link without separator - WordPress template adds it
-            var viewHtml = '<a href="' + viewUrl + '" target="_blank" rel="noopener noreferrer">View media file</a>';
-
-            // Prepend to actions (so it appears first)
-            $actions.prepend(viewHtml);
-        }, 200);
+        // Disabled - no longer adding View links for MUX videos
+        return;
     }
 
     /**

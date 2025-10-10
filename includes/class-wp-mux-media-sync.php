@@ -19,6 +19,12 @@ class Wp_Mux_Media_Sync {
         add_filter( 'wp_get_attachment_image_src', [ $this, 'filter_attachment_image_src' ], 10, 4 );
         // Filter attachment metadata for thumbnails
         add_filter( 'wp_get_attachment_metadata', [ $this, 'filter_attachment_metadata' ], 10, 2 );
+        // Filter attachment URL to return MUX stream URL instead of local file (for grid view)
+        add_filter( 'wp_get_attachment_url', [ $this, 'filter_attachment_url' ], 10, 2 );
+        // Display MUX player on attachment pages
+        add_filter( 'prepend_attachment', [ $this, 'display_mux_player_on_attachment_page' ], 10, 1 );
+        // Filter media row actions to fix "View" link
+        add_filter( 'media_row_actions', [ $this, 'filter_media_row_actions' ], 10, 2 );
     }
 
     /**
@@ -198,13 +204,13 @@ class Wp_Mux_Media_Sync {
         if ( $attachment->post_mime_type === 'video/mux' ) {
             $response['type'] = 'video';
             $response['subtype'] = 'mux';
-            
+
             // Get MUX metadata
             $thumbnail_url = get_post_meta( $attachment->ID, '_mux_thumbnail_url', true );
             $playback_id = get_post_meta( $attachment->ID, '_mux_playback_id', true );
             $duration = get_post_meta( $attachment->ID, '_mux_duration', true );
             $stream_url = $this->get_mux_stream_url( $attachment->ID );
-            
+
             // Set icon and image for list view thumbnails
             $response['icon'] = $thumbnail_url;
             $response['image'] = array(
@@ -212,7 +218,7 @@ class Wp_Mux_Media_Sync {
                 'width' => 640,
                 'height' => 360
             );
-            
+
             // Add sizes array for different thumbnail sizes used in list and grid views
             $response['sizes'] = array(
                 'thumbnail' => array(
@@ -234,23 +240,21 @@ class Wp_Mux_Media_Sync {
                     'orientation' => 'landscape'
                 )
             );
-            
-            // Use MUX stream URL instead of local file
-            $response['url'] = $stream_url;
-            
+
             // Add MUX-specific properties
             $response['mux'] = true;
             $response['playback_id'] = $playback_id;
             $response['duration'] = $duration;
             $response['created_at'] = get_post_meta( $attachment->ID, '_mux_created_at', true );
-            
+
             // Set filename to empty to hide it (no local file exists)
             $response['filename'] = '';
             $response['file'] = '';
-            
-            // Override edit URL to use attachment page (not direct file link)
+
+            // Override URLs - remove link to prevent 404s
             $response['editLink'] = get_edit_post_link( $attachment->ID, 'raw' );
-            $response['link'] = $stream_url; // Use stream URL for "View" link
+            $response['link'] = ''; // Remove "View" link (no local file exists)
+            $response['url'] = ''; // Remove direct URL (no local file exists)
         }
         return $response;
     }
@@ -272,10 +276,10 @@ class Wp_Mux_Media_Sync {
      */
     public function filter_attachment_image_src( $image, $attachment_id, $size, $icon ) {
         $attachment = get_post( $attachment_id );
-        
+
         if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
             $thumbnail_url = get_post_meta( $attachment_id, '_mux_thumbnail_url', true );
-            
+
             if ( $thumbnail_url ) {
                 // Return array with thumbnail URL and dimensions
                 // WordPress expects: [ url, width, height, is_intermediate ]
@@ -287,7 +291,7 @@ class Wp_Mux_Media_Sync {
                 );
             }
         }
-        
+
         return $image;
     }
 
@@ -296,30 +300,30 @@ class Wp_Mux_Media_Sync {
      */
     public function filter_attachment_metadata( $data, $attachment_id ) {
         $attachment = get_post( $attachment_id );
-        
+
         if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
             $thumbnail_url = get_post_meta( $attachment_id, '_mux_thumbnail_url', true );
-            
+
             if ( $thumbnail_url && is_array( $data ) ) {
                 // Add thumbnail to metadata
                 if ( ! isset( $data['sizes'] ) ) {
                     $data['sizes'] = array();
                 }
-                
+
                 $data['sizes']['thumbnail'] = array(
                     'file' => $thumbnail_url,
                     'width' => 150,
                     'height' => 150,
                     'mime-type' => 'image/jpeg'
                 );
-                
+
                 $data['sizes']['medium'] = array(
                     'file' => $thumbnail_url,
                     'width' => 300,
                     'height' => 300,
                     'mime-type' => 'image/jpeg'
                 );
-                
+
                 $data['sizes']['full'] = array(
                     'file' => $thumbnail_url,
                     'width' => 640,
@@ -328,7 +332,78 @@ class Wp_Mux_Media_Sync {
                 );
             }
         }
-        
+
+
         return $data;
+    }
+
+    /**
+     * Filter attachment URL to return empty for video/mux attachments
+     * This prevents WordPress from showing broken file URLs
+     */
+    public function filter_attachment_url( $url, $attachment_id ) {
+        $attachment = get_post( $attachment_id );
+
+        if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
+            // Return empty string to prevent showing non-existent file URLs
+            return '';
+        }
+
+        return $url;
+    }
+
+    /**
+     * Display MUX player on attachment pages for video/mux attachments
+     * This filter is called by WordPress to display attachment content
+     */
+    public function display_mux_player_on_attachment_page( $content ) {
+        global $post;
+
+        // Only process if this is a MUX video attachment
+        if ( ! $post || $post->post_mime_type !== 'video/mux' ) {
+            return $content;
+        }
+
+        // Get the playback ID
+        $playback_id = get_post_meta( $post->ID, '_mux_playback_id', true );
+        if ( ! $playback_id ) {
+            return $content;
+        }
+
+        // Get thumbnail for poster
+        $thumbnail_url = get_post_meta( $post->ID, '_mux_thumbnail_url', true );
+
+        // Build MUX player HTML
+        $mux_player = sprintf(
+            '<div class="mux-attachment-player" style="max-width: 100%%; margin: 0 auto;">
+                <mux-player
+                    playback-id="%s"
+                    controls
+                    stream-type="on-demand"
+                    %s
+                    style="width: 100%%; max-width: 100%%;">
+                </mux-player>
+            </div>',
+            esc_attr( $playback_id ),
+            $thumbnail_url ? 'poster="' . esc_attr( $thumbnail_url ) . '"' : ''
+        );
+
+        return $mux_player;
+    }
+
+    /**
+     * Filter media row actions to remove "View" link for MUX videos
+     * Since local files don't exist, the View link would just 404
+     */
+    public function filter_media_row_actions( $actions, $post ) {
+        // Only process MUX videos
+        if ( $post->post_mime_type !== 'video/mux' ) {
+            return $actions;
+        }
+
+        // Remove the "View" action since there's no local file
+        unset( $actions['view'] );
+
+        return $actions;
     }
 }

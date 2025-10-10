@@ -278,16 +278,16 @@ class Wp_Mux_Admin {
 	 */
 	public function inject_mux_data_on_attachment_edit() {
 		$screen = get_current_screen();
-		
+
 		// Check if we're on an attachment edit page
 		if ( $screen && $screen->id === 'attachment' && isset( $_GET['post'] ) ) {
 			$attachment_id = intval( $_GET['post'] );
 			$attachment = get_post( $attachment_id );
-			
+
 			// Check if this is a MUX video
 			if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
 				$playback_id = get_post_meta( $attachment_id, '_mux_playback_id', true );
-				
+
 				if ( $playback_id ) {
 					// Inject playback ID for JavaScript to use
 					?>
@@ -299,6 +299,40 @@ class Wp_Mux_Admin {
 					</script>
 					<?php
 				}
+			}
+		}
+	}
+
+	/**
+	 * Display MUX player on attachment edit page
+	 *
+	 * @since    1.2.0
+	 */
+	public function display_mux_player_on_edit_page( $post ) {
+		// Only run for attachment post type
+		if ( $post->post_type !== 'attachment' ) {
+			return;
+		}
+
+		// Check if this is a MUX video
+		if ( $post->post_mime_type === 'video/mux' ) {
+			$playback_id = get_post_meta( $post->ID, '_mux_playback_id', true );
+			$thumbnail_url = get_post_meta( $post->ID, '_mux_thumbnail_url', true );
+
+			if ( $playback_id ) {
+				?>
+				<div class="mux-video-preview" style="margin: 20px 0;">
+					<mux-player
+						playback-id="<?php echo esc_attr( $playback_id ); ?>"
+						controls
+						stream-type="on-demand"
+						<?php if ( $thumbnail_url ) : ?>
+						poster="<?php echo esc_attr( $thumbnail_url ); ?>"
+						<?php endif; ?>
+						style="width: 100%; max-width: 800px; margin: 0 auto; display: block;">
+					</mux-player>
+				</div>
+				<?php
 			}
 		}
 	}

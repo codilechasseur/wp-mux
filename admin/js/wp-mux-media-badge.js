@@ -50,35 +50,68 @@
             // Error formatting date - silently fail
           }
         }
-        
-        // Update 'View media file' link to use MUX stream URL instead of removing it
-        var $viewLink = $el.find('a[href*="?attachment_id="]');
-        if ($viewLink.length > 0 && model.url) {
-          $viewLink.attr('href', model.url);
-          $viewLink.attr('target', '_blank');
-          $viewLink.attr('rel', 'noopener noreferrer');
+
+        // Remove 'View media file' link since local files don't exist
+        // Try multiple selectors to catch all possible link formats
+        var $viewLink = $el.find('a:contains("View media file")');
+        if ($viewLink.length === 0) {
+          $viewLink = $el.find('a[href*="?attachment_id="]');
         }
+        if ($viewLink.length === 0) {
+          $viewLink = $el.find('.actions a:contains("View")');
+        }
+        if ($viewLink.length > 0) {
+          $viewLink.remove(); // Remove the link entirely
+        }
+
+        // Remove any orphaned/empty separator pipes
+        $el.find('.actions .links-separator').each(function() {
+          var $separator = $(this);
+          // Check if this separator has no adjacent link (orphaned)
+          var $prev = $separator.prev('a');
+          var $next = $separator.next('a');
+
+          // If no link before or after, or it's the first element, remove it
+          if (($prev.length === 0 && $next.length === 0) ||
+              $separator.prevAll('a, button').length === 0) {
+            $separator.remove();
+          }
+        });
       }
       return this;
     }
   );
-  
+
   // Hook into post edit page to show MUX player for video attachments
   if ($('body').hasClass('post-type-attachment')) {
-    $(document).ready(function() {
-      // Check if MUX data was injected
-      if (typeof window.wpMuxAttachment !== 'undefined' && window.wpMuxAttachment.playback_id) {
-        var playbackId = window.wpMuxAttachment.playback_id;
-        
-        // Replace the default player
-        var $mediaPreview = $('#attachment-preview, .wp_attachment_holder');
-        if ($mediaPreview.length > 0) {
-          $mediaPreview.html(
-            '<mux-player class="mux-player" style="width:100%;max-width:800px;min-height:450px;margin:20px auto;display:block;" ' +
-            'stream-type="on-demand" playback-id="' + playbackId + '" controls></mux-player>'
-          );
+    // Use a longer delay to ensure WordPress has fully loaded
+    $(window).on('load', function() {
+      setTimeout(function() {
+        // Check if MUX data was injected
+        if (typeof window.wpMuxAttachment !== 'undefined' && window.wpMuxAttachment.playback_id) {
+          var playbackId = window.wpMuxAttachment.playback_id;
+
+          // Try multiple selectors to find the preview area
+          var $mediaPreview = $('.wp_attachment_holder');
+          if ($mediaPreview.length === 0) {
+            $mediaPreview = $('#attachment-preview');
+          }
+          if ($mediaPreview.length === 0) {
+            $mediaPreview = $('.attachment-media-view');
+          }
+
+          // Replace/set the content with MUX player
+          if ($mediaPreview.length > 0) {
+            $mediaPreview.html(
+              '<mux-player class="mux-player" style="width:100%;max-width:800px;min-height:450px;margin:20px auto;display:block;" ' +
+              'stream-type="on-demand" playback-id="' + playbackId + '" controls></mux-player>'
+            );
+          }
+
+          // Also hide any URL text that might be showing
+          $('#post-body-content').find('a[href*="stream.mux.com"]').parent().hide();
         }
-      }
+      }, 100);
     });
   }
 })(jQuery);
