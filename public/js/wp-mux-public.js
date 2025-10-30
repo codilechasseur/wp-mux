@@ -25,36 +25,34 @@
 						playbackId = playbackId.slice(0, -5);
 					}
 
-					// Create thumbnail URL for poster attribute
-					const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?width=640&height=360`;
+				// Create thumbnail URL for poster attribute (default settings)
+				const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0&width=640&height=360&fit_mode=smartcrop`;
 
-					// Check if original video has controls attribute
-					const hasControls = video.hasAttribute('controls');
+				// Check if original video has controls attribute
+				const hasControls = video.hasAttribute('controls');
 
-					// Create mux-player element (preferred over mux-video)
-					const muxPlayer = document.createElement('mux-player');
-					muxPlayer.setAttribute('playback-id', playbackId);
-					// Only add controls if original video had them
-					if (hasControls) {
-						muxPlayer.setAttribute('controls', '');
+				// Create mux-player element (preferred over mux-video)
+				const muxPlayer = document.createElement('mux-player');
+				muxPlayer.setAttribute('playback-id', playbackId);
+				// Only add controls if original video had them
+				if (hasControls) {
+					muxPlayer.setAttribute('controls', '');
+				}
+				muxPlayer.setAttribute('stream-type', 'on-demand');
+
+				// Copy over other attributes including custom poster if set
+				const attributes = ['width', 'height', 'poster', 'style', 'class'];
+				attributes.forEach(function(attr) {
+					const value = video.getAttribute(attr);
+					if (value) {
+						muxPlayer.setAttribute(attr, value);
 					}
-					muxPlayer.setAttribute('stream-type', 'on-demand');
+				});
 
-					// Copy over other attributes
-					const attributes = ['width', 'height', 'poster', 'style', 'class'];
-					attributes.forEach(function(attr) {
-						const value = video.getAttribute(attr);
-						if (value) {
-							muxPlayer.setAttribute(attr, value);
-						}
-					});
-
-					// Add thumbnail as poster if not already set
-					if (!muxPlayer.getAttribute('poster')) {
-						muxPlayer.setAttribute('poster', thumbnailUrl);
-					}
-
-					// Replace the video element
+				// Add thumbnail as poster if not already set by user
+				if (!muxPlayer.getAttribute('poster')) {
+					muxPlayer.setAttribute('poster', thumbnailUrl);
+				}					// Replace the video element
 					video.parentNode.replaceChild(muxPlayer, video);
 				} catch (error) {
 					// Silent error handling

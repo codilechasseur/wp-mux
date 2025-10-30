@@ -141,9 +141,16 @@ class Wp_Mux_Public {
 
 			$poster = isset( $attr['poster'] ) ? $attr['poster'] : '';
 
-			// If no poster is provided, generate thumbnail URL from MUX
+			// If no poster is provided, generate thumbnail URL from MUX with optional parameters
 			if ( empty( $poster ) ) {
-				$poster = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
+				$thumbnail_options = array(
+					'time'     => isset( $attr['poster_time'] ) ? floatval( $attr['poster_time'] ) : 0,
+					'width'    => isset( $attr['poster_width'] ) ? intval( $attr['poster_width'] ) : 640,
+					'height'   => isset( $attr['poster_height'] ) ? intval( $attr['poster_height'] ) : 360,
+					'fit_mode' => isset( $attr['poster_fit'] ) ? $attr['poster_fit'] : 'smartcrop',
+					'animated' => isset( $attr['animated_poster'] ) ? (bool) $attr['animated_poster'] : false,
+				);
+				$poster = $this->generate_mux_thumbnail_url( $playback_id, $thumbnail_options );
 			}
 
 			$controls = isset( $attr['controls'] ) ? 'controls' : 'controls';
@@ -266,12 +273,29 @@ class Wp_Mux_Public {
 			if ( $is_mux_video && ! empty( $playback_id ) ) {
 				error_log( 'WP MUX: Processing as MUX video with playback ID: ' . $playback_id );
 
-				// Generate thumbnail URL
-				$thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
+				// Check if user wants to use custom uploaded poster instead of Mux thumbnails
+				$use_custom_poster = isset( $block['attrs']['mux_use_custom_poster'] ) ? $block['attrs']['mux_use_custom_poster'] : false;
+
+				// Generate thumbnail URL with custom parameters from block attributes
+				if ( ! $use_custom_poster ) {
+					$thumbnail_options = array(
+						'time'     => isset( $block['attrs']['mux_poster_time'] ) ? floatval( $block['attrs']['mux_poster_time'] ) : 0,
+						'width'    => isset( $block['attrs']['mux_poster_width'] ) ? intval( $block['attrs']['mux_poster_width'] ) : 640,
+						'height'   => isset( $block['attrs']['mux_poster_height'] ) ? intval( $block['attrs']['mux_poster_height'] ) : 360,
+						'fit_mode' => 'smartcrop',
+						'animated' => isset( $block['attrs']['mux_use_animated_gif'] ) ? (bool) $block['attrs']['mux_use_animated_gif'] : false,
+					);
+					$thumbnail_url = $this->generate_mux_thumbnail_url( $playback_id, $thumbnail_options );
+				} else {
+					// User wants to use custom poster - check if one is set in the poster attribute
+					$thumbnail_url = isset( $block['attrs']['poster'] ) ? $block['attrs']['poster'] : $this->generate_mux_thumbnail_url( $playback_id );
+				}
 
 				// Get theme from block attributes
 				$theme_id = isset( $block['attrs']['mux_theme'] ) ? $block['attrs']['mux_theme'] : '';
 				error_log( 'WP MUX: Theme ID from block attributes: "' . $theme_id . '"' );
+				error_log( 'WP MUX: Use custom poster: ' . ( $use_custom_poster ? 'true' : 'false' ) );
+				error_log( 'WP MUX: Generated thumbnail URL: ' . $thumbnail_url );
 				error_log( 'WP MUX: Available block attributes: ' . print_r( $block['attrs'], true ) );
 
 				// Check if Gutenberg block has controls enabled
@@ -325,6 +349,61 @@ class Wp_Mux_Public {
 		}
 
 		return $block_content;
+	}
+
+	/**
+	 * Generate Mux thumbnail URL with custom parameters.
+	 *
+	 * @since    1.0.0
+	 * @param    string  $playback_id      The Mux playback ID.
+	 * @param    array   $options          Optional parameters for thumbnail generation.
+	 *                                     - time: (float) Time in seconds to capture (default: 0)
+	 *                                     - width: (int) Width in pixels (default: 640)
+	 *                                     - height: (int) Height in pixels (default: 360)
+	 *                                     - fit_mode: (string) How to fit the image (crop, preserve, smartcrop) (default: smartcrop)
+	 *                                     - animated: (bool) Generate animated GIF instead of static (default: false)
+	 * @return   string                   The complete Mux thumbnail URL.
+	 */
+	private function generate_mux_thumbnail_url( $playback_id, $options = array() ) {
+		// Default options
+		$defaults = array(
+			'time'     => 0,
+			'width'    => 640,
+			'height'   => 360,
+			'fit_mode' => 'smartcrop',
+			'animated' => false,
+			'duration' => 5, // Duration for animated GIFs in seconds
+		);
+
+		$options = wp_parse_args( $options, $defaults );
+
+		// Base URL
+		$base_url = "https://image.mux.com/{$playback_id}/";
+
+		// Choose endpoint based on animated option
+		if ( $options['animated'] ) {
+			$url = $base_url . 'animated.gif';
+			$params = array(
+				'start'  => $options['time'],
+				'end'    => $options['time'] + $options['duration'], // Add end time
+				'width'  => $options['width'],
+				'height' => $options['height'],
+				'fps'    => 15, // Default FPS for animated GIFs
+			);
+		} else {
+			$url = $base_url . 'thumbnail.jpg';
+			$params = array(
+				'time'     => $options['time'],
+				'width'    => $options['width'],
+				'height'   => $options['height'],
+				'fit_mode' => $options['fit_mode'],
+			);
+		}
+
+		// Build query string
+		$query_string = http_build_query( $params );
+
+		return $url . '?' . $query_string;
 	}
 
 	/**
