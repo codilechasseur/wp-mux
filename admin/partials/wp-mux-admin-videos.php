@@ -15,6 +15,12 @@
 // Include the API class
 require_once plugin_dir_path( dirname( dirname( __FILE__ ) ) ) . 'includes/class-wp-mux-api.php';
 $api = new Wp_Mux_Api();
+
+// Get account stats if API is configured
+$account_stats = null;
+if ( $api->is_configured() ) {
+	$account_stats = $api->get_account_stats();
+}
 ?>
 
 <div class="wrap wp-mux-videos-page">
@@ -32,6 +38,99 @@ $api = new Wp_Mux_Api();
         <a href="#" id="upload-new-video" class="page-title-action"><?php _e( 'Upload New Video', 'wp-mux' ); ?></a>
 
         <hr class="wp-header-end">
+
+        <!-- Account Statistics -->
+        <?php if ( $account_stats && ! is_wp_error( $account_stats ) ) : ?>
+        <div class="wp-mux-account-stats">
+            <div class="wp-mux-stats-header">
+                <h2><?php _e( 'Account Overview', 'wp-mux' ); ?></h2>
+                <a href="https://dashboard.mux.com/" target="_blank" class="button button-secondary">
+                    <span class="dashicons dashicons-external" style="vertical-align: middle; margin-top: 3px;"></span>
+                    <?php _e( 'Open MUX Dashboard', 'wp-mux' ); ?>
+                </a>
+            </div>
+
+            <div class="wp-mux-stats-grid">
+                <div class="wp-mux-stat-card">
+                    <div class="stat-icon">
+                        <span class="dashicons dashicons-video-alt3"></span>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value"><?php echo number_format( $account_stats['total_videos'] ); ?></div>
+                        <div class="stat-label"><?php _e( 'Total Videos', 'wp-mux' ); ?></div>
+                        <div class="stat-detail">
+                            <?php
+                            echo sprintf(
+                                __( '%d ready, %d processing', 'wp-mux' ),
+                                $account_stats['videos_ready'],
+                                $account_stats['videos_processing']
+                            );
+                            if ( $account_stats['videos_errored'] > 0 ) {
+                                echo sprintf( ', <span class="error-count">%d errors</span>', $account_stats['videos_errored'] );
+                            }
+                            ?>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="wp-mux-stat-card">
+                    <div class="stat-icon">
+                        <span class="dashicons dashicons-clock"></span>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">
+                            <?php
+                            $total_seconds = (int) $account_stats['total_duration_seconds'];
+                            $hours = (int) floor( $total_seconds / 3600 );
+                            $minutes = (int) floor( ( $total_seconds % 3600 ) / 60 );
+                            if ( $hours > 0 ) {
+                                echo sprintf( '%d hr %d min', $hours, $minutes );
+                            } else {
+                                echo sprintf( '%d min', $minutes );
+                            }
+                            ?>
+                        </div>
+                        <div class="stat-label"><?php _e( 'Total Content', 'wp-mux' ); ?></div>
+                        <div class="stat-detail"><?php _e( 'Combined video duration', 'wp-mux' ); ?></div>
+                    </div>
+                </div>
+
+                <div class="wp-mux-stat-card">
+                    <div class="stat-icon">
+                        <span class="dashicons dashicons-database"></span>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value">
+                            <?php
+                            $gb = $account_stats['total_storage_bytes'] / ( 1024 * 1024 * 1024 );
+                            if ( $gb >= 1 ) {
+                                echo number_format( $gb, 1 ) . ' GB';
+                            } else {
+                                $mb = $account_stats['total_storage_bytes'] / ( 1024 * 1024 );
+                                echo number_format( $mb, 0 ) . ' MB';
+                            }
+                            ?>
+                        </div>
+                        <div class="stat-label"><?php _e( 'Estimated Storage', 'wp-mux' ); ?></div>
+                        <div class="stat-detail"><?php _e( 'Approximate video storage', 'wp-mux' ); ?></div>
+                    </div>
+                </div>
+
+                <?php if ( isset( $account_stats['total_views_30d'] ) ) : ?>
+                <div class="wp-mux-stat-card">
+                    <div class="stat-icon">
+                        <span class="dashicons dashicons-visibility"></span>
+                    </div>
+                    <div class="stat-content">
+                        <div class="stat-value"><?php echo number_format( $account_stats['total_views_30d'] ); ?></div>
+                        <div class="stat-label"><?php _e( 'Views (30 days)', 'wp-mux' ); ?></div>
+                        <div class="stat-detail"><?php _e( 'Total video views', 'wp-mux' ); ?></div>
+                    </div>
+                </div>
+                <?php endif; ?>
+            </div>
+        </div>
+        <?php endif; ?>
 
         <!-- Upload Section -->
         <div id="upload-section" class="wp-mux-upload-section" style="display: none;">

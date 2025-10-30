@@ -231,50 +231,96 @@ class Wp_Mux_Public {
 			error_log( 'WP MUX: Block content: ' . $block_content );
 			error_log( 'WP MUX: Block data: ' . print_r( $block, true ) );
 
-			// Check if this block contains a MUX video (both .m3u8 and .mp4)
-			if ( strpos( $block_content, 'stream.mux.com' ) !== false && ( strpos( $block_content, '.m3u8' ) !== false || strpos( $block_content, '.mp4' ) !== false ) ) {
-				error_log( 'WP MUX: Found MUX video in block' );
+			$is_mux_video = false;
+			$playback_id = '';
 
-				// Extract URL and replace with mux-video element
+			// Check if this block references a MUX video attachment by ID
+			if ( isset( $block['attrs']['id'] ) ) {
+				$attachment_id = $block['attrs']['id'];
+				$attachment = get_post( $attachment_id );
+
+				if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
+					$is_mux_video = true;
+					$playback_id = get_post_meta( $attachment_id, '_mux_playback_id', true );
+					error_log( 'WP MUX: Found MUX video by attachment ID: ' . $attachment_id . ', playback_id: ' . $playback_id );
+				}
+			}
+
+			// Check if this block contains a MUX stream URL (both .m3u8 and .mp4)
+			if ( ! $is_mux_video && strpos( $block_content, 'stream.mux.com' ) !== false && ( strpos( $block_content, '.m3u8' ) !== false || strpos( $block_content, '.mp4' ) !== false ) ) {
+				$is_mux_video = true;
+				error_log( 'WP MUX: Found MUX video by stream.mux.com URL' );
+
+				// Extract URL and get playback ID
 				$pattern = '/src=["\']([^"\']*stream\.mux\.com[^"\']*\.(m3u8|mp4)[^"\']*)["\']/i';
 				if ( preg_match( $pattern, $block_content, $matches ) ) {
 					$url = $matches[1];
 					$path = parse_url( $url, PHP_URL_PATH );
 					$playback_id = basename( $path, '.m3u8' );
 					$playback_id = basename( $playback_id, '.mp4' );
-
-					error_log( 'WP MUX: Extracted playback ID: ' . $playback_id );
-
-					// Generate thumbnail URL
-					$thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
-
-					// Get theme from block attributes
-					$theme_id = isset( $block['attrs']['mux_theme'] ) ? $block['attrs']['mux_theme'] : '';
-					error_log( 'WP MUX: Theme ID from block attributes: "' . $theme_id . '"' );
-					error_log( 'WP MUX: Available block attributes: ' . print_r( $block['attrs'], true ) );
-
-					// Replace video element with mux-player
-					$block_content = preg_replace(
-						'/<video([^>]*)>/',
-						'<mux-player playback-id="' . esc_attr( $playback_id ) . '" controls stream-type="on-demand" poster="' . esc_attr( $thumbnail_url ) . '"$1>',
-						$block_content
-					);
-
-					// Replace closing video tag with mux-player
-					$block_content = str_replace( '</video>', '</mux-player>', $block_content );
-
-					// Remove the src attribute since mux-player doesn't need it
-					$block_content = preg_replace( '/src=["\'][^"\']*["\']/', '', $block_content );
-
-					// Apply theme to the player
-					if ( ! empty( $theme_id ) ) {
-						$block_content = $this->apply_theme_to_player( $block_content, $theme_id );
-					} else {
-						$block_content = $this->apply_theme_to_player( $block_content );
-					}
-
-					error_log( 'WP MUX: Modified block content: ' . $block_content );
+					error_log( 'WP MUX: Extracted playback ID from URL: ' . $playback_id );
 				}
+			}
+
+			// Process if this is a MUX video
+			if ( $is_mux_video && ! empty( $playback_id ) ) {
+				error_log( 'WP MUX: Processing as MUX video with playback ID: ' . $playback_id );
+
+				// Generate thumbnail URL
+				$thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
+
+				// Get theme from block attributes
+				$theme_id = isset( $block['attrs']['mux_theme'] ) ? $block['attrs']['mux_theme'] : '';
+				error_log( 'WP MUX: Theme ID from block attributes: "' . $theme_id . '"' );
+				error_log( 'WP MUX: Available block attributes: ' . print_r( $block['attrs'], true ) );
+
+				// Check if Gutenberg block has controls enabled
+				// In Gutenberg, when controls are disabled, the video element won't have the controls attribute
+				$has_controls_attr = strpos( $block_content, 'controls' ) !== false;
+
+				// The presence of the controls attribute in HTML is the source of truth
+				// If controls attribute is in the HTML, controls are enabled
+				// If controls attribute is NOT in the HTML, controls are disabled
+				$block_controls_enabled = $has_controls_attr;
+
+				// Gutenberg block controls should override everything
+				$controls_attr = $block_controls_enabled ? 'controls' : '';
+
+				error_log( 'WP MUX: Has controls attribute in HTML: ' . ( $has_controls_attr ? 'true' : 'false' ) );
+				error_log( 'WP MUX: Block controls enabled: ' . ( $block_controls_enabled ? 'true' : 'false' ) );
+				error_log( 'WP MUX: Final controls attribute: "' . $controls_attr . '"' );
+
+				// Build the mux-player opening tag
+				$mux_player_tag = '<mux-player playback-id="' . esc_attr( $playback_id ) . '"';
+
+				// Only add controls attribute if it should be enabled
+				if ( ! empty( $controls_attr ) ) {
+					$mux_player_tag .= ' ' . $controls_attr;
+				}
+
+				$mux_player_tag .= ' stream-type="on-demand" poster="' . esc_attr( $thumbnail_url ) . '"$1>';
+
+				// Replace video element with mux-player
+				$block_content = preg_replace(
+					'/<video([^>]*)>/',
+					$mux_player_tag,
+					$block_content
+				);
+
+				// Replace closing video tag with mux-player
+				$block_content = str_replace( '</video>', '</mux-player>', $block_content );
+
+				// Remove the src attribute since mux-player doesn't need it
+				$block_content = preg_replace( '/src=["\'][^"\']*["\']/', '', $block_content );
+
+				// Apply theme to the player, passing the controls override setting
+				if ( ! empty( $theme_id ) ) {
+					$block_content = $this->apply_theme_to_player( $block_content, $theme_id, ! $block_controls_enabled );
+				} else {
+					$block_content = $this->apply_theme_to_player( $block_content, null, ! $block_controls_enabled );
+				}
+
+				error_log( 'WP MUX: Modified block content: ' . $block_content );
 			}
 		}
 
@@ -327,16 +373,17 @@ class Wp_Mux_Public {
 	 * Apply theme to MUX player element.
 	 *
 	 * @since    1.0.0
-	 * @param    string    $player_html    The player HTML.
-	 * @param    string    $theme_id       Optional theme ID to apply.
-	 * @return   string                    Modified player HTML.
+	 * @param    string    $player_html           The player HTML.
+	 * @param    string    $theme_id              Optional theme ID to apply.
+	 * @param    bool      $force_disable_controls Whether to force disable controls (overrides theme settings).
+	 * @return   string                           Modified player HTML.
 	 */
-	public function apply_theme_to_player( $player_html, $theme_id = null ) {
+	public function apply_theme_to_player( $player_html, $theme_id = null, $force_disable_controls = false ) {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
 		$theme_manager = new Wp_Mux_Theme_Manager();
 
 		// Log what theme ID we received
-		error_log( 'WP MUX: apply_theme_to_player called with theme_id: "' . $theme_id . '"' );
+		error_log( 'WP MUX: apply_theme_to_player called with theme_id: "' . $theme_id . '", force_disable_controls: ' . ( $force_disable_controls ? 'true' : 'false' ) );
 
 		// Use default theme if none specified or if explicitly empty
 		if ( empty( $theme_id ) ) {
@@ -353,39 +400,90 @@ class Wp_Mux_Public {
 
 		error_log( 'WP MUX: Found theme: "' . $theme['name'] . '" for ID: "' . $theme_id . '"' );
 
-		// Check if main controls are enabled
+		// Check if main controls are enabled in theme
 		$main_controls_enabled = isset( $theme['controls']['controls'] ) ? $theme['controls']['controls'] : true;
 
 		error_log( 'WP MUX: Theme ID: ' . $theme_id );
-		error_log( 'WP MUX: Main controls enabled: ' . ( $main_controls_enabled ? 'true' : 'false' ) );
+		error_log( 'WP MUX: Theme main controls enabled: ' . ( $main_controls_enabled ? 'true' : 'false' ) );
 		error_log( 'WP MUX: Theme controls data: ' . print_r( $theme['controls'], true ) );
 
-		// Always ensure controls attribute is present - CSS will handle visibility
-		error_log( 'WP MUX: Ensuring controls attribute is present (CSS will handle visibility)' );
-		if ( strpos( $player_html, 'controls' ) === false ) {
+		// If Gutenberg explicitly disabled controls, remove the controls attribute completely
+		if ( $force_disable_controls ) {
+			error_log( 'WP MUX: Gutenberg block has controls disabled - removing controls attribute and adding CSS' );
+
+			// Remove controls attribute completely (standalone or with value)
+			// Match: controls, controls="", controls='', controls="true", etc.
 			$player_html = preg_replace(
-				'/(<mux-player[^>]*?)>/',
-				'$1 controls>',
+				'/\s+controls(?:\s*=\s*["\'][^"\']*["\'])?\s*/',
+				' ',
 				$player_html
 			);
+
+			// Also remove any stray standalone 'controls' that might be left
+			$player_html = preg_replace(
+				'/(<mux-player[^>]*)\s+controls\s+/',
+				'$1 ',
+				$player_html
+			);
+			$player_html = preg_replace(
+				'/(<mux-player[^>]*)\s+controls>/',
+				'$1>',
+				$player_html
+			);
+
+			// Add inline style to force disable controls using Mux Player's CSS variable
+			$force_disable_style = '--controls: none';
+
+			// Check if style attribute exists
+			if ( strpos( $player_html, 'style=' ) !== false ) {
+				// Add to existing style
+				$player_html = preg_replace(
+					'/style=(["\'])([^"\']*)\1/',
+					'style=$1$2; ' . $force_disable_style . '$1',
+					$player_html
+				);
+			} else {
+				// Add new style attribute
+				$player_html = preg_replace(
+					'/(<mux-player[^>]*?)>/',
+					'$1 style="' . $force_disable_style . '">',
+					$player_html
+				);
+			}
+
+			error_log( 'WP MUX: After removing controls and adding CSS: ' . $player_html );
+		} else {
+			// Normal theme application - ensure controls attribute is present if theme has controls enabled
+			// CSS will handle visibility based on theme settings
+			error_log( 'WP MUX: Applying theme controls normally' );
+			if ( $main_controls_enabled && strpos( $player_html, 'controls' ) === false ) {
+				$player_html = preg_replace(
+					'/(<mux-player[^>]*?)>/',
+					'$1 controls>',
+					$player_html
+				);
+			}
 		}
 
 		// Always add theme class regardless of controls state
-		$class_addition = 'class="wp-mux-theme-' . esc_attr( $theme_id ) . '"';
+		$theme_class = 'wp-mux-theme-' . esc_attr( $theme_id );
 
 		// Check if class attribute exists
 		if ( strpos( $player_html, 'class=' ) !== false ) {
-			// Add to existing class
-			$player_html = preg_replace(
-				'/class=(["\'])([^"\']*)\1/',
-				'class=$1$2 wp-mux-theme-' . esc_attr( $theme_id ) . '$1',
-				$player_html
-			);
+			// Check if theme class is not already present
+			if ( strpos( $player_html, $theme_class ) === false ) {
+				// Add to existing class
+				$player_html = preg_replace(
+					'/class=(["\'])([^"\']*)\1/',
+					'class=$1$2 ' . $theme_class . '$1',
+					$player_html
+				);
+			}
 		} else {
 			// Add new class attribute
 			$player_html = preg_replace(
 				'/(<mux-player[^>]*?)>/',
-				'$1 ' . $class_addition . '>',
+				'$1 class="' . $theme_class . '">',
 				$player_html
 			);
 		}

@@ -568,4 +568,128 @@ class Wp_Mux_Api {
 			return sprintf( '%d min', $minutes );
 		}
 	}
+
+	/**
+	 * Get account-wide statistics from MUX.
+	 *
+	 * @since    1.2.0
+	 * @return   array|WP_Error    Account statistics or error on failure.
+	 */
+	public function get_account_stats() {
+		if ( ! $this->is_configured() ) {
+			return new WP_Error( 'not_configured', __( 'MUX API is not configured.', 'wp-mux' ) );
+		}
+
+		// Try to get from cache first (cache for 5 minutes)
+		$cache_key = 'wp_mux_account_stats';
+		$cached_stats = get_transient( $cache_key );
+		if ( $cached_stats !== false ) {
+			return $cached_stats;
+		}
+
+		// Get all videos to calculate total storage and count
+		$videos_response = $this->make_request( '/video/v1/assets?limit=100' );
+
+		if ( is_wp_error( $videos_response ) ) {
+			return $videos_response;
+		}
+
+		$stats = array(
+			'total_videos' => 0,
+			'total_storage_bytes' => 0,
+			'total_duration_seconds' => 0,
+			'videos_ready' => 0,
+			'videos_processing' => 0,
+			'videos_errored' => 0,
+		);
+
+		if ( isset( $videos_response['data'] ) && is_array( $videos_response['data'] ) ) {
+			$stats['total_videos'] = count( $videos_response['data'] );
+
+			foreach ( $videos_response['data'] as $video ) {
+				// Count by status
+				if ( isset( $video['status'] ) ) {
+					switch ( $video['status'] ) {
+						case 'ready':
+							$stats['videos_ready']++;
+							break;
+						case 'preparing':
+						case 'waiting':
+							$stats['videos_processing']++;
+							break;
+						case 'errored':
+							$stats['videos_errored']++;
+							break;
+					}
+				}
+
+				// Sum up storage
+				if ( isset( $video['max_stored_resolution'] ) && isset( $video['duration'] ) ) {
+					// Estimate storage based on resolution and duration
+					// This is approximate - MUX doesn't provide exact storage per video
+					$resolution = $video['max_stored_resolution'];
+					$duration = floatval( $video['duration'] );
+
+					// Rough estimate: bitrate in Mbps based on resolution
+					$bitrate_mbps = 5; // default
+					if ( strpos( $resolution, '4K' ) !== false || strpos( $resolution, '2160' ) !== false ) {
+						$bitrate_mbps = 25;
+					} elseif ( strpos( $resolution, '1080' ) !== false ) {
+						$bitrate_mbps = 8;
+					} elseif ( strpos( $resolution, '720' ) !== false ) {
+						$bitrate_mbps = 5;
+					} elseif ( strpos( $resolution, '480' ) !== false ) {
+						$bitrate_mbps = 2.5;
+					}
+
+					$estimated_bytes = ( $bitrate_mbps * 1024 * 1024 / 8 ) * $duration;
+					$stats['total_storage_bytes'] += $estimated_bytes;
+				}
+
+				// Sum up duration
+				if ( isset( $video['duration'] ) ) {
+					$stats['total_duration_seconds'] += floatval( $video['duration'] );
+				}
+			}
+		}
+
+		// Get overall viewing metrics using Data API
+		// This requires making a request to the metrics endpoint
+		$timeframe = array(
+			array( 'gte', strtotime( '-30 days' ) * 1000 ), // Last 30 days in milliseconds
+			array( 'lt', time() * 1000 ),
+		);
+
+		$metrics_params = array(
+			'measurement' => array( 'aggregate_startup_time', 'views' ),
+			'filters' => array(),
+			'group_by' => array(),
+			'timeframe' => $timeframe,
+		);
+
+		$metrics_response = $this->make_request(
+			'/data/v1/metrics/overall',
+			'GET',
+			array(),
+			$metrics_params
+		);
+
+		$stats['total_views_30d'] = 0;
+		$stats['total_minutes_viewed_30d'] = 0;
+
+		if ( ! is_wp_error( $metrics_response ) && isset( $metrics_response['data'] ) ) {
+			foreach ( $metrics_response['data'] as $metric ) {
+				if ( isset( $metric['value'] ) ) {
+					if ( isset( $metric['field'] ) && $metric['field'] === 'views' ) {
+						$stats['total_views_30d'] = intval( $metric['value'] );
+					}
+				}
+			}
+		}
+
+		// Cache the results
+		set_transient( $cache_key, $stats, 5 * MINUTE_IN_SECONDS );
+
+		return $stats;
+	}
 }

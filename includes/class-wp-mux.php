@@ -129,18 +129,16 @@ class Wp_Mux {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-wp-mux-public.php';
 
 		/**
-		 * The class responsible for syncing MUX assets into the media library.
-		 */
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-media-sync.php';
-
-		/**
 		 * The class responsible for managing MUX player themes.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
 
-		if ( is_admin() ) {
-			new Wp_Mux_Media_Sync();
-		}
+		/**
+		 * The class responsible for syncing MUX assets to media library.
+		 * Needs to be loaded in all contexts for REST API support.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-media-sync.php';
+		new Wp_Mux_Media_Sync();
 
 		$this->loader = new Wp_Mux_Loader();
 
@@ -188,6 +186,12 @@ class Wp_Mux {
 
 		// Display MUX player on attachment edit page
 		$this->loader->add_action( 'edit_form_after_title', $plugin_admin, 'display_mux_player_on_edit_page' );
+
+		// Suppress default WordPress video display for MUX videos on edit page
+		$this->loader->add_action( 'admin_footer', $plugin_admin, 'suppress_default_video_display_footer' );
+
+		// Add analytics meta box to attachment edit page
+		$this->loader->add_action( 'add_meta_boxes_attachment', $plugin_admin, 'add_analytics_meta_box' );
 
 		// Post-upload video processing queue system
 		$this->loader->add_action( 'add_attachment', $plugin_admin, 'queue_video_for_mux_processing' );

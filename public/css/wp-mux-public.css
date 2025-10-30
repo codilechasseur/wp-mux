@@ -2,3 +2,35 @@
  * All of the CSS for your public-facing functionality should be
  * included in this file.
  */
+/* Force hide all controls when Gutenberg has explicitly disabled them */
+mux-player.wp-mux-no-controls {
+	--controls: none !important;
+}
+
+/* Hide all individual control elements when controls are disabled */
+mux-player.wp-mux-no-controls::part(top),
+mux-player.wp-mux-no-controls::part(center),
+mux-player.wp-mux-no-controls::part(bottom),
+mux-player.wp-mux-no-controls::part(layer),
+mux-player.wp-mux-no-controls::part(gesture-layer),
+mux-player.wp-mux-no-controls::part(play-button),
+mux-player.wp-mux-no-controls::part(seek-backward-button),
+mux-player.wp-mux-no-controls::part(seek-forward-button),
+mux-player.wp-mux-no-controls::part(mute-button),
+mux-player.wp-mux-no-controls::part(captions-button),
+mux-player.wp-mux-no-controls::part(airplay-button),
+mux-player.wp-mux-no-controls::part(pip-button),
+mux-player.wp-mux-no-controls::part(fullscreen-button),
+mux-player.wp-mux-no-controls::part(cast-button),
+mux-player.wp-mux-no-controls::part(playback-rate-button),
+mux-player.wp-mux-no-controls::part(volume-range),
+mux-player.wp-mux-no-controls::part(time-range),
+mux-player.wp-mux-no-controls::part(time-display),
+mux-player.wp-mux-no-controls::part(duration-display),
+mux-player.wp-mux-no-controls::part(live-button),
+mux-player.wp-mux-no-controls::part(bottom-play-button) {
+	display: none !important;
+	visibility: hidden !important;
+	opacity: 0 !important;
+	pointer-events: none !important;
+}

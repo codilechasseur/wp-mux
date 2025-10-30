@@ -54,6 +54,123 @@
     max-width: 1200px;
 }
 
+/* Account Statistics */
+.wp-mux-account-stats {
+    background: #fff;
+    border: 1px solid #ccd0d4;
+    margin: 20px 0;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.wp-mux-stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e5e5e5;
+}
+
+.wp-mux-stats-header h2 {
+    margin: 0;
+    font-size: 18px;
+    color: #23282d;
+}
+
+.wp-mux-stats-header .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.wp-mux-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+.wp-mux-stat-card {
+    background: #f8f9fa;
+    border: 1px solid #e5e5e5;
+    border-radius: 6px;
+    padding: 20px;
+    display: flex;
+    gap: 15px;
+    transition: all 0.2s ease;
+}
+
+.wp-mux-stat-card:hover {
+    border-color: #0073aa;
+    box-shadow: 0 2px 8px rgba(0, 115, 170, 0.1);
+}
+
+.wp-mux-stat-card .stat-icon {
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    background: #0073aa;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wp-mux-stat-card .stat-icon .dashicons {
+    color: #fff;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+}
+
+.wp-mux-stat-card .stat-content {
+    flex: 1;
+}
+
+.wp-mux-stat-card .stat-value {
+    font-size: 24px;
+    font-weight: 600;
+    color: #23282d;
+    line-height: 1.2;
+    margin-bottom: 5px;
+}
+
+.wp-mux-stat-card .stat-label {
+    font-size: 13px;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 500;
+    margin-bottom: 5px;
+}
+
+.wp-mux-stat-card .stat-detail {
+    font-size: 12px;
+    color: #999;
+}
+
+.wp-mux-stat-card .stat-detail .error-count {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+@media screen and (max-width: 782px) {
+    .wp-mux-stats-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 15px;
+    }
+
+    .wp-mux-stats-header .button {
+        width: 100%;
+        justify-content: center;
+    }
+
+    .wp-mux-stats-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* Upload Section */
 .wp-mux-upload-section {
     background: #fff;

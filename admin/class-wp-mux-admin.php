@@ -338,6 +338,160 @@ class Wp_Mux_Admin {
 	}
 
 	/**
+	 * Suppress default WordPress video player in wp_attachment_holder for MUX videos
+	 * This runs in the footer to ensure the element exists before hiding it
+	 *
+	 * @since    1.2.0
+	 */
+	public function suppress_default_video_display_footer() {
+		// Only run on attachment edit page
+		$screen = get_current_screen();
+		if ( ! is_admin() || ! $screen || $screen->id !== 'attachment' ) {
+			return;
+		}
+
+		// Get the current post
+		global $post;
+		if ( ! $post ) {
+			return;
+		}
+
+		// Check if this is a MUX video
+		if ( $post->post_mime_type === 'video/mux' ) {
+			// Hide the wp_attachment_holder div using JavaScript
+			?>
+			<script type="text/javascript">
+			(function() {
+				var holder = document.querySelector('.wp_attachment_holder');
+				if (holder) {
+					holder.style.display = 'none';
+				}
+			})();
+			</script>
+			<?php
+		}
+	}
+
+	/**
+	 * Add analytics meta box to attachment edit page
+	 *
+	 * @since    1.2.0
+	 */
+	public function add_analytics_meta_box() {
+		global $post;
+
+		// Only add for MUX videos
+		if ( $post && $post->post_mime_type === 'video/mux' ) {
+			$mux_status = get_post_meta( $post->ID, '_wp_mux_status', true );
+
+			// Only show for completed videos
+			if ( $mux_status === 'complete' ) {
+				add_meta_box(
+					'wp_mux_analytics',
+					__( 'Video Analytics', 'wp-mux' ),
+					array( $this, 'render_analytics_meta_box' ),
+					'attachment',
+					'side',
+					'default'
+				);
+			}
+		}
+	}
+
+	/**
+	 * Render analytics meta box content
+	 *
+	 * @since    1.2.0
+	 */
+	public function render_analytics_meta_box( $post ) {
+		// Get analytics data
+		$analytics = $this->get_video_analytics( $post->ID, false );
+		$formatted = $this->format_analytics_for_display( $analytics );
+
+		// Enqueue the stats CSS if not already enqueued
+		wp_enqueue_style( 'wp-mux-media-stats', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-stats.css', array(), $this->version );
+
+		?>
+		<div class="mux-video-stats" style="margin: 0; padding: 0; background: transparent; border: none;">
+			<div class="mux-stats-grid" style="margin-bottom: 15px;">
+				<!-- Primary metrics -->
+				<div class="mux-stat-card mux-stat-primary">
+					<div class="mux-stat-value"><?php echo esc_html( $formatted['total_views'] ); ?></div>
+					<div class="mux-stat-label"><?php _e( 'Total Views', 'wp-mux' ); ?></div>
+				</div>
+
+				<div class="mux-stat-card mux-stat-primary">
+					<div class="mux-stat-value"><?php echo esc_html( $formatted['unique_viewers'] ); ?></div>
+					<div class="mux-stat-label"><?php _e( 'Unique Viewers', 'wp-mux' ); ?></div>
+				</div>
+
+				<div class="mux-stat-card">
+					<div class="mux-stat-value"><?php echo esc_html( $formatted['total_watch_time'] ); ?></div>
+					<div class="mux-stat-label"><?php _e( 'Total Watch Time', 'wp-mux' ); ?></div>
+				</div>
+
+				<div class="mux-stat-card">
+					<div class="mux-stat-value"><?php echo esc_html( $formatted['average_view_duration'] ); ?></div>
+					<div class="mux-stat-label"><?php _e( 'Avg. View Duration', 'wp-mux' ); ?></div>
+				</div>
+
+				<?php if ( $formatted['video_quality_score'] !== 'N/A' ) : ?>
+				<div class="mux-stat-card mux-stat-quality">
+					<div class="mux-stat-value"><?php echo esc_html( $formatted['video_quality_score'] ); ?></div>
+					<div class="mux-stat-label"><?php _e( 'Quality Score', 'wp-mux' ); ?></div>
+				</div>
+				<?php endif; ?>
+			</div>
+
+			<div class="mux-stats-footer">
+				<span class="mux-stats-updated"><?php printf( __( 'Updated: %s', 'wp-mux' ), esc_html( $formatted['last_updated'] ) ); ?></span>
+				<button type="button" class="button button-small mux-refresh-stats-edit-page" data-attachment-id="<?php echo esc_attr( $post->ID ); ?>" title="<?php _e( 'Refresh Analytics', 'wp-mux' ); ?>">
+					<span class="dashicons dashicons-update"></span> <?php _e( 'Refresh', 'wp-mux' ); ?>
+				</button>
+			</div>
+		</div>
+
+		<script type="text/javascript">
+		jQuery(document).ready(function($) {
+			// Handle refresh button click
+			$('.mux-refresh-stats-edit-page').on('click', function(e) {
+				e.preventDefault();
+
+				var $button = $(this);
+				var attachmentId = $button.data('attachment-id');
+
+				// Disable button and show loading state
+				$button.prop('disabled', true).addClass('mux-stats-loading');
+
+				$.ajax({
+					url: ajaxurl,
+					type: 'POST',
+					data: {
+						action: 'wp_mux_refresh_video_analytics',
+						nonce: '<?php echo wp_create_nonce( 'wp_mux_analytics_nonce' ); ?>',
+						attachment_id: attachmentId
+					},
+					success: function(response) {
+						if (response.success && response.data.analytics) {
+							// Reload the page to show updated stats
+							location.reload();
+						} else {
+							alert(response.data.message || '<?php _e( 'Failed to refresh stats', 'wp-mux' ); ?>');
+							$button.prop('disabled', false).removeClass('mux-stats-loading');
+						}
+					},
+					error: function(xhr, status, error) {
+						alert('<?php _e( 'Failed to refresh stats', 'wp-mux' ); ?>');
+						$button.prop('disabled', false).removeClass('mux-stats-loading');
+					}
+				});
+			});
+		});
+		</script>
+		<?php
+	}
+
+	/**
 	 * Add settings link to plugin action links.
 	 *
 	 * @since    1.0.0
@@ -1225,6 +1379,23 @@ class Wp_Mux_Admin {
 		$mime_type = get_post_mime_type($attachment_id);
 
 		if (!$this->is_video_file($mime_type)) {
+			return;
+		}
+
+		// Check if already queued or processed to prevent duplicates
+		$existing_status = get_post_meta($attachment_id, '_wp_mux_status', true);
+		if (!empty($existing_status) && in_array($existing_status, ['queued', 'processing', 'complete'])) {
+			$this->mux_debug_log('Video already queued or processed', [
+				'attachment_id' => $attachment_id,
+				'status' => $existing_status
+			]);
+			return;
+		}
+
+		// Check if attachment is already a MUX video
+		$post = get_post($attachment_id);
+		if ($post && $post->post_mime_type === 'video/mux') {
+			$this->mux_debug_log('Attachment is already a MUX video', ['attachment_id' => $attachment_id]);
 			return;
 		}
 

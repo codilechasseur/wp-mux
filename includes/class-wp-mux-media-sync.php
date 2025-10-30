@@ -15,6 +15,8 @@ class Wp_Mux_Media_Sync {
         add_filter( 'ajax_query_attachments_args', [ $this, 'filter_media_library_query' ] );
         // Render custom fields/thumbnails for MUX assets
         add_filter( 'wp_prepare_attachment_for_js', [ $this, 'prepare_mux_attachment_for_js' ], 10, 3 );
+        // Filter REST API attachment responses for Gutenberg
+        add_filter( 'rest_prepare_attachment', [ $this, 'rest_prepare_mux_attachment' ], 10, 3 );
         // Filter attachment image src for list view thumbnails
         add_filter( 'wp_get_attachment_image_src', [ $this, 'filter_attachment_image_src' ], 10, 4 );
         // Filter attachment metadata for thumbnails
@@ -201,13 +203,23 @@ class Wp_Mux_Media_Sync {
      * Prepare MUX attachment for JS (media modal, etc).
      */
     public function prepare_mux_attachment_for_js( $response, $attachment, $meta ) {
-        if ( $attachment->post_mime_type === 'video/mux' ) {
+        // Check if this is a MUX video by mime type OR by having MUX metadata
+        $is_mux_video = ( $attachment->post_mime_type === 'video/mux' );
+        $mux_status = get_post_meta( $attachment->ID, '_wp_mux_status', true );
+        $playback_id = get_post_meta( $attachment->ID, '_mux_playback_id', true );
+
+        // Also treat regular videos with MUX status as MUX videos
+        if ( ! $is_mux_video && $mux_status && $playback_id ) {
+            $is_mux_video = true;
+        }
+
+        if ( $is_mux_video ) {
             $response['type'] = 'video';
             $response['subtype'] = 'mux';
+            $response['mime_type'] = 'video/mux'; // Ensure mime_type is set for JS compatibility
 
             // Get MUX metadata
             $thumbnail_url = get_post_meta( $attachment->ID, '_mux_thumbnail_url', true );
-            $playback_id = get_post_meta( $attachment->ID, '_mux_playback_id', true );
             $duration = get_post_meta( $attachment->ID, '_mux_duration', true );
             $stream_url = $this->get_mux_stream_url( $attachment->ID );
 
@@ -244,18 +256,95 @@ class Wp_Mux_Media_Sync {
             // Add MUX-specific properties
             $response['mux'] = true;
             $response['playback_id'] = $playback_id;
+            $response['mux_playback_id'] = $playback_id; // Also add with this key for JS compatibility
             $response['duration'] = $duration;
             $response['created_at'] = get_post_meta( $attachment->ID, '_mux_created_at', true );
+            $response['mux_status'] = $mux_status;
 
             // Set filename to empty to hide it (no local file exists)
             $response['filename'] = '';
             $response['file'] = '';
 
-            // Override URLs - remove link to prevent 404s
+            // Override URLs - provide MUX stream URL for Gutenberg blocks
             $response['editLink'] = get_edit_post_link( $attachment->ID, 'raw' );
             $response['link'] = ''; // Remove "View" link (no local file exists)
-            $response['url'] = ''; // Remove direct URL (no local file exists)
+            // Set URL to MUX stream so Gutenberg blocks can use it
+            $response['url'] = $stream_url;
         }
+        return $response;
+    }
+
+    /**
+     * Prepare MUX attachment for REST API (for Gutenberg editor)
+     */
+    public function rest_prepare_mux_attachment( $response, $attachment, $request ) {
+        // Check if this is a MUX video by mime type OR by having MUX metadata
+        $is_mux_video = ( $attachment->post_mime_type === 'video/mux' );
+        $mux_status = get_post_meta( $attachment->ID, '_wp_mux_status', true );
+        $playback_id = get_post_meta( $attachment->ID, '_mux_playback_id', true );
+
+        // Also treat regular videos with MUX status as MUX videos
+        if ( ! $is_mux_video && $mux_status && $playback_id ) {
+            $is_mux_video = true;
+        }
+
+        if ( $is_mux_video ) {
+            $data = $response->get_data();
+
+            // Get MUX metadata
+            $thumbnail_url = get_post_meta( $attachment->ID, '_mux_thumbnail_url', true );
+            $duration = get_post_meta( $attachment->ID, '_mux_duration', true );
+            $stream_url = $this->get_mux_stream_url( $attachment->ID );
+
+            // Update mime type
+            $data['mime_type'] = 'video/mux';
+            $data['subtype'] = 'mux';
+
+            // Add MUX-specific fields
+            $data['mux'] = true;
+            $data['mux_status'] = $mux_status;
+            $data['mux_playback_id'] = $playback_id;
+            $data['playback_id'] = $playback_id;
+            $data['duration'] = $duration;
+            $data['thumbnail_url'] = $thumbnail_url;
+
+            // Update media details
+            if ( $thumbnail_url ) {
+                $data['media_details']['sizes'] = array(
+                    'thumbnail' => array(
+                        'file' => $thumbnail_url,
+                        'width' => 150,
+                        'height' => 150,
+                        'mime_type' => 'image/jpeg',
+                        'source_url' => $thumbnail_url,
+                    ),
+                    'medium' => array(
+                        'file' => $thumbnail_url,
+                        'width' => 300,
+                        'height' => 300,
+                        'mime_type' => 'image/jpeg',
+                        'source_url' => $thumbnail_url,
+                    ),
+                    'full' => array(
+                        'file' => $thumbnail_url,
+                        'width' => 640,
+                        'height' => 360,
+                        'mime_type' => 'image/jpeg',
+                        'source_url' => $thumbnail_url,
+                    ),
+                );
+            }
+
+            // Update source URL to MUX stream
+            if ( $stream_url ) {
+                $data['source_url'] = $stream_url;
+                // Also add as 'url' for compatibility
+                $data['url'] = $stream_url;
+            }
+
+            $response->set_data( $data );
+        }
+
         return $response;
     }
 
@@ -338,15 +427,15 @@ class Wp_Mux_Media_Sync {
     }
 
     /**
-     * Filter attachment URL to return empty for video/mux attachments
+     * Filter attachment URL to return MUX stream URL instead of local file
      * This prevents WordPress from showing broken file URLs
      */
     public function filter_attachment_url( $url, $attachment_id ) {
         $attachment = get_post( $attachment_id );
 
         if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
-            // Return empty string to prevent showing non-existent file URLs
-            return '';
+            // Return MUX stream URL so blocks can use it
+            return $this->get_mux_stream_url( $attachment_id );
         }
 
         return $url;

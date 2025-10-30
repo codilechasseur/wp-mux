@@ -28,10 +28,16 @@
 					// Create thumbnail URL for poster attribute
 					const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?width=640&height=360`;
 
+					// Check if original video has controls attribute
+					const hasControls = video.hasAttribute('controls');
+
 					// Create mux-player element (preferred over mux-video)
 					const muxPlayer = document.createElement('mux-player');
 					muxPlayer.setAttribute('playback-id', playbackId);
-					muxPlayer.setAttribute('controls', '');
+					// Only add controls if original video had them
+					if (hasControls) {
+						muxPlayer.setAttribute('controls', '');
+					}
 					muxPlayer.setAttribute('stream-type', 'on-demand');
 
 					// Copy over other attributes

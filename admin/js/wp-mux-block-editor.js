@@ -46,40 +46,248 @@
                     // Store original edit function
                     const originalEdit = settings.edit;
 
-                    // Extend edit function to add theme selector
+                    // Extend edit function to add theme selector and MUX status
                     settings.edit = function(props) {
                         const { InspectorControls } = wp.blockEditor;
-                        const { PanelBody, SelectControl } = wp.components;
-                        const { Fragment } = wp.element;
+                        const { PanelBody, SelectControl, Notice } = wp.components;
+                        const { Fragment, useState, useEffect } = wp.element;
 
-                        // Get original edit component
+                        // State for MUX video detection - MUST be at the top before any returns
+                        const [isMuxVideo, setIsMuxVideo] = useState(false);
+                        const [muxStatus, setMuxStatus] = useState(null);
+                        const [playbackId, setPlaybackId] = useState(null);
+                        const [isChecking, setIsChecking] = useState(false);
+                        const [wasMonitoring, setWasMonitoring] = useState(false); // Track if we were actively monitoring
+
+                        // Check if this is a MUX video by attachment ID or URL
+                        useEffect(() => {
+                            let interval = null;
+
+                            const checkMuxStatus = async () => {
+                                if (isChecking) return; // Prevent concurrent checks
+
+                                setIsChecking(true);
+
+                                // Check by attachment ID first
+                                if (props.attributes.id) {
+                                    try {
+                                        const response = await wp.apiFetch({
+                                            path: `/wp/v2/media/${props.attributes.id}`
+                                        });
+
+
+                                        if (response.mime_type === 'video/mux' || response.subtype === 'mux') {
+                                            console.log('MUX Video detected:', response);
+                                            setIsMuxVideo(true);
+                                            setMuxStatus(response.mux_status || 'complete');
+                                            setPlaybackId(response.mux_playback_id || response.playback_id);
+                                            console.log('Set state:', {
+                                                isMuxVideo: true,
+                                                muxStatus: response.mux_status || 'complete',
+                                                playbackId: response.mux_playback_id || response.playback_id
+                                            });
+
+                                            // Update block attributes to use MUX URL if it changed
+                                            if (response.url && response.url !== props.attributes.src) {
+                                                props.setAttributes({ src: response.url });
+                                            }
+
+                                            // Stop polling if complete
+                                            if (response.mux_status === 'complete') {
+                                                if (interval) {
+                                                    clearInterval(interval);
+                                                    interval = null;
+                                                }
+                                                // Mark that we were actively monitoring, show completion message briefly
+                                                if (wasMonitoring) {
+                                                    // After 3 seconds, hide the status message
+                                                    setTimeout(() => {
+                                                        setWasMonitoring(false);
+                                                    }, 3000);
+                                                }
+                                            }
+                                            setIsChecking(false);
+                                            return;
+                                        } else if (response.mime_type && response.mime_type.startsWith('video/')) {
+                                            // It's a video but not MUX yet - keep checking
+                                            setIsMuxVideo(false);
+                                            setMuxStatus('checking');
+                                            setWasMonitoring(true); // Mark that we're actively monitoring
+                                        }
+                                    } catch (error) {
+                                    }
+                                }
+
+                                // Check by URL
+                                if (props.attributes.src) {
+                                    const isMuxUrl = props.attributes.src.includes('mux.com') ||
+                                                   props.attributes.src.includes('muxed.s3.amazonaws.com');
+                                    if (isMuxUrl) {
+                                        setIsMuxVideo(true);
+                                    }
+                                }
+
+                                setIsChecking(false);
+                            };
+
+                            // Initial check
+                            checkMuxStatus();
+
+                            // Always poll for video attachments to detect when they become MUX videos
+                            // Poll more frequently at first, then slow down
+                            if (props.attributes.id && props.attributes.src) {
+                                // Poll every 3 seconds for video attachments
+                                interval = setInterval(checkMuxStatus, 3000);
+
+                                // After 2 minutes, slow down to every 10 seconds
+                                setTimeout(() => {
+                                    if (interval) {
+                                        clearInterval(interval);
+                                        interval = setInterval(checkMuxStatus, 10000);
+                                    }
+                                }, 120000);
+
+                                // Stop polling after 5 minutes
+                                setTimeout(() => {
+                                    if (interval) {
+                                        clearInterval(interval);
+                                    }
+                                }, 300000);
+                            }
+
+                            return () => {
+                                if (interval) {
+                                    clearInterval(interval);
+                                }
+                            };
+                        }, [props.attributes.id, props.attributes.src]);
+
+                        // Trigger conversion when MUX processing is complete
+                        // Let React re-render the video block with the new MUX URL first,
+                        // then let the existing convertMuxVideos() function handle the conversion
+                        useEffect(() => {
+                            console.log('MUX conversion trigger:', { isMuxVideo, playbackId, muxStatus });
+
+                            if (!isMuxVideo || !playbackId || muxStatus !== 'complete') {
+                                return;
+                            }
+
+                            // Give React time to re-render the video block with the new src,
+                            // then trigger the existing conversion function with increasing delays
+                            // to handle various React render timing scenarios
+                            console.log('MUX video ready, triggering convertMuxVideos()...');
+
+                            const delays = [100, 500, 1000, 2000];
+                            delays.forEach(delay => {
+                                setTimeout(() => {
+                                    if (typeof window.convertMuxVideos === 'function') {
+                                        window.convertMuxVideos();
+                                    }
+                                }, delay);
+                            });
+                        }, [isMuxVideo, playbackId, muxStatus]);
+
+                        // Get original edit component AFTER all hooks
                         const originalComponent = originalEdit(props);
 
-                        // Check if this is a MUX video (by checking src or other indicators)
-                        const isMuxVideo = props.attributes.src &&
-                            (props.attributes.src.includes('mux.com') ||
-                             props.attributes.src.includes('muxed.s3.amazonaws.com'));
+                        // Show MUX controls for MUX videos OR videos being checked for MUX conversion
+                        const showMuxControls = isMuxVideo || muxStatus === 'checking';
 
-                        if (!isMuxVideo) {
+                        if (!showMuxControls) {
                             return originalComponent;
-                        }
-
-                        // Debug themes
-
-                        // Log individual themes
-                        if (window.wpMuxThemes) {
-                            window.wpMuxThemes.forEach(theme => {
-                            });
                         }
 
                         // Create theme options
                         const themeOptions = [
-                            // Add all themes including default, but show proper names
+                            { label: 'Default Theme', value: 'default' },
                             ...(window.wpMuxThemes || []).map(theme => ({
                                 label: theme.id === 'default' ? `${theme.name} (Default)` : theme.name,
                                 value: theme.id
                             }))
                         ];
+
+                        // Status notice - only show if actively monitoring
+                        let statusNotice = null;
+                        if (muxStatus === 'checking') {
+                            statusNotice = wp.element.createElement(
+                                'div',
+                                {
+                                    style: {
+                                        backgroundColor: '#e6f2ff',
+                                        padding: '12px 16px',
+                                        borderRadius: '4px',
+                                        borderLeft: '4px solid #0073aa'
+                                    }
+                                },
+                                wp.element.createElement(
+                                    Notice,
+                                    {
+                                        status: 'info',
+                                        isDismissible: false
+                                    },
+                                    'Video uploaded. Monitoring for MUX processing status...'
+                                )
+                            );
+                        } else if (muxStatus === 'queued') {
+                            statusNotice = wp.element.createElement(
+                                'div',
+                                {
+                                    style: {
+                                        backgroundColor: '#e6f2ff',
+                                        padding: '12px 16px',
+                                        borderRadius: '4px',
+                                        borderLeft: '4px solid #0073aa'
+                                    }
+                                },
+                                wp.element.createElement(
+                                    Notice,
+                                    {
+                                        status: 'info',
+                                        isDismissible: false
+                                    },
+                                    'MUX: Queued for processing. This usually takes a few moments.'
+                                )
+                            );
+                        } else if (muxStatus === 'processing') {
+                            statusNotice = wp.element.createElement(
+                                'div',
+                                {
+                                    style: {
+                                        backgroundColor: '#e6f2ff',
+                                        padding: '12px 16px',
+                                        borderRadius: '4px',
+                                        borderLeft: '4px solid #0073aa'
+                                    }
+                                },
+                                wp.element.createElement(
+                                    Notice,
+                                    {
+                                        status: 'warning',
+                                        isDismissible: false
+                                    },
+                                    'MUX: Processing video. Quality and optimized streaming will be available shortly.'
+                                )
+                            );
+                        } else if (muxStatus === 'complete' && playbackId && wasMonitoring) {
+                            // Only show completion message if we were actively monitoring this upload
+                            // Wrap in a div with fade-out animation
+                            statusNotice = wp.element.createElement(
+                                'div',
+                                {
+                                    style: {
+                                        animation: 'fadeOut 0.5s ease-in-out 2.5s forwards'
+                                    }
+                                },
+                                wp.element.createElement(
+                                    Notice,
+                                    {
+                                        status: 'success',
+                                        isDismissible: false
+                                    },
+                                    'MUX video ready and optimized for streaming!'
+                                )
+                            );
+                        }
 
                         // Theme selector component
                         const themeSelector = wp.element.createElement(
@@ -88,9 +296,15 @@
                             wp.element.createElement(
                                 PanelBody,
                                 {
-                                    title: 'MUX Player Theme',
-                                    initialOpen: false
+                                    title: 'MUX Player Settings',
+                                    initialOpen: true,
+                                    style: { marginBottom: '16px' }
                                 },
+                                statusNotice ? wp.element.createElement(
+                                    'div',
+                                    { style: { marginBottom: '16px' } },
+                                    statusNotice
+                                ) : null,
                                 wp.element.createElement(
                                     SelectControl,
                                     {
@@ -99,7 +313,8 @@
                                         options: themeOptions,
                                         onChange: function(value) {
                                             props.setAttributes({ mux_theme: value });
-                                        }
+                                        },
+                                        help: 'Choose a custom theme for the MUX player'
                                     }
                                 )
                             )
@@ -163,24 +378,36 @@
                         // Create thumbnail URL for poster attribute
                         const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?width=640&height=360`;
 
+                        // Check if original video has controls attribute
+                        const hasControls = video.hasAttribute('controls');
+
                         // Try creating mux-player first (might be more reliable)
                         let muxElement;
                         if (customElements.get('mux-player')) {
                             muxElement = doc.createElement('mux-player');
                             muxElement.setAttribute('playback-id', playbackId);
-                            muxElement.setAttribute('controls', '');
+                            // Only add controls if original video had them
+                            if (hasControls) {
+                                muxElement.setAttribute('controls', '');
+                            }
                             muxElement.setAttribute('stream-type', 'on-demand');
                             muxElement.setAttribute('poster', thumbnailUrl);
                         } else if (customElements.get('mux-video')) {
                             muxElement = doc.createElement('mux-video');
                             muxElement.setAttribute('playback-id', playbackId);
-                            muxElement.setAttribute('controls', '');
+                            // Only add controls if original video had them
+                            if (hasControls) {
+                                muxElement.setAttribute('controls', '');
+                            }
                             muxElement.setAttribute('stream-type', 'on-demand');
                             muxElement.setAttribute('poster', thumbnailUrl);
                         } else {
                             // Fall back to regular video element but with some enhancements
                             muxElement = doc.createElement('video');
-                            muxElement.setAttribute('controls', '');
+                            // Only add controls if original video had them
+                            if (hasControls) {
+                                muxElement.setAttribute('controls', '');
+                            }
                             muxElement.setAttribute('src', src);
                             muxElement.setAttribute('poster', thumbnailUrl);
                             muxElement.style.width = '100%';
@@ -310,6 +537,9 @@
 
     }
 
+    // Expose convertMuxVideos globally so it can be called from React components
+    window.convertMuxVideos = convertMuxVideos;
+
     // Function to set up observers for each context
     function setupObservers() {
         const contexts = [document];
@@ -376,6 +606,19 @@
                 .wp-block-video mux-video {
                     width: 100%;
                     height: auto;
+                }
+                @keyframes fadeOut {
+                    0% {
+                        opacity: 1;
+                    }
+                    100% {
+                        opacity: 0;
+                        display: none;
+                        height: 0;
+                        padding: 0;
+                        margin: 0;
+                        overflow: hidden;
+                    }
                 }
             `;
             document.head.appendChild(style);
