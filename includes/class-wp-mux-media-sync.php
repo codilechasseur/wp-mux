@@ -98,15 +98,24 @@ class Wp_Mux_Media_Sync {
         $mux_id = sanitize_text_field( $asset['id'] );
 
         // Check for existing attachment by _mux_asset_id meta
+        // Use -1 to get all results in case of duplicates
         $existing = get_posts( array(
             'post_type'  => 'attachment',
             'post_status'=> 'inherit',
             'meta_key'   => '_mux_asset_id',
             'meta_value' => $mux_id,
             'fields'     => 'ids',
-            'posts_per_page' => 1,
+            'posts_per_page' => -1,
         ) );
-        if ( !empty($existing) ) return;
+
+        // If any attachments exist with this asset ID, don't create another
+        if ( !empty($existing) ) {
+            // If there are duplicates, log it for debugging
+            if ( count($existing) > 1 ) {
+                error_log( 'WP-MUX: Found ' . count($existing) . ' duplicate attachments for asset ID: ' . $mux_id );
+            }
+            return;
+        }
 
         // Also check for uploads that already have this asset ID or are processing
         // (prevents duplicates during upload->sync workflow)
@@ -184,7 +193,9 @@ class Wp_Mux_Media_Sync {
             // Set post_date and post_date_gmt to MUX asset creation date
             if ( !empty($asset['created_at']) ) {
                 global $wpdb;
-                $gmt = gmdate( 'Y-m-d H:i:s', strtotime( $asset['created_at'] ) );
+                // $asset['created_at'] is already a Unix timestamp, use it directly
+                $timestamp = is_numeric($asset['created_at']) ? intval($asset['created_at']) : strtotime($asset['created_at']);
+                $gmt = gmdate( 'Y-m-d H:i:s', $timestamp );
                 $wpdb->update( $wpdb->posts, array( 'post_date' => $gmt, 'post_date_gmt' => $gmt ), array( 'ID' => $attach_id ) );
                 if ( function_exists('clean_post_cache') ) clean_post_cache( $attach_id );
             }
