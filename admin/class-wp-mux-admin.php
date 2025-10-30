@@ -878,6 +878,9 @@ class Wp_Mux_Admin {
 			wp_send_json_error( $result->get_error_message() );
 		}
 
+		// Clear the account stats cache so the overview updates immediately
+		delete_transient( 'wp_mux_account_stats' );
+
 		wp_send_json_success( __( 'Video deleted successfully', 'wp-mux' ) );
 	}
 
@@ -2224,6 +2227,71 @@ class Wp_Mux_Admin {
 		wp_send_json_success( array(
 			'message' => __( 'Option saved', 'wp-mux' ),
 		) );
+	}
+
+	/**
+	 * Delete MUX asset when WordPress attachment is deleted.
+	 *
+	 * This hook is called when an attachment is deleted from WordPress.
+	 * If the attachment is a MUX video, we also delete it from MUX.
+	 *
+	 * @since    1.2.0
+	 * @param    int    $attachment_id    The ID of the attachment being deleted.
+	 */
+	public function handle_attachment_deletion( $attachment_id ) {
+		// Get the attachment
+		$attachment = get_post( $attachment_id );
+
+		// Check if this is a MUX video
+		if ( ! $attachment || $attachment->post_mime_type !== 'video/mux' ) {
+			return;
+		}
+
+		// Get the MUX asset ID
+		$mux_asset_id = get_post_meta( $attachment_id, '_mux_asset_id', true );
+
+		if ( empty( $mux_asset_id ) ) {
+			$this->mux_debug_log( 'No MUX asset ID found for attachment', array(
+				'attachment_id' => $attachment_id,
+			) );
+			return;
+		}
+
+		$this->mux_debug_log( 'Deleting MUX asset for attachment', array(
+			'attachment_id' => $attachment_id,
+			'mux_asset_id'  => $mux_asset_id,
+		) );
+
+		// Initialize MUX API
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
+		$api = new Wp_Mux_Api();
+
+		// Attempt to delete the video from MUX
+		$result = $api->delete_video( $mux_asset_id );
+
+		if ( is_wp_error( $result ) ) {
+			$this->mux_debug_log( 'Failed to delete MUX asset', array(
+				'attachment_id' => $attachment_id,
+				'mux_asset_id'  => $mux_asset_id,
+				'error'         => $result->get_error_message(),
+			) );
+
+			// Log error but don't prevent WordPress deletion
+			error_log( sprintf(
+				'WP-MUX: Failed to delete MUX asset %s for attachment %d: %s',
+				$mux_asset_id,
+				$attachment_id,
+				$result->get_error_message()
+			) );
+		} else {
+			$this->mux_debug_log( 'Successfully deleted MUX asset', array(
+				'attachment_id' => $attachment_id,
+				'mux_asset_id'  => $mux_asset_id,
+			) );
+
+			// Clear the account stats cache so the overview updates immediately
+			delete_transient( 'wp_mux_account_stats' );
+		}
 	}
 
 }

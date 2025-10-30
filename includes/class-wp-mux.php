@@ -200,6 +200,9 @@ class Wp_Mux {
 		$this->loader->add_action( 'wp_ajax_wp_mux_get_attachment_info', $plugin_admin, 'get_attachment_info' );
 		$this->loader->add_action( 'wp_mux_process_queue_event', $plugin_admin, 'process_mux_queue_cron' );
 
+		// Handle attachment deletion - delete from MUX when deleted from WordPress
+		$this->loader->add_action( 'delete_attachment', $plugin_admin, 'handle_attachment_deletion' );
+
 		// Add heartbeat to regularly process queue
 		$this->loader->add_filter( 'heartbeat_received', $plugin_admin, 'heartbeat_process_queue', 10, 2 );
 
