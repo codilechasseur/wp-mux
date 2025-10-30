@@ -353,9 +353,7 @@
                                 const cacheBuster = Date.now();
                                 setPosterPreviewUrl(url + '&v=' + cacheBuster);
 
-                                // Don't clear loading state here - let onLoad/onError handle it
-                                // Keep a safety timeout for much longer to handle very slow loads
-                                setTimeout(() => setIsLoadingPreview(false), 10000);
+                                // Loading state will be cleared by onLoad/onError handlers only
                             }, 800);
 
                             return () => clearTimeout(debounceTimer);
