@@ -352,24 +352,37 @@
 
 /* Empty State */
 .wp-mux-empty-state {
-    text-align: center;
+    background: #fff;
     padding: 60px 20px;
-    color: #666;
+    margin: 20px 0;
+    border: 1px solid #ccd0d4;
+    border-radius: 4px;
+    text-align: center;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
 }
 
-.wp-mux-empty-state .dashicons {
-    font-size: 64px;
-    color: #ccc;
+.wp-mux-empty-state .empty-state-icon {
     margin-bottom: 20px;
 }
 
+.wp-mux-empty-state .empty-state-icon .dashicons {
+    width: 80px;
+    height: 80px;
+    font-size: 80px;
+    color: #c3c4c7;
+}
+
 .wp-mux-empty-state h3 {
-    margin: 0 0 10px 0;
-    color: #333;
+    margin: 0 0 15px 0;
+    font-size: 22px;
+    color: #1d2327;
 }
 
 .wp-mux-empty-state p {
     margin: 0 0 20px 0;
+    color: #646970;
+    font-size: 14px;
+    line-height: 1.6;
 }
 
 /* No Videos State */

@@ -208,7 +208,9 @@ if ( $api->is_configured() ) {
 
             <div id="no-videos" class="wp-mux-no-videos" style="display: none;">
                 <div class="wp-mux-empty-state">
-                    <span class="dashicons dashicons-video-alt3"></span>
+                    <div class="empty-state-icon">
+                        <span class="dashicons dashicons-video-alt3"></span>
+                    </div>
                     <h3><?php _e( 'No videos found', 'wp-mux' ); ?></h3>
                     <p><?php _e( 'Upload your first video to get started with MUX.', 'wp-mux' ); ?></p>
                     <button class="button button-primary" onclick="document.getElementById('upload-new-video').click()">
