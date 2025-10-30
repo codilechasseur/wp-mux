@@ -100,10 +100,10 @@
                                                 }
                                                 // Mark that we were actively monitoring, show completion message briefly
                                                 if (wasMonitoring) {
-                                                    // After 3 seconds, hide the status message
+                                                    // After 10 seconds, hide the status message (temporarily increased for inspection)
                                                     setTimeout(() => {
                                                         setWasMonitoring(false);
-                                                    }, 3000);
+                                                    }, 10000);
                                                 }
                                             }
                                             setIsChecking(false);
@@ -216,17 +216,13 @@
                                         backgroundColor: '#e6f2ff',
                                         padding: '12px 16px',
                                         borderRadius: '4px',
-                                        borderLeft: '4px solid #0073aa'
+                                        borderLeft: '4px solid #0073aa',
+                                        color: '#1e4e79',
+                                        fontSize: '13px',
+                                        lineHeight: '1.5'
                                     }
                                 },
-                                wp.element.createElement(
-                                    Notice,
-                                    {
-                                        status: 'info',
-                                        isDismissible: false
-                                    },
-                                    'Video uploaded. Monitoring for MUX processing status...'
-                                )
+                                'Video uploaded. Monitoring for MUX processing status...'
                             );
                         } else if (muxStatus === 'queued') {
                             statusNotice = wp.element.createElement(
@@ -236,17 +232,13 @@
                                         backgroundColor: '#e6f2ff',
                                         padding: '12px 16px',
                                         borderRadius: '4px',
-                                        borderLeft: '4px solid #0073aa'
+                                        borderLeft: '4px solid #0073aa',
+                                        color: '#1e4e79',
+                                        fontSize: '13px',
+                                        lineHeight: '1.5'
                                     }
                                 },
-                                wp.element.createElement(
-                                    Notice,
-                                    {
-                                        status: 'info',
-                                        isDismissible: false
-                                    },
-                                    'MUX: Queued for processing. This usually takes a few moments.'
-                                )
+                                'MUX: Queued for processing. This usually takes a few moments.'
                             );
                         } else if (muxStatus === 'processing') {
                             statusNotice = wp.element.createElement(
@@ -256,17 +248,13 @@
                                         backgroundColor: '#e6f2ff',
                                         padding: '12px 16px',
                                         borderRadius: '4px',
-                                        borderLeft: '4px solid #0073aa'
+                                        borderLeft: '4px solid #0073aa',
+                                        color: '#1e4e79',
+                                        fontSize: '13px',
+                                        lineHeight: '1.5'
                                     }
                                 },
-                                wp.element.createElement(
-                                    Notice,
-                                    {
-                                        status: 'warning',
-                                        isDismissible: false
-                                    },
-                                    'MUX: Processing video. Quality and optimized streaming will be available shortly.'
-                                )
+                                'MUX: Processing video. Quality and optimized streaming will be available shortly.'
                             );
                         } else if (muxStatus === 'complete' && playbackId && wasMonitoring) {
                             // Only show completion message if we were actively monitoring this upload
