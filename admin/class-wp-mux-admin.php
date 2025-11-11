@@ -985,6 +985,110 @@ class Wp_Mux_Admin {
 		// Don't add manual signing key configuration field anymore
 		// Signing keys are now automatically managed when users select "Signed URLs"
 		// This makes the settings page much cleaner and less confusing
+
+		// Register player options settings
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_player_prefer_playback',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_prefer_playback' ),
+				'default' => 'auto',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_player_max_resolution',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_max_resolution' ),
+				'default' => '',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_player_min_resolution',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_min_resolution' ),
+				'default' => '',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_player_preload',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_preload' ),
+				'default' => 'metadata',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_player_debug',
+			array(
+				'type' => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default' => false,
+			)
+		);
+
+		// Add player options section
+		add_settings_section(
+			'wp_mux_player_settings',
+			__( 'Player Options', 'wp-mux' ),
+			array( $this, 'player_settings_section_callback' ),
+			'wp-mux-settings'
+		);
+
+		// Add prefer-playback field
+		add_settings_field(
+			'wp_mux_player_prefer_playback',
+			__( 'Playback Engine', 'wp-mux' ),
+			array( $this, 'prefer_playback_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_player_settings'
+		);
+
+		// Add max resolution field
+		add_settings_field(
+			'wp_mux_player_max_resolution',
+			__( 'Maximum Resolution', 'wp-mux' ),
+			array( $this, 'max_resolution_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_player_settings'
+		);
+
+		// Add min resolution field
+		add_settings_field(
+			'wp_mux_player_min_resolution',
+			__( 'Minimum Resolution', 'wp-mux' ),
+			array( $this, 'min_resolution_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_player_settings'
+		);
+
+		// Add preload field
+		add_settings_field(
+			'wp_mux_player_preload',
+			__( 'Preload Strategy', 'wp-mux' ),
+			array( $this, 'preload_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_player_settings'
+		);
+
+		// Add debug field
+		add_settings_field(
+			'wp_mux_player_debug',
+			__( 'Debug Mode', 'wp-mux' ),
+			array( $this, 'debug_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_player_settings'
+		);
 	}
 
 	/**
@@ -1923,6 +2027,185 @@ class Wp_Mux_Admin {
 			error_log( '[WP MUX] Failed to auto-configure signing keys: ' . $result->get_error_message() );
 			set_transient( 'wp_mux_signing_key_error', $result->get_error_message(), DAY_IN_SECONDS );
 		}
+	}
+
+	/**
+	 * Player settings section callback.
+	 *
+	 * @since    1.4.0
+	 */
+	public function player_settings_section_callback() {
+		echo '<p>' . __( 'Configure advanced Mux Player options that affect playback behavior globally across your site.', 'wp-mux' ) . '</p>';
+	}
+
+	/**
+	 * Prefer playback field callback.
+	 *
+	 * @since    1.4.0
+	 */
+	public function prefer_playback_field_callback() {
+		$value = get_option( 'wp_mux_player_prefer_playback', 'auto' );
+		?>
+		<select name="wp_mux_player_prefer_playback" id="wp_mux_player_prefer_playback">
+			<option value="auto" <?php selected( $value, 'auto' ); ?>>
+				<?php _e( 'Auto (Recommended)', 'wp-mux' ); ?>
+			</option>
+			<option value="native" <?php selected( $value, 'native' ); ?>>
+				<?php _e( 'Native (Browser built-in)', 'wp-mux' ); ?>
+			</option>
+			<option value="mse" <?php selected( $value, 'mse' ); ?>>
+				<?php _e( 'MSE (HLS.js library)', 'wp-mux' ); ?>
+			</option>
+		</select>
+		<p class="description">
+			<?php _e( 'Controls which playback engine to use. "Native" may resolve Safari playback issues. "MSE" uses HLS.js on all browsers.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Max resolution field callback.
+	 *
+	 * @since    1.4.0
+	 */
+	public function max_resolution_field_callback() {
+		$value = get_option( 'wp_mux_player_max_resolution', '' );
+		?>
+		<select name="wp_mux_player_max_resolution" id="wp_mux_player_max_resolution">
+			<option value="" <?php selected( $value, '' ); ?>>
+				<?php _e( 'No limit', 'wp-mux' ); ?>
+			</option>
+			<option value="270p" <?php selected( $value, '270p' ); ?>>270p</option>
+			<option value="360p" <?php selected( $value, '360p' ); ?>>360p</option>
+			<option value="480p" <?php selected( $value, '480p' ); ?>>480p</option>
+			<option value="540p" <?php selected( $value, '540p' ); ?>>540p</option>
+			<option value="720p" <?php selected( $value, '720p' ); ?>>720p</option>
+			<option value="1080p" <?php selected( $value, '1080p' ); ?>>1080p</option>
+			<option value="1440p" <?php selected( $value, '1440p' ); ?>>1440p</option>
+			<option value="2160p" <?php selected( $value, '2160p' ); ?>>2160p (4K)</option>
+		</select>
+		<p class="description">
+			<?php _e( 'Limits the maximum video quality. Useful for bandwidth management or fixing playback issues (e.g., Safari).', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Min resolution field callback.
+	 *
+	 * @since    1.4.0
+	 */
+	public function min_resolution_field_callback() {
+		$value = get_option( 'wp_mux_player_min_resolution', '' );
+		?>
+		<select name="wp_mux_player_min_resolution" id="wp_mux_player_min_resolution">
+			<option value="" <?php selected( $value, '' ); ?>>
+				<?php _e( 'No limit', 'wp-mux' ); ?>
+			</option>
+			<option value="270p" <?php selected( $value, '270p' ); ?>>270p</option>
+			<option value="360p" <?php selected( $value, '360p' ); ?>>360p</option>
+			<option value="480p" <?php selected( $value, '480p' ); ?>>480p</option>
+			<option value="540p" <?php selected( $value, '540p' ); ?>>540p</option>
+			<option value="720p" <?php selected( $value, '720p' ); ?>>720p</option>
+			<option value="1080p" <?php selected( $value, '1080p' ); ?>>1080p</option>
+			<option value="1440p" <?php selected( $value, '1440p' ); ?>>1440p</option>
+			<option value="2160p" <?php selected( $value, '2160p' ); ?>>2160p (4K)</option>
+		</select>
+		<p class="description">
+			<?php _e( 'Ensures videos never drop below this quality level. Leave blank for automatic quality selection.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Preload field callback.
+	 *
+	 * @since    1.4.0
+	 */
+	public function preload_field_callback() {
+		$value = get_option( 'wp_mux_player_preload', 'metadata' );
+		?>
+		<select name="wp_mux_player_preload" id="wp_mux_player_preload">
+			<option value="none" <?php selected( $value, 'none' ); ?>>
+				<?php _e( 'None (Lowest bandwidth)', 'wp-mux' ); ?>
+			</option>
+			<option value="metadata" <?php selected( $value, 'metadata' ); ?>>
+				<?php _e( 'Metadata only (Recommended)', 'wp-mux' ); ?>
+			</option>
+			<option value="auto" <?php selected( $value, 'auto' ); ?>>
+				<?php _e( 'Auto (Preload as much as possible)', 'wp-mux' ); ?>
+			</option>
+		</select>
+		<p class="description">
+			<?php _e( 'Controls how much video data is loaded before playback starts. "Metadata" loads duration and dimensions only.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Debug field callback.
+	 *
+	 * @since    1.4.0
+	 */
+	public function debug_field_callback() {
+		$checked = checked( 1, get_option( 'wp_mux_player_debug', 0 ), false );
+		?>
+		<label>
+			<input type="checkbox" name="wp_mux_player_debug" value="1" <?php echo $checked; ?> />
+			<?php _e( 'Enable debug logging in browser console', 'wp-mux' ); ?>
+		</label>
+		<p class="description">
+			<?php _e( 'Useful for troubleshooting playback issues. Outputs HLS.js and Mux Data debug messages.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Sanitize prefer playback option.
+	 *
+	 * @since    1.4.0
+	 * @param    string    $value    The value to sanitize.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_prefer_playback( $value ) {
+		$valid = array( 'auto', 'native', 'mse' );
+		return in_array( $value, $valid, true ) ? $value : 'auto';
+	}
+
+	/**
+	 * Sanitize max resolution option.
+	 *
+	 * @since    1.4.0
+	 * @param    string    $value    The value to sanitize.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_max_resolution( $value ) {
+		$valid = array( '', '270p', '360p', '480p', '540p', '720p', '1080p', '1440p', '2160p' );
+		return in_array( $value, $valid, true ) ? $value : '';
+	}
+
+	/**
+	 * Sanitize min resolution option.
+	 *
+	 * @since    1.4.0
+	 * @param    string    $value    The value to sanitize.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_min_resolution( $value ) {
+		$valid = array( '', '270p', '360p', '480p', '540p', '720p', '1080p', '1440p', '2160p' );
+		return in_array( $value, $valid, true ) ? $value : '';
+	}
+
+	/**
+	 * Sanitize preload option.
+	 *
+	 * @since    1.4.0
+	 * @param    string    $value    The value to sanitize.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_preload( $value ) {
+		$valid = array( 'none', 'metadata', 'auto' );
+		return in_array( $value, $valid, true ) ? $value : 'metadata';
 	}
 
 	/**

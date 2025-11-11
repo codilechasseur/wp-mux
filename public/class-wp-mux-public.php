@@ -167,13 +167,14 @@ class Wp_Mux_Public {
 
 			// Use mux-player element for optimal video playback
 			$html = sprintf(
-				'<mux-player playback-id="%s" %s poster="%s" style="%s" stream-type="on-demand">
+				'<mux-player playback-id="%s" %s poster="%s" style="%s" stream-type="on-demand"%s>
 					<p>%s</p>
 				</mux-player>',
 				esc_attr( $playback_id ),
 				$controls,
 				esc_attr( $poster ),
 				esc_attr( $style ),
+				$this->get_player_options_attributes(),
 				__( 'Your browser does not support HTML5 video.', 'wp-mux' )
 			);
 
@@ -213,7 +214,7 @@ class Wp_Mux_Public {
 				$thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
 
 				// Replace the video element with mux-player
-				$mux_video = '<mux-player playback-id="' . esc_attr( $playback_id ) . '" controls stream-type="on-demand" poster="' . esc_attr( $thumbnail_url ) . '">';
+				$mux_video = '<mux-player playback-id="' . esc_attr( $playback_id ) . '" controls stream-type="on-demand" poster="' . esc_attr( $thumbnail_url ) . '"' . $this->get_player_options_attributes() . '>';
 				$replacement = str_replace( '<video', $mux_video, $full_match );
 				$replacement = str_replace( 'src="' . $url . '"', '', $replacement );
 
@@ -321,6 +322,9 @@ class Wp_Mux_Public {
 				if ( ! empty( $controls_attr ) ) {
 					$mux_player_tag .= ' ' . $controls_attr;
 				}
+
+				// Add player options
+				$mux_player_tag .= $this->get_player_options_attributes();
 
 				$mux_player_tag .= ' stream-type="on-demand" poster="' . esc_attr( $thumbnail_url ) . '"$1>';
 
@@ -593,6 +597,48 @@ class Wp_Mux_Public {
 		}
 
 		return $player_html;
+	}
+
+	/**
+	 * Get global player options as HTML attributes.
+	 *
+	 * @since    1.4.0
+	 * @return   string    HTML attributes string for mux-player
+	 */
+	private function get_player_options_attributes() {
+		$attributes = array();
+
+		// Prefer playback
+		$prefer_playback = get_option( 'wp_mux_player_prefer_playback', 'auto' );
+		if ( $prefer_playback !== 'auto' ) {
+			$attributes[] = 'prefer-playback="' . esc_attr( $prefer_playback ) . '"';
+		}
+
+		// Max resolution
+		$max_resolution = get_option( 'wp_mux_player_max_resolution', '' );
+		if ( ! empty( $max_resolution ) ) {
+			$attributes[] = 'max-resolution="' . esc_attr( $max_resolution ) . '"';
+		}
+
+		// Min resolution
+		$min_resolution = get_option( 'wp_mux_player_min_resolution', '' );
+		if ( ! empty( $min_resolution ) ) {
+			$attributes[] = 'min-resolution="' . esc_attr( $min_resolution ) . '"';
+		}
+
+		// Preload
+		$preload = get_option( 'wp_mux_player_preload', 'metadata' );
+		if ( $preload !== 'metadata' ) {
+			$attributes[] = 'preload="' . esc_attr( $preload ) . '"';
+		}
+
+		// Debug
+		$debug = get_option( 'wp_mux_player_debug', false );
+		if ( $debug ) {
+			$attributes[] = 'debug';
+		}
+
+		return ! empty( $attributes ) ? ' ' . implode( ' ', $attributes ) : '';
 	}
 
 }
