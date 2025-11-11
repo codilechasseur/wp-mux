@@ -22,9 +22,21 @@ $control_options = $theme_manager->get_control_options();
 // Get current theme for editing
 $current_theme = null;
 $edit_mode = false;
-if ( isset( $_GET['edit'] ) && isset( $themes[ $_GET['edit'] ] ) ) {
-	$current_theme = $themes[ $_GET['edit'] ];
-	$edit_mode = true;
+if ( isset( $_GET['edit'] ) ) {
+	if ( $_GET['edit'] === 'new' ) {
+		// Creating a new theme - use defaults
+		$edit_mode = true;
+		$current_theme = array(
+			'name' => '',
+			'description' => '',
+			'controls' => $theme_manager->get_default_theme_controls(),
+			'styles' => array(),
+		);
+	} elseif ( isset( $themes[ $_GET['edit'] ] ) ) {
+		// Editing an existing theme
+		$current_theme = $themes[ $_GET['edit'] ];
+		$edit_mode = true;
+	}
 }
 
 // Show success message if redirected after update
@@ -55,239 +67,241 @@ if ( $error_message ) {
 
 	<div class="wp-mux-themes-container">
 		<div class="wp-mux-themes-main">
-			<div class="wp-mux-theme-form">
-				<h2><?php echo $edit_mode ? __( 'Edit Theme', 'wp-mux' ) : __( 'Create New Theme', 'wp-mux' ); ?></h2>
+			<?php if ( $edit_mode ): ?>
+				<div class="wp-mux-theme-form">
+					<form method="post" action="">
+						<?php wp_nonce_field( 'wp_mux_themes_action', 'wp_mux_themes_nonce' ); ?>
+						<input type="hidden" name="action" value="save_theme">
+						<?php if ( isset( $_GET['edit'] ) && $_GET['edit'] !== 'new' ): ?>
+							<input type="hidden" name="theme_id" value="<?php echo esc_attr( $_GET['edit'] ); ?>">
+						<?php endif; ?>
 
-				<form method="post" action="">
-					<?php wp_nonce_field( 'wp_mux_themes_action', 'wp_mux_themes_nonce' ); ?>
-					<input type="hidden" name="action" value="save_theme">
-					<?php if ( $edit_mode ): ?>
-						<input type="hidden" name="theme_id" value="<?php echo esc_attr( $_GET['edit'] ); ?>">
-					<?php endif; ?>
+						<h2><?php echo ( isset( $_GET['edit'] ) && $_GET['edit'] !== 'new' ) ? __( 'Edit Theme', 'wp-mux' ) : __( 'Create New Theme', 'wp-mux' ); ?></h2>
 
-					<table class="form-table">
-						<tr>
-							<th scope="row">
-								<label for="theme_name"><?php _e( 'Theme Name', 'wp-mux' ); ?></label>
-							</th>
-							<td>
-								<input type="text"
-									   id="theme_name"
-									   name="theme_name"
-									   value="<?php echo $current_theme ? esc_attr( $current_theme['name'] ) : ''; ?>"
-									   class="regular-text"
-									   required>
-							</td>
-						</tr>
-						<tr>
-							<th scope="row">
-								<label for="theme_description"><?php _e( 'Description', 'wp-mux' ); ?></label>
-							</th>
-							<td>
-								<textarea id="theme_description"
-										  name="theme_description"
-										  rows="3"
-										  class="regular-text"><?php echo $current_theme ? esc_textarea( $current_theme['description'] ) : ''; ?></textarea>
-							</td>
-						</tr>
-					</table>
+						<table class="form-table" role="presentation">
+							<tbody>
+								<tr>
+									<th scope="row">
+										<label for="theme_name"><?php _e( 'Theme Name', 'wp-mux' ); ?></label>
+									</th>
+									<td>
+										<input type="text"
+											   id="theme_name"
+											   name="theme_name"
+											   value="<?php echo esc_attr( $current_theme['name'] ); ?>"
+											   class="regular-text"
+											   required>
+									</td>
+								</tr>
+								<tr>
+									<th scope="row">
+										<label for="theme_description"><?php _e( 'Description', 'wp-mux' ); ?></label>
+									</th>
+									<td>
+										<textarea id="theme_description"
+												  name="theme_description"
+												  rows="2"
+												  class="regular-text"><?php echo esc_textarea( $current_theme['description'] ); ?></textarea>
+										<p class="description"><?php _e( 'Optional description for this theme.', 'wp-mux' ); ?></p>
+									</td>
+								</tr>
+							</tbody>
+						</table>
 
-					<h3><?php _e( 'Player Controls', 'wp-mux' ); ?></h3>
-					<p class="description"><?php _e( 'Select which controls and elements should be visible in the player, and customize their appearance.', 'wp-mux' ); ?></p>
+						<h2><?php _e( 'Player Controls', 'wp-mux' ); ?></h2>
 
-					<div class="wp-mux-controls-sections">
-						<?php foreach ( $control_options as $section_key => $section_options ): ?>
-							<div class="wp-mux-control-section" data-category="<?php echo esc_attr( $section_key ); ?>">
-								<h4><?php echo esc_html( ucwords( str_replace( '_', ' ', $section_key ) ) ); ?></h4>
+						<table class="form-table" role="presentation">
+							<tbody>
+								<?php foreach ( $control_options as $section_key => $section_options ): ?>
+									<?php foreach ( $section_options as $control_key => $control_data ): ?>
+										<?php
+										$default_value = isset( $control_data['default'] ) ? $control_data['default'] : true;
+										$is_checked = $default_value;
+										if ( $current_theme && array_key_exists( $control_key, $current_theme['controls'] ) ) {
+											$is_checked = (bool) $current_theme['controls'][ $control_key ];
+										}
+										?>
+										<tr>
+											<th scope="row">
+												<?php echo esc_html( $control_data['label'] ); ?>
+											</th>
+											<td>
+												<fieldset>
+													<label>
+														<input type="checkbox"
+															   name="controls[<?php echo esc_attr( $control_key ); ?>]"
+															   value="1"
+															   <?php checked( $is_checked ); ?>
+															   class="control-toggle"
+															   data-control="<?php echo esc_attr( $control_key ); ?>">
+														<?php _e( 'Enable', 'wp-mux' ); ?>
+													</label>
+													<?php if ( ! empty( $control_data['description'] ) ): ?>
+														<p class="description"><?php echo esc_html( $control_data['description'] ); ?></p>
+													<?php endif; ?>
 
-								<?php foreach ( $section_options as $control_key => $control_data ): ?>
-									<?php
-									$default_value = isset( $control_data['default'] ) ? $control_data['default'] : true;
-									$is_checked = $default_value; // Use default value first
-									if ( $current_theme && array_key_exists( $control_key, $current_theme['controls'] ) ) {
-										$is_checked = (bool) $current_theme['controls'][ $control_key ];
-									}
-									?>
-									<div class="wp-mux-control-item" data-control="<?php echo esc_attr( $control_key ); ?>">
-										<div class="control-header">
-											<label>
-												<input type="checkbox"
-													   name="controls[<?php echo esc_attr( $control_key ); ?>]"
-													   value="1"
-													   <?php checked( $is_checked ); ?>
-													   class="control-toggle">
-												<strong><?php echo esc_html( $control_data['label'] ); ?></strong>
-											</label>
-											<?php if ( ! empty( $control_data['description'] ) ): ?>
-												<span class="description"><?php echo esc_html( $control_data['description'] ); ?></span>
-											<?php endif; ?>
-										</div>
-
-										<?php if ( isset( $control_data['styling_options'] ) && ! empty( $control_data['styling_options'] ) ): ?>
-											<div class="control-styles" style="<?php echo $is_checked ? '' : 'display: none;'; ?>">
-												<div class="style-options">
-													<?php foreach ( $control_data['styling_options'] as $style_key => $style_data ): ?>
-														<?php
-														$input_name = 'styles[' . $control_key . '_' . $style_key . ']';
-														$current_value = '';
-														if ( $current_theme && isset( $current_theme['styles'][ $control_key ][ $style_key ] ) ) {
-															$current_value = $current_theme['styles'][ $control_key ][ $style_key ];
-														} else {
-															$current_value = $style_data['default'];
-														}
-														?>
-														<div class="style-option">
-															<label for="<?php echo esc_attr( $control_key . '_' . $style_key ); ?>">
-																<?php echo esc_html( $style_data['label'] ); ?>
-															</label>
-															<?php if ( $style_data['type'] === 'color' ): ?>
-																<input type="color"
-																	   id="<?php echo esc_attr( $control_key . '_' . $style_key ); ?>"
-																	   name="<?php echo esc_attr( $input_name ); ?>"
-																	   value="<?php echo esc_attr( $current_value ); ?>"
-																	   class="color-picker">
-															<?php else: ?>
-																<input type="text"
-																	   id="<?php echo esc_attr( $control_key . '_' . $style_key ); ?>"
-																	   name="<?php echo esc_attr( $input_name ); ?>"
-																	   value="<?php echo esc_attr( $current_value ); ?>"
-																	   placeholder="<?php echo isset( $style_data['placeholder'] ) ? esc_attr( $style_data['placeholder'] ) : ''; ?>"
-																	   class="small-text">
-															<?php endif; ?>
+													<?php if ( isset( $control_data['styling_options'] ) && ! empty( $control_data['styling_options'] ) ): ?>
+														<div class="wp-mux-color-options" style="<?php echo $is_checked ? 'margin-top: 10px;' : 'display: none;'; ?>">
+															<?php foreach ( $control_data['styling_options'] as $style_key => $style_data ): ?>
+																<?php
+																$input_name = 'styles[' . $control_key . '_' . $style_key . ']';
+																$current_value = '';
+																if ( $current_theme && isset( $current_theme['styles'][ $control_key ][ $style_key ] ) ) {
+																	$current_value = $current_theme['styles'][ $control_key ][ $style_key ];
+																} else {
+																	$current_value = $style_data['default'];
+																}
+																?>
+																<label style="display: inline-flex; align-items: center; gap: 8px; margin-right: 15px;">
+																	<span><?php echo esc_html( $style_data['label'] ); ?>:</span>
+																	<input type="color"
+																		   id="<?php echo esc_attr( $control_key . '_' . $style_key ); ?>"
+																		   name="<?php echo esc_attr( $input_name ); ?>"
+																		   value="<?php echo esc_attr( $current_value ); ?>"
+																		   style="height: 28px; padding: 2px;">
+																</label>
+															<?php endforeach; ?>
 														</div>
-													<?php endforeach; ?>
-												</div>
-											</div>
+													<?php endif; ?>
+												</fieldset>
+											</td>
+										</tr>
+									<?php endforeach; ?>
+								<?php endforeach; ?>
+							</tbody>
+						</table>
+
+						<?php submit_button( __( 'Save Changes', 'wp-mux' ) ); ?>
+
+						<p>
+							<a href="<?php echo admin_url( 'admin.php?page=wp-mux-themes' ); ?>" class="button"><?php _e( '← Back to Themes', 'wp-mux' ); ?></a>
+							<?php if ( ! isset( $current_theme['is_default'] ) || ! $current_theme['is_default'] ): ?>
+								<button type="button" class="button button-link-delete" onclick="if(confirm('<?php echo esc_js( __( 'Are you sure you want to delete this theme?', 'wp-mux' ) ); ?>')) { var form = document.createElement('form'); form.method = 'post'; form.innerHTML = '<input type=\'hidden\' name=\'action\' value=\'delete_theme\'><input type=\'hidden\' name=\'theme_id\' value=\'<?php echo esc_js( $_GET['edit'] ); ?>\'><input type=\'hidden\' name=\'wp_mux_themes_nonce\' value=\'<?php echo wp_create_nonce( 'wp_mux_themes_action' ); ?>\'>'; document.body.appendChild(form); form.submit(); }"><?php _e( 'Delete Theme', 'wp-mux' ); ?></button>
+							<?php endif; ?>
+						</p>
+					</form>
+				</div>
+			<?php else: ?>
+				<div class="wp-mux-themes-list">
+					<?php if ( empty( $themes ) ): ?>
+						<div class="wp-mux-empty-state">
+							<p><?php _e( 'No themes created yet.', 'wp-mux' ); ?></p>
+						</div>
+					<?php else: ?>
+						<div class="wp-mux-themes-grid">
+							<?php foreach ( $themes as $theme_id => $theme ): ?>
+								<?php
+								$is_default = $theme_id === $default_theme_id;
+								$card_classes = array( 'wp-mux-theme-card' );
+								if ( $is_default ) {
+									$card_classes[] = 'is-default';
+								}
+								?>
+								<div class="<?php echo implode( ' ', $card_classes ); ?>">
+									<div class="wp-mux-theme-header">
+										<h3><?php echo esc_html( $theme['name'] ); ?></h3>
+										<?php if ( $is_default ): ?>
+											<span class="wp-mux-default-badge"><?php _e( 'Default', 'wp-mux' ); ?></span>
 										<?php endif; ?>
 									</div>
-								<?php endforeach; ?>
-							</div>
-						<?php endforeach; ?>
-					</div>
 
-					<p class="submit">
-						<?php submit_button( $edit_mode ? __( 'Update Theme', 'wp-mux' ) : __( 'Create Theme', 'wp-mux' ), 'primary', 'submit', false ); ?>
-						<?php if ( $edit_mode ): ?>
-							<a href="<?php echo admin_url( 'admin.php?page=wp-mux-themes' ); ?>" class="button"><?php _e( 'Cancel', 'wp-mux' ); ?></a>
-						<?php endif; ?>
-					</p>
-				</form>
-			</div>
+									<?php if ( ! empty( $theme['description'] ) ): ?>
+										<p class="wp-mux-theme-description"><?php echo esc_html( $theme['description'] ); ?></p>
+									<?php endif; ?>
+
+									<div class="wp-mux-theme-preview">
+										<div class="preview-player">
+											<div class="preview-controls">
+												<?php
+												$enabled_controls = array_filter( $theme['controls'] );
+												if ( isset( $enabled_controls['controls'] ) ) {
+													unset( $enabled_controls['controls'] );
+												}
+
+												$main_controls_disabled = isset( $theme['controls']['controls'] ) && ! $theme['controls']['controls'];
+
+												if ( $main_controls_disabled ) {
+													if ( isset( $enabled_controls['primary-color'] ) ) {
+														unset( $enabled_controls['primary-color'] );
+													}
+													if ( isset( $enabled_controls['secondary-color'] ) ) {
+														unset( $enabled_controls['secondary-color'] );
+													}
+												}
+
+												$enabled_count = count( $enabled_controls );
+
+												if ( $main_controls_disabled ) {
+													echo __( 'No controls', 'wp-mux' );
+												} else {
+													echo sprintf( _n( '%d control', '%d controls', $enabled_count, 'wp-mux' ), $enabled_count );
+												}
+												?>
+											</div>
+										</div>
+									</div>
+
+									<div class="wp-mux-theme-actions">
+										<a href="<?php echo admin_url( 'admin.php?page=wp-mux-themes&edit=' . urlencode( $theme_id ) ); ?>"
+										   class="button button-primary"><?php _e( 'Edit', 'wp-mux' ); ?></a>
+
+										<?php if ( $theme_id !== $default_theme_id ): ?>
+											<form method="post" action="" style="display: inline;">
+												<?php wp_nonce_field( 'wp_mux_themes_action', 'wp_mux_themes_nonce' ); ?>
+												<input type="hidden" name="action" value="set_default">
+												<input type="hidden" name="theme_id" value="<?php echo esc_attr( $theme_id ); ?>">
+												<button type="submit" class="button"><?php _e( 'Set as Default', 'wp-mux' ); ?></button>
+											</form>
+										<?php endif; ?>
+									</div>
+								</div>
+							<?php endforeach; ?>
+						</div>
+
+						<p class="wp-mux-add-theme">
+							<a href="<?php echo admin_url( 'admin.php?page=wp-mux-themes&edit=new' ); ?>" class="button button-secondary">
+								<?php _e( '+ Create New Theme', 'wp-mux' ); ?>
+							</a>
+						</p>
+					<?php endif; ?>
+				</div>
+			<?php endif; ?>
 		</div>
 
 		<div class="wp-mux-themes-sidebar">
-			<h2><?php _e( 'Existing Themes', 'wp-mux' ); ?></h2>
+			<div class="wp-mux-sidebar-panel">
+				<h3><?php _e( 'About Themes', 'wp-mux' ); ?></h3>
+				<p><?php _e( 'Themes control which player controls are visible and their appearance.', 'wp-mux' ); ?></p>
+				<p><?php _e( 'The default theme is automatically applied to all video players.', 'wp-mux' ); ?></p>
+				
+				<h4><?php _e( 'Quick Templates', 'wp-mux' ); ?></h4>
+				<ul class="wp-mux-quick-templates">
+					<li><strong><?php _e( 'Full Controls:', 'wp-mux' ); ?></strong> <?php _e( 'All controls enabled', 'wp-mux' ); ?></li>
+					<li><strong><?php _e( 'Background Video:', 'wp-mux' ); ?></strong> <?php _e( 'Controls disabled for ambient playback', 'wp-mux' ); ?></li>
+				</ul>
+			</div>
 
-			<?php if ( empty( $themes ) ): ?>
-				<p><?php _e( 'No themes created yet. Create your first theme using the form on the left.', 'wp-mux' ); ?></p>
-			<?php else: ?>
-				<div class="wp-mux-themes-grid">
-					<?php foreach ( $themes as $theme_id => $theme ): ?>
-						<?php
-						$is_default = $theme_id === $default_theme_id;
-						$is_editing = $edit_mode && isset( $_GET['edit'] ) && $_GET['edit'] === $theme_id;
-						$card_classes = array( 'wp-mux-theme-card' );
-						if ( $is_default ) {
-							$card_classes[] = 'is-default';
-						}
-						if ( $is_editing ) {
-							$card_classes[] = 'is-editing';
-						}
-						?>
-						<div class="<?php echo implode( ' ', $card_classes ); ?>">
-							<div class="wp-mux-theme-header">
-								<h3><?php echo esc_html( $theme['name'] ); ?></h3>
-								<?php if ( $is_default ): ?>
-									<span class="wp-mux-default-badge"><?php _e( 'Default', 'wp-mux' ); ?></span>
-								<?php endif; ?>
-							</div>
-
-							<?php if ( ! empty( $theme['description'] ) ): ?>
-								<p class="wp-mux-theme-description"><?php echo esc_html( $theme['description'] ); ?></p>
-							<?php endif; ?>
-
-							<div class="wp-mux-theme-preview">
-								<div class="wp-mux-player-preview" style="<?php echo esc_attr( $theme_manager->get_theme_style_attributes( $theme_id ) ); ?>">
-									<div class="preview-player">
-										<div class="preview-controls">
-											<?php
-											// Count enabled controls excluding the global "Show All Controls" toggle
-											$enabled_controls = array_filter( $theme['controls'] );
-											if ( isset( $enabled_controls['controls'] ) ) {
-												unset( $enabled_controls['controls'] );
-											}
-
-											// Check if main controls toggle is disabled
-											$main_controls_disabled = isset( $theme['controls']['controls'] ) && ! $theme['controls']['controls'];
-
-											// If main controls are disabled, also exclude primary and secondary colors from the count
-											if ( $main_controls_disabled ) {
-												if ( isset( $enabled_controls['primary-color'] ) ) {
-													unset( $enabled_controls['primary-color'] );
-												}
-												if ( isset( $enabled_controls['secondary-color'] ) ) {
-													unset( $enabled_controls['secondary-color'] );
-												}
-											}
-
-											$enabled_count = count( $enabled_controls );
-
-											if ( $main_controls_disabled ) {
-												echo __( 'All controls hidden', 'wp-mux' );
-											} elseif ( $enabled_count === 0 ) {
-												echo __( 'No individual controls enabled', 'wp-mux' );
-											} else {
-												echo sprintf( _n( '%d control enabled', '%d controls enabled', $enabled_count, 'wp-mux' ), $enabled_count );
-											}
-											?>
-										</div>
-									</div>
-								</div>
-							</div>
-
-							<div class="wp-mux-theme-meta">
-								<small>
-									<?php if ( isset( $theme['modified'] ) ): ?>
-										<?php printf( __( 'Modified: %s', 'wp-mux' ), date_i18n( get_option( 'date_format' ), strtotime( $theme['modified'] ) ) ); ?>
-									<?php elseif ( isset( $theme['created'] ) ): ?>
-										<?php printf( __( 'Created: %s', 'wp-mux' ), date_i18n( get_option( 'date_format' ), strtotime( $theme['created'] ) ) ); ?>
-									<?php endif; ?>
-								</small>
-							</div>
-
-							<div class="wp-mux-theme-actions">
-								<a href="<?php echo admin_url( 'admin.php?page=wp-mux-themes&edit=' . urlencode( $theme_id ) ); ?>"
-								   class="button"><?php _e( 'Edit', 'wp-mux' ); ?></a>
-
-								<?php if ( $theme_id !== $default_theme_id ): ?>
-									<form method="post" action="" style="display: inline;">
-										<?php wp_nonce_field( 'wp_mux_themes_action', 'wp_mux_themes_nonce' ); ?>
-										<input type="hidden" name="action" value="set_default">
-										<input type="hidden" name="theme_id" value="<?php echo esc_attr( $theme_id ); ?>">
-										<button type="submit" class="button"><?php _e( 'Set Default', 'wp-mux' ); ?></button>
-									</form>
-								<?php endif; ?>
-
-								<?php if ( ! isset( $theme['is_default'] ) || ! $theme['is_default'] ): ?>
-									<form method="post" action="" style="display: inline;"
-										  onsubmit="return confirm('<?php echo esc_js( __( 'Are you sure you want to delete this theme?', 'wp-mux' ) ); ?>');">
-										<?php wp_nonce_field( 'wp_mux_themes_action', 'wp_mux_themes_nonce' ); ?>
-										<input type="hidden" name="action" value="delete_theme">
-										<input type="hidden" name="theme_id" value="<?php echo esc_attr( $theme_id ); ?>">
-										<button type="submit" class="button button-link-delete"><?php _e( 'Delete', 'wp-mux' ); ?></button>
-									</form>
-								<?php endif; ?>
-							</div>
-						</div>
-					<?php endforeach; ?>
+			<?php if ( $edit_mode ): ?>
+				<div class="wp-mux-sidebar-panel">
+					<h3><?php _e( 'Theme Info', 'wp-mux' ); ?></h3>
+					<?php if ( isset( $_GET['edit'] ) && $_GET['edit'] !== 'new' ): ?>
+						<p><strong><?php _e( 'Theme ID:', 'wp-mux' ); ?></strong> <code><?php echo esc_html( $_GET['edit'] ); ?></code></p>
+						<?php if ( isset( $current_theme['created'] ) ): ?>
+							<p><strong><?php _e( 'Created:', 'wp-mux' ); ?></strong> <?php echo date_i18n( get_option( 'date_format' ), strtotime( $current_theme['created'] ) ); ?></p>
+						<?php endif; ?>
+						<?php if ( isset( $current_theme['modified'] ) ): ?>
+							<p><strong><?php _e( 'Modified:', 'wp-mux' ); ?></strong> <?php echo date_i18n( get_option( 'date_format' ), strtotime( $current_theme['modified'] ) ); ?></p>
+						<?php endif; ?>
+					<?php else: ?>
+						<p><?php _e( 'A unique ID will be generated when you save this theme.', 'wp-mux' ); ?></p>
+					<?php endif; ?>
 				</div>
 			<?php endif; ?>
 
-			<div class="wp-mux-theme-usage">
+			<div class="wp-mux-sidebar-panel">
 				<h3><?php _e( 'Using Themes', 'wp-mux' ); ?></h3>
-				<p><?php _e( 'Themes control the appearance and available controls of MUX players. The default theme is automatically applied to all new players.', 'wp-mux' ); ?></p>
-				<p><?php _e( 'To apply a specific theme to a player, you can specify the theme ID when creating mux-player elements:', 'wp-mux' ); ?></p>
-				<code>&lt;mux-player playback-id="your-id" class="wp-mux-theme-<?php echo esc_attr( $default_theme_id ); ?>"&gt;&lt;/mux-player&gt;</code>
+				<p><?php _e( 'To use a theme in your shortcode:', 'wp-mux' ); ?></p>
+				<code>[mux_video id="123" theme="<?php echo esc_attr( $default_theme_id ); ?>"]</code>
 			</div>
 		</div>
 	</div>

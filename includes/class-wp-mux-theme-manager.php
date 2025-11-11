@@ -219,7 +219,7 @@ class Wp_Mux_Theme_Manager {
 	 * @since    1.0.0
 	 * @return   array    Default control settings.
 	 */
-	private function get_default_theme_controls() {
+	public function get_default_theme_controls() {
 		$controls = array();
 		foreach ( $this->control_options as $category => $options ) {
 			foreach ( $options as $key => $option ) {

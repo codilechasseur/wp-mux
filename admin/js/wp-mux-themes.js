@@ -27,11 +27,16 @@
          * Initialize controls visibility based on current state
          */
         initControlsVisibility: function() {
-            // Check if the main controls toggle exists and is unchecked
-            var $mainControlsToggle = $('.wp-mux-control-item[data-control="controls"] .control-toggle');
-            if ($mainControlsToggle.length > 0) {
-                this.handleMainControlsToggle($mainControlsToggle.is(':checked'));
-            }
+            // Initialize color options visibility based on checkbox state
+            $('.control-toggle').each(function() {
+                var $checkbox = $(this);
+                var $colorOptions = $checkbox.closest('fieldset').find('.wp-mux-color-options');
+                if ($colorOptions.length > 0) {
+                    if (!$checkbox.is(':checked')) {
+                        $colorOptions.hide();
+                    }
+                }
+            });
         },
 
         /**
@@ -50,64 +55,26 @@
             // Control checkboxes change
             $(document).on('change', '.control-toggle', this.handleControlToggle);
 
-            // Style input changes
-            $(document).on('change input', '.style-option input', this.updatePreview);
-
             // Theme name changes
             $(document).on('input', '#theme_name', this.updatePreview);
         },
 
         /**
-         * Handle control toggle (show/hide styling options)
+         * Handle control toggle (show/hide color options)
          */
         handleControlToggle: function() {
             var $checkbox = $(this);
-            var $controlItem = $checkbox.closest('.wp-mux-control-item');
-            var $styleOptions = $controlItem.find('.control-styles');
-            var controlKey = $controlItem.data('control');
+            var $fieldset = $checkbox.closest('fieldset');
+            var $colorOptions = $fieldset.find('.wp-mux-color-options');
+            var controlKey = $checkbox.data('control');
 
             if ($checkbox.is(':checked')) {
-                $controlItem.addClass('control-enabled');
-                $styleOptions.slideDown(200);
+                $colorOptions.slideDown(200);
             } else {
-                $controlItem.removeClass('control-enabled');
-                $styleOptions.slideUp(200);
-            }
-
-            // Special handling for the main "controls" toggle
-            if (controlKey === 'controls') {
-                WpMuxThemes.handleMainControlsToggle($checkbox.is(':checked'));
+                $colorOptions.slideUp(200);
             }
 
             WpMuxThemes.updatePreview();
-        },
-
-        /**
-         * Handle the main "Show Controls" toggle
-         */
-        handleMainControlsToggle: function(enabled) {
-            var $globalSection = $('.wp-mux-control-section[data-category="global"]');
-            var $controlsToggle = $globalSection.find('[data-control="controls"]');
-            var $dependentControls = $globalSection.find('[data-control="control-bar"], [data-control="play-button"], [data-control="primary-color"], [data-control="secondary-color"], [data-control="accent-color"]');
-
-            if (enabled) {
-                // Show dependent controls
-                $dependentControls.slideDown(300);
-                $globalSection.find('.wp-mux-controls-notice').remove();
-            } else {
-                // Hide dependent controls
-                $dependentControls.slideUp(300);
-
-                // Add a notice if it doesn't exist
-                if ($globalSection.find('.wp-mux-controls-notice').length === 0) {
-                    var $notice = $('<div class="wp-mux-controls-notice" style="margin-top: 15px; padding: 10px; background: #f0f6fc; border: 1px solid #c3dbf2; border-radius: 4px;">' +
-                        '<p style="margin: 0; color: #0073aa;">' +
-                        '<span class="dashicons dashicons-info" style="margin-right: 5px;"></span>' +
-                        'All controls are disabled. Individual control settings are hidden since they won\'t be visible.' +
-                        '</p></div>');
-                    $globalSection.append($notice);
-                }
-            }
         },
 
         /**
@@ -216,11 +183,13 @@
          * Initialize preview functionality
          */
         initPreview: function() {
-            this.updatePreview();
-
-            // Initialize control toggles
+            // Initialize control state on page load
             $('.control-toggle').each(function() {
-                WpMuxThemes.handleControlToggle.call(this);
+                var $checkbox = $(this);
+                var $colorOptions = $checkbox.closest('fieldset').find('.wp-mux-color-options');
+                if ($colorOptions.length > 0 && !$checkbox.is(':checked')) {
+                    $colorOptions.hide();
+                }
             });
         },
 
@@ -228,82 +197,8 @@
          * Update theme preview
          */
         updatePreview: function() {
-            // Only update preview if we're in edit mode (editing a theme)
-            // Check if we have control toggles present (means we're editing)
-            if ($('.control-toggle').length === 0) return;
-
-            // Only update previews that are NOT in theme cards (i.e., only the editing form preview)
-            // Theme cards should maintain their static counts based on saved data
-            var $preview = $('.wp-mux-theme-preview').not('.wp-mux-theme-card .wp-mux-theme-preview');
-            if ($preview.length === 0) return;
-
-            // Check if main controls toggle is disabled
-            var mainControlsEnabled = $('[name="controls[controls]"]').is(':checked');
-            var themeName = $('#theme_name').val() || 'Unnamed Theme';
-
-            // Update preview info based on main controls state
-            if (!mainControlsEnabled) {
-                // When main controls are disabled, show "Controls Disabled"
-                $preview.find('.preview-controls').text('Controls Disabled');
-            } else {
-                // Count controls excluding the global "Show All Controls" toggle and color controls
-                var enabledControls = $('.control-toggle:checked')
-                    .not('[name="controls[controls]"]')
-                    .not('[name="controls[primary-color]"]')
-                    .not('[name="controls[secondary-color]"]').length;
-                var totalControls = $('.control-toggle')
-                    .not('[name="controls[controls]"]')
-                    .not('[name="controls[primary-color]"]')
-                    .not('[name="controls[secondary-color]"]').length;
-
-                $preview.find('.preview-controls').text(
-                    enabledControls + ' of ' + totalControls + ' controls enabled'
-                );
-            }
-
-            // Generate CSS variables for preview
-            var cssVars = [];
-
-            // Handle disabled controls
-            $('.control-toggle').each(function() {
-                if (!$(this).is(':checked')) {
-                    var controlName = $(this).attr('name').replace('controls[', '').replace(']', '');
-                    cssVars.push('--' + controlName + ': none');
-                }
-            });
-
-            // Handle styling options for enabled controls
-            $('.control-toggle:checked').each(function() {
-                var $controlItem = $(this).closest('.wp-mux-control-item');
-                var controlName = $(this).attr('name').replace('controls[', '').replace(']', '');
-
-                $controlItem.find('.style-option input').each(function() {
-                    var $input = $(this);
-                    var inputName = $input.attr('name');
-                    var value = $input.val();
-
-                    if (value && inputName) {
-                        // Extract style property from input name
-                        // e.g., "styles[play-button_background-color]" -> "play-button-background-color"
-                        var match = inputName.match(/styles\[([^\]]+)\]/);
-                        if (match) {
-                            var styleVar = '--' + match[1].replace('_', '-');
-                            cssVars.push(styleVar + ': ' + value);
-                        }
-                    }
-                });
-            });
-
-            // Apply styles to preview
-            var previewStyle = cssVars.length > 0 ? cssVars.join('; ') : '';
-            $preview.find('.preview-player').attr('style', previewStyle);
-
-            // Update preview with visual feedback
-            var $previewPlayer = $preview.find('.preview-player');
-            $previewPlayer.removeClass('preview-updating');
-            setTimeout(function() {
-                $previewPlayer.addClass('preview-updating');
-            }, 50);
+            // Preview functionality removed since we're using a simplified card-based view
+            // Preview is now just a static indicator in theme cards
         },
 
         /**
