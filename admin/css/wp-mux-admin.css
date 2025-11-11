@@ -5,7 +5,23 @@
 
 /* WP Mux Settings Page Styles */
 .wp-mux-settings-page {
-    max-width: 800px;
+    /* Remove max-width when using sidebar layout */
+}
+
+.wp-mux-settings-page .migration-layout {
+    max-width: 1400px; /* Match WordPress admin standards */
+}
+
+.wp-mux-settings-page .migration-main {
+    /* Main content area matches other pages */
+    max-width: calc(100% - 320px);
+}
+
+.wp-mux-settings-page .migration-main form {
+    background: #fff;
+    padding: 20px;
+    border: 1px solid #c3c4c7;
+    box-shadow: 0 1px 1px rgba(0,0,0,.04);
 }
 
 .wp-mux-settings-page .form-table th {
@@ -18,7 +34,7 @@
 }
 
 .wp-mux-settings-page .regular-text {
-    width: 300px;
+    width: 400px; /* Wider for better UX */
 }
 
 .wp-mux-settings-page .description {
@@ -29,10 +45,9 @@
 
 .wp-mux-info {
     background: #f9f9f9;
-    border: 1px solid #e5e5e5;
+    border: 1px solid #c3c4c7;
     padding: 20px;
     margin-top: 20px;
-    border-radius: 5px;
 }
 
 .wp-mux-info h2 {
@@ -51,15 +66,133 @@
 
 /* WP Mux Videos Page Styles */
 .wp-mux-videos-page {
-    max-width: 1200px;
+    /* Removed fixed width to allow sidebar layout */
 }
 
-/* Account Statistics */
+.wp-mux-videos-page .migration-layout {
+    max-width: 1400px;
+}
+
+.wp-mux-videos-page .migration-main {
+    max-width: calc(100% - 320px);
+}
+
+/* Sidebar Account Stats */
+.wp-mux-account-stats-sidebar {
+    padding: 15px;
+}
+
+.wp-mux-account-stats-sidebar .wp-mux-stats-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0 15px 0;
+    padding: 0 0 12px 0;
+    border-bottom: 1px solid #dcdcde;
+}
+
+.wp-mux-account-stats-sidebar .wp-mux-stats-header h3 {
+    margin: 0;
+    padding: 0;
+    font-size: 16px;
+    border: none;
+}
+
+.wp-mux-dashboard-link {
+    display: block !important;
+    width: 100%;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 20px !important;
+    padding: 6px 12px !important;
+    height: auto !important;
+    line-height: 1.4 !important;
+}
+
+.wp-mux-dashboard-link .dashicons {
+    font-size: 16px;
+    width: 16px;
+    height: 16px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+.wp-mux-stats-sidebar-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.wp-mux-stat-item {
+    display: flex;
+    gap: 12px;
+    padding: 10px;
+    background: #f6f7f7;
+    align-items: flex-start;
+}
+
+.wp-mux-stat-item .stat-icon {
+    flex-shrink: 0;
+    width: 36px;
+    height: 36px;
+    background: #2271b1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wp-mux-stat-item .stat-icon .dashicons {
+    color: #fff;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+.wp-mux-stat-item .stat-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.wp-mux-stat-item .stat-value {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1d2327;
+    line-height: 1.2;
+}
+
+.wp-mux-stat-item .stat-label {
+    font-size: 12px;
+    color: #646970;
+    margin-top: 2px;
+    font-weight: 500;
+}
+
+.wp-mux-stat-item .stat-detail {
+    font-size: 11px;
+    color: #787c82;
+    margin-top: 3px;
+    line-height: 1.3;
+}
+
+.wp-mux-stat-item .error-count {
+    color: #d63638;
+    font-weight: 600;
+}
+
+/* Fix pagination input width */
+.wp-mux-videos-page .paging-input input.current-page {
+    width: 50px !important;
+    text-align: center;
+}
+
+/* Old Account Statistics (no longer used - kept for backwards compatibility) */
 .wp-mux-account-stats {
     background: #fff;
-    border: 1px solid #ccd0d4;
+    border: 1px solid #c3c4c7;
     margin: 20px 0;
-    border-radius: 4px;
     padding: 20px;
 }
 
@@ -92,8 +225,7 @@
 
 .wp-mux-stat-card {
     background: #f8f9fa;
-    border: 1px solid #e5e5e5;
-    border-radius: 6px;
+    border: 1px solid #c3c4c7;
     padding: 20px;
     display: flex;
     gap: 15px;
@@ -174,9 +306,8 @@
 /* Upload Section */
 .wp-mux-upload-section {
     background: #fff;
-    border: 1px solid #ccd0d4;
-    margin: 20px 0;
-    border-radius: 4px;
+    border: 1px solid #c3c4c7;
+    margin: 0 0 20px;
 }
 
 .wp-mux-upload-box {
@@ -190,7 +321,6 @@
 
 .wp-mux-dropzone {
     border: 2px dashed #ccd0d4;
-    border-radius: 4px;
     padding: 40px 20px;
     text-align: center;
     cursor: pointer;
@@ -250,7 +380,7 @@
 
 /* Videos List */
 .wp-mux-videos-container {
-    margin-top: 20px;
+    margin-top: 0; /* Remove top margin so sidebar aligns properly */
 }
 
 .wp-mux-loading {
@@ -263,49 +393,125 @@
     margin-right: 10px;
 }
 
+/* Video Table - WordPress Post-style Layout */
 .wp-mux-videos-list .column-thumbnail {
-    width: 160px;
+    width: 60%;
+    min-width: 300px;
 }
 
-.wp-mux-videos-list .column-title {
-    width: 200px;
-}
-
-.wp-mux-videos-list .column-status {
-    width: 100px;
-}
-
-.wp-mux-videos-list .column-duration {
-    width: 80px;
-}
-
-.wp-mux-videos-list .column-size {
-    width: 80px;
-}
-
-.wp-mux-videos-list .column-created {
-    width: 120px;
-}
-
-.wp-mux-videos-list .column-actions {
-    width: 150px;
+.wp-mux-video-row {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
+    padding: 0;
 }
 
 .wp-mux-video-thumbnail {
-    width: 120px;
-    height: 80px;
+    width: 80px;
+    height: 60px;
+    flex-shrink: 0;
     background: #f0f0f0;
-    border-radius: 4px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #666;
+    cursor: pointer;
+    border: 1px solid #ddd;
+    overflow: hidden;
 }
 
 .wp-mux-video-thumbnail img {
-    max-width: 100%;
-    max-height: 100%;
-    border-radius: 4px;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.wp-mux-video-thumbnail .dashicons {
+    font-size: 32px;
+    color: #999;
+}
+
+.wp-mux-video-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.wp-mux-video-details .row-title {
+    font-size: 14px;
+    font-weight: 400;
+    line-height: 1.5;
+    max-width: 500px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.wp-mux-copy-id {
+    display: inline;
+    padding: 0;
+    margin: 0;
+    color: #2271b1;
+    background: none;
+    border: none;
+    cursor: pointer;
+    vertical-align: baseline;
+    text-decoration: none;
+}
+
+.wp-mux-copy-id:hover {
+    color: #135e96;
+}
+
+.wp-mux-video-details .row-actions {
+    margin-top: 4px;
+    color: #646970;
+    font-size: 13px;
+}
+
+.wp-mux-video-details .row-actions a {
+    text-decoration: none;
+    color: #2271b1;
+}
+
+.wp-mux-video-details .row-actions a:hover {
+    color: #135e96;
+}
+
+.wp-mux-video-details .row-actions .preview {
+    float: none !important;
+}
+
+.wp-mux-video-details .row-actions .submitdelete {
+    color: #b32d2e;
+}
+
+.wp-mux-video-details .row-actions .submitdelete:hover {
+    color: #d63638;
+}
+
+.wp-mux-video-meta {
+    margin-top: 4px;
+    font-size: 13px;
+    color: #646970;
+}
+
+.wp-mux-videos-list .column-status {
+    width: 15%;
+}
+
+.wp-mux-videos-list .column-duration {
+    width: 12%;
+}
+
+.wp-mux-videos-list .column-created {
+    width: 13%;
+}
+
+.wp-mux-video-thumbnail img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
 }
 
 .wp-mux-video-thumbnail img.error {
@@ -339,24 +545,12 @@
     color: #721c24;
 }
 
-.wp-mux-video-actions {
-    display: flex;
-    gap: 5px;
-}
-
-.wp-mux-video-actions .button {
-    padding: 4px 8px;
-    font-size: 12px;
-    line-height: 1.4;
-}
-
 /* Empty State */
 .wp-mux-empty-state {
     background: #fff;
     padding: 60px 20px;
     margin: 20px 0;
-    border: 1px solid #ccd0d4;
-    border-radius: 4px;
+    border: 1px solid #c3c4c7;
     text-align: center;
     box-shadow: 0 1px 1px rgba(0,0,0,.04);
 }
@@ -391,13 +585,42 @@
 }
 
 /* Responsive */
+@media screen and (max-width: 1200px) {
+    .migration-layout {
+        display: block !important;
+    }
+    
+    .migration-main {
+        max-width: 100% !important;
+        margin-right: 0 !important;
+    }
+    
+    .migration-sidebar {
+        width: 100% !important;
+        margin-top: 20px;
+    }
+}
+
 @media screen and (max-width: 782px) {
     .wp-mux-videos-list .wp-list-table {
         font-size: 14px;
     }
-
-    .wp-mux-video-actions {
-        flex-direction: column;
+    
+    .wp-mux-video-row {
+        gap: 10px;
+    }
+    
+    .wp-mux-video-thumbnail {
+        width: 60px;
+        height: 45px;
+    }
+    
+    .wp-mux-videos-list .column-thumbnail {
+        min-width: 200px;
+    }
+    
+    .wp-mux-video-details .row-title {
+        font-size: 13px;
     }
 
     .wp-mux-dropzone {
@@ -439,7 +662,6 @@ body.modal-open {
 .wp-mux-modal-content {
     position: relative;
     background: #fff;
-    border-radius: 8px;
     width: 90%;
     max-width: 900px;
     max-height: 90vh;
@@ -477,22 +699,34 @@ body.modal-open {
 .wp-mux-modal-close {
     background: none;
     border: none;
-    font-size: 24px;
+    font-size: 20px;
+    line-height: 0;
     color: #666;
     cursor: pointer;
     padding: 0;
+    margin: 0;
     width: 30px;
     height: 30px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     border-radius: 50%;
     transition: all 0.2s ease;
+    vertical-align: middle;
 }
 
 .wp-mux-modal-close:hover {
     background: #e5e5e5;
     color: #333;
+}
+
+.wp-mux-copy-id {
+    transition: all 0.15s ease;
+}
+
+.wp-mux-copy-id.copied {
+    color: #2271b1;
+    transition: all 0.15s ease;
 }
 
 .wp-mux-modal-body {
@@ -523,7 +757,7 @@ body.modal-open {
     font-size: 16px;
 }
 
-.wp-mux-video-details {
+.wp-mux-modal .wp-mux-modal-content .wp-mux-video-details {
     padding: 20px 25px;
     background: #f8f9fa;
 }
@@ -594,9 +828,13 @@ body.modal-open {
     }
 
     .wp-mux-modal-header,
-    .wp-mux-video-details,
     .wp-mux-modal-footer {
         padding: 15px 20px;
+    }
+    
+    .wp-mux-modal .wp-mux-modal-content .wp-mux-video-details {
+        padding: 20px 25px;
+        background: #f8f9fa;
     }
 
     .wp-mux-detail-row {

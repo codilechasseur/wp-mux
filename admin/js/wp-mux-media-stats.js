@@ -49,7 +49,7 @@
 			}
 
 			// Check if stats section already exists
-			if ($details.find('.mux-video-stats').length > 0) {
+			if ($details.find('.mux-video-details-modal').length > 0) {
 				return;
 			}
 
@@ -83,18 +83,31 @@
 	 */
 	function buildStatsHtml(attachment) {
 		var analytics = attachment.mux_analytics || {};
+		var lastUpdated = analytics.last_updated || 'Never';
 
-		var html = '<div class="mux-video-stats">';
+		var html = '<div class="mux-video-details-modal">';
+		
+		// Analytics Section with header
+		html += '<div class="mux-modal-section">';
+		html += '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; border-bottom: 1px solid #dcdcde; padding-bottom: 10px;">';
+		html += '<h3 style="margin: 0; font-size: 13px;">Video Analytics</h3>';
+		html += '<div style="display: flex; align-items: center; gap: 8px;">';
+		html += '<span style="font-size: 11px; color: #646970;">Last updated: ' + lastUpdated + '</span>';
+		html += '<button type="button" class="button button-small mux-refresh-stats" data-attachment-id="' + attachment.id + '" title="Refresh Analytics" style="min-width: auto; padding: 4px 8px; color: #646970; border-color: #dcdcde; display: inline-flex; align-items: center; justify-content: center;">';
+		html += '<span class="dashicons dashicons-update" style="font-size: 14px; width: 14px; height: 14px; line-height: 1;"></span>';
+		html += '</button>';
+		html += '</div>';
+		html += '</div>';
 
-		html += '<div class="mux-stats-grid">';
+		// Stats grid - 2 column layout for sidebar
+		html += '<div class="mux-stats-grid-sidebar">';
 
-		// Primary metrics
-		html += '<div class="mux-stat-card mux-stat-primary">';
+		html += '<div class="mux-stat-card">';
 		html += '<div class="mux-stat-value">' + (analytics.total_views || '0') + '</div>';
 		html += '<div class="mux-stat-label">Total Views</div>';
 		html += '</div>';
 
-		html += '<div class="mux-stat-card mux-stat-primary">';
+		html += '<div class="mux-stat-card">';
 		html += '<div class="mux-stat-value">' + (analytics.unique_viewers || '0') + '</div>';
 		html += '<div class="mux-stat-label">Unique Viewers</div>';
 		html += '</div>';
@@ -109,25 +122,32 @@
 		html += '<div class="mux-stat-label">Avg. View Duration</div>';
 		html += '</div>';
 
-		// Quality metrics
+		// Quality score if available
 		if (analytics.video_quality_score && analytics.video_quality_score !== 'N/A') {
-			html += '<div class="mux-stat-card mux-stat-quality">';
+			html += '<div class="mux-stat-card">';
 			html += '<div class="mux-stat-value">' + analytics.video_quality_score + '</div>';
 			html += '<div class="mux-stat-label">Quality Score</div>';
 			html += '</div>';
 		}
 
-		html += '</div>'; // End stats-grid
+		html += '</div>'; // End stats-grid-sidebar
+		html += '</div>'; // End analytics section
 
-		// Footer with last updated timestamp and refresh button
-		html += '<div class="mux-stats-footer">';
-		html += '<span class="mux-stats-updated">Updated: ' + (analytics.last_updated || 'Never') + '</span>';
-		html += '<button type="button" class="button button-small mux-refresh-stats" data-attachment-id="' + attachment.id + '" title="Refresh Analytics">';
-		html += '<span class="dashicons dashicons-update"></span> Refresh';
-		html += '</button>';
-		html += '</div>';
+		// Settings section (basic info for now)
+		if (attachment.mux_asset_id) {
+			html += '<div class="mux-modal-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #dcdcde;">';
+			html += '<h3 style="margin: 0 0 10px 0; font-size: 13px;">Video Settings</h3>';
+			html += '<div style="font-size: 12px; color: #646970;">';
+			html += '<p style="margin: 5px 0;"><strong>Asset ID:</strong> ' + attachment.mux_asset_id + '</p>';
+			if (attachment.mux_playback_id) {
+				html += '<p style="margin: 5px 0;"><strong>Playback ID:</strong> ' + attachment.mux_playback_id + '</p>';
+			}
+			html += '<p style="margin: 10px 0 0 0;"><a href="post.php?post=' + attachment.id + '&action=edit" class="button button-small">Edit Full Settings</a></p>';
+			html += '</div>';
+			html += '</div>';
+		}
 
-		html += '</div>'; // End mux-video-stats
+		html += '</div>'; // End mux-video-details-modal
 
 		return html;
 	}
@@ -184,7 +204,7 @@
 	 * Update stats display with new data
 	 */
 	function updateStatsDisplay(attachmentId, analytics) {
-		var $stats = $('.attachment-details[data-id="' + attachmentId + '"] .mux-video-stats');
+		var $stats = $('.attachment-details[data-id="' + attachmentId + '"] .mux-video-details-modal');
 
 		if ($stats.length === 0) {
 			return;
@@ -217,7 +237,7 @@
 	 */
 	function showRefreshMessage(type, message) {
 		var $message = $('<div class="mux-stats-message mux-stats-message-' + type + '">' + message + '</div>');
-		$('.mux-video-stats').prepend($message);
+		$('.mux-video-details-modal').prepend($message);
 
 		setTimeout(function() {
 			$message.fadeOut(300, function() {

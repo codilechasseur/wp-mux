@@ -140,6 +140,13 @@ class Wp_Mux {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-media-sync.php';
 		new Wp_Mux_Media_Sync();
 
+		/**
+		 * The class responsible for handling admin AJAX requests.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-admin-ajax.php';
+		$ajax_handler = new Wp_Mux_Admin_Ajax();
+		$ajax_handler->registerHooks();
+
 		$this->loader = new Wp_Mux_Loader();
 
 	}

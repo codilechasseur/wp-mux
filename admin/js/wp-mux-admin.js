@@ -288,7 +288,8 @@
 	}
 
 	function displayVideos(data) {
-		const videos = data.data || [];
+		// Handle both old format (data.data) and new wrapped format (data.data.data)
+		const videos = data.data?.data || data.data || [];
 		const $tbody = $('#videos-table-body');
 
 		if (videos.length === 0) {
@@ -303,7 +304,7 @@
 			$tbody.append(row);
 		});
 
-		updatePagination(data);
+		updatePagination(data.data || data);
 		$('#videos-list').show();
 	}
 
@@ -333,29 +334,27 @@
 
 		return `
 			<tr data-asset-id="${video.id}">
-				<td class="column-thumbnail">
-					<div class="wp-mux-video-thumbnail" ${playbackId ? `onclick="openVideoPreview('${video.id}', '${playbackId}')"` : ''}>
-						${thumbnail}
+				<td class="column-thumbnail has-row-actions">
+					<div class="wp-mux-video-row">
+						<div class="wp-mux-video-thumbnail" ${playbackId ? `onclick="openVideoPreview('${video.id}', '${playbackId}')"` : ''}>
+							${thumbnail}
+						</div>
+						<div class="wp-mux-video-details">
+							<strong class="row-title" title="${video.id}">${video.id}</strong>
+							<div class="row-actions">
+								${playbackId ? `<span class="preview"><a href="#" onclick="openVideoPreview('${video.id}', '${playbackId}'); return false;">Preview</a> | </span>` : ''}
+								<span class="copy"><a href="#" onclick="copyAssetId('${video.id}'); return false;" class="wp-mux-copy-id">Copy Asset ID</a> | </span>
+								<span class="trash"><a href="#" onclick="deleteVideo('${video.id}'); return false;" class="submitdelete">Delete</a></span>
+							</div>
+							<div class="wp-mux-video-meta">
+								<span class="wp-mux-meta-item">${size}</span>
+							</div>
+						</div>
 					</div>
 				</td>
-				<td class="column-title">
-					<strong>${video.id}</strong>
-				</td>
-				<td class="column-status">${status}</td>
-				<td class="column-duration">${duration}</td>
-				<td class="column-size">${size}</td>
-				<td class="column-created">${created}</td>
-				<td class="column-actions">
-					<div class="wp-mux-video-actions">
-						${playbackId ?
-							`<button class="button button-small" onclick="copyPlaybackId('${playbackId}')">Copy ID</button>` : ''
-						}
-						${playbackId ?
-							`<button class="button button-small" onclick="openVideoPreview('${video.id}', '${playbackId}')">Preview</button>` : ''
-						}
-						<button class="button button-small button-link-delete" onclick="deleteVideo('${video.id}')">Delete</button>
-					</div>
-				</td>
+				<td class="column-status" data-colname="Status">${status}</td>
+				<td class="column-duration" data-colname="Duration">${duration}</td>
+				<td class="column-created" data-colname="Created">${created}</td>
 			</tr>
 		`;
 	}
@@ -511,6 +510,27 @@
 	}
 
 	// Global functions for button actions
+	window.copyAssetId = function(assetId) {
+		navigator.clipboard.writeText(assetId).then(function() {
+			const $button = $(`.wp-mux-copy-id[onclick*="${assetId}"]`);
+			const originalText = $button.text();
+
+			// Fade to Copied! state
+			$button.fadeOut(50, function() {
+				$button.text('Copied!').addClass('copied');
+				$button.fadeIn(50);
+
+				// Fade back to original state
+				setTimeout(function() {
+					$button.fadeOut(50, function() {
+						$button.text(originalText).removeClass('copied');
+						$button.fadeIn(50);
+					});
+				}, 4000);
+			});
+		});
+	};
+
 	window.copyPlaybackId = function(playbackId) {
 		navigator.clipboard.writeText(playbackId).then(function() {
 			// Show success message

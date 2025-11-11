@@ -39,98 +39,8 @@ if ( $api->is_configured() ) {
 
         <hr class="wp-header-end">
 
-        <!-- Account Statistics -->
-        <?php if ( $account_stats && ! is_wp_error( $account_stats ) ) : ?>
-        <div class="wp-mux-account-stats">
-            <div class="wp-mux-stats-header">
-                <h2><?php _e( 'Account Overview', 'wp-mux' ); ?></h2>
-                <a href="https://dashboard.mux.com/" target="_blank" class="button button-secondary">
-                    <span class="dashicons dashicons-external" style="vertical-align: middle; margin-top: 3px;"></span>
-                    <?php _e( 'Open MUX Dashboard', 'wp-mux' ); ?>
-                </a>
-            </div>
-
-            <div class="wp-mux-stats-grid">
-                <div class="wp-mux-stat-card">
-                    <div class="stat-icon">
-                        <span class="dashicons dashicons-video-alt3"></span>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value"><?php echo number_format( $account_stats['total_videos'] ); ?></div>
-                        <div class="stat-label"><?php _e( 'Total Videos', 'wp-mux' ); ?></div>
-                        <div class="stat-detail">
-                            <?php
-                            echo sprintf(
-                                __( '%d ready, %d processing', 'wp-mux' ),
-                                $account_stats['videos_ready'],
-                                $account_stats['videos_processing']
-                            );
-                            if ( $account_stats['videos_errored'] > 0 ) {
-                                echo sprintf( ', <span class="error-count">%d errors</span>', $account_stats['videos_errored'] );
-                            }
-                            ?>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="wp-mux-stat-card">
-                    <div class="stat-icon">
-                        <span class="dashicons dashicons-clock"></span>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value">
-                            <?php
-                            $total_seconds = (int) $account_stats['total_duration_seconds'];
-                            $hours = (int) floor( $total_seconds / 3600 );
-                            $minutes = (int) floor( ( $total_seconds % 3600 ) / 60 );
-                            if ( $hours > 0 ) {
-                                echo sprintf( '%d hr %d min', $hours, $minutes );
-                            } else {
-                                echo sprintf( '%d min', $minutes );
-                            }
-                            ?>
-                        </div>
-                        <div class="stat-label"><?php _e( 'Total Content', 'wp-mux' ); ?></div>
-                        <div class="stat-detail"><?php _e( 'Combined video duration', 'wp-mux' ); ?></div>
-                    </div>
-                </div>
-
-                <div class="wp-mux-stat-card">
-                    <div class="stat-icon">
-                        <span class="dashicons dashicons-database"></span>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value">
-                            <?php
-                            $gb = $account_stats['total_storage_bytes'] / ( 1024 * 1024 * 1024 );
-                            if ( $gb >= 1 ) {
-                                echo number_format( $gb, 1 ) . ' GB';
-                            } else {
-                                $mb = $account_stats['total_storage_bytes'] / ( 1024 * 1024 );
-                                echo number_format( $mb, 0 ) . ' MB';
-                            }
-                            ?>
-                        </div>
-                        <div class="stat-label"><?php _e( 'Estimated Storage', 'wp-mux' ); ?></div>
-                        <div class="stat-detail"><?php _e( 'Approximate video storage', 'wp-mux' ); ?></div>
-                    </div>
-                </div>
-
-                <?php if ( isset( $account_stats['total_views_30d'] ) ) : ?>
-                <div class="wp-mux-stat-card">
-                    <div class="stat-icon">
-                        <span class="dashicons dashicons-visibility"></span>
-                    </div>
-                    <div class="stat-content">
-                        <div class="stat-value"><?php echo number_format( $account_stats['total_views_30d'] ); ?></div>
-                        <div class="stat-label"><?php _e( 'Views (30 days)', 'wp-mux' ); ?></div>
-                        <div class="stat-detail"><?php _e( 'Total video views', 'wp-mux' ); ?></div>
-                    </div>
-                </div>
-                <?php endif; ?>
-            </div>
-        </div>
-        <?php endif; ?>
+        <div class="migration-layout">
+            <div class="migration-main">
 
         <!-- Upload Section -->
         <div id="upload-section" class="wp-mux-upload-section" style="display: none;">
@@ -177,13 +87,10 @@ if ( $api->is_configured() ) {
                 <table class="wp-list-table widefat fixed striped">
                     <thead>
                         <tr>
-                            <th scope="col" class="manage-column column-thumbnail"><?php _e( 'Thumbnail', 'wp-mux' ); ?></th>
-                            <th scope="col" class="manage-column column-title"><?php _e( 'Asset ID', 'wp-mux' ); ?></th>
+                            <th scope="col" class="manage-column column-thumbnail"><?php _e( 'Video', 'wp-mux' ); ?></th>
                             <th scope="col" class="manage-column column-status"><?php _e( 'Status', 'wp-mux' ); ?></th>
                             <th scope="col" class="manage-column column-duration"><?php _e( 'Duration', 'wp-mux' ); ?></th>
-                            <th scope="col" class="manage-column column-size"><?php _e( 'Size', 'wp-mux' ); ?></th>
                             <th scope="col" class="manage-column column-created"><?php _e( 'Created', 'wp-mux' ); ?></th>
-                            <th scope="col" class="manage-column column-actions"><?php _e( 'Actions', 'wp-mux' ); ?></th>
                         </tr>
                     </thead>
                     <tbody id="videos-table-body">
@@ -218,7 +125,107 @@ if ( $api->is_configured() ) {
                     </button>
                 </div>
             </div>
-        </div>
+            </div>
+
+            </div><!-- .migration-main -->
+
+            <!-- Sidebar with Account Overview -->
+            <?php if ( $account_stats && ! is_wp_error( $account_stats ) ) : ?>
+            <div class="migration-sidebar">
+                <div class="migration-info-box wp-mux-account-stats-sidebar">
+                    <div class="wp-mux-stats-header">
+                        <h3><?php _e( 'Account Overview', 'wp-mux' ); ?></h3>
+                    </div>
+
+                    <div class="wp-mux-stats-sidebar-grid">
+                        <div class="wp-mux-stat-item">
+                            <div class="stat-icon">
+                                <span class="dashicons dashicons-video-alt3"></span>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value"><?php echo number_format( $account_stats['total_videos'] ); ?></div>
+                                <div class="stat-label"><?php _e( 'Total Videos', 'wp-mux' ); ?></div>
+                                <div class="stat-detail">
+                                    <?php
+                                    echo sprintf(
+                                        __( '%d ready, %d processing', 'wp-mux' ),
+                                        $account_stats['videos_ready'],
+                                        $account_stats['videos_processing']
+                                    );
+                                    if ( $account_stats['videos_errored'] > 0 ) {
+                                        echo sprintf( ', <span class="error-count">%d errors</span>', $account_stats['videos_errored'] );
+                                    }
+                                    ?>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="wp-mux-stat-item">
+                            <div class="stat-icon">
+                                <span class="dashicons dashicons-clock"></span>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">
+                                    <?php
+                                    $total_seconds = (int) $account_stats['total_duration_seconds'];
+                                    $hours = (int) floor( $total_seconds / 3600 );
+                                    $minutes = (int) floor( ( $total_seconds % 3600 ) / 60 );
+                                    if ( $hours > 0 ) {
+                                        echo sprintf( '%d hr %d min', $hours, $minutes );
+                                    } else {
+                                        echo sprintf( '%d min', $minutes );
+                                    }
+                                    ?>
+                                </div>
+                                <div class="stat-label"><?php _e( 'Total Content', 'wp-mux' ); ?></div>
+                                <div class="stat-detail"><?php _e( 'Combined duration', 'wp-mux' ); ?></div>
+                            </div>
+                        </div>
+
+                        <div class="wp-mux-stat-item">
+                            <div class="stat-icon">
+                                <span class="dashicons dashicons-database"></span>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value">
+                                    <?php
+                                    $gb = $account_stats['total_storage_bytes'] / ( 1024 * 1024 * 1024 );
+                                    if ( $gb >= 1 ) {
+                                        echo number_format( $gb, 1 ) . ' GB';
+                                    } else {
+                                        $mb = $account_stats['total_storage_bytes'] / ( 1024 * 1024 );
+                                        echo number_format( $mb, 0 ) . ' MB';
+                                    }
+                                    ?>
+                                </div>
+                                <div class="stat-label"><?php _e( 'Storage', 'wp-mux' ); ?></div>
+                                <div class="stat-detail"><?php _e( 'Estimated usage', 'wp-mux' ); ?></div>
+                            </div>
+                        </div>
+
+                        <?php if ( isset( $account_stats['total_views_30d'] ) ) : ?>
+                        <div class="wp-mux-stat-item">
+                            <div class="stat-icon">
+                                <span class="dashicons dashicons-visibility"></span>
+                            </div>
+                            <div class="stat-content">
+                                <div class="stat-value"><?php echo number_format( $account_stats['total_views_30d'] ); ?></div>
+                                <div class="stat-label"><?php _e( 'Views (30d)', 'wp-mux' ); ?></div>
+                                <div class="stat-detail"><?php _e( 'Last 30 days', 'wp-mux' ); ?></div>
+                            </div>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+
+                    <a href="https://dashboard.mux.com/" target="_blank" class="button button-secondary wp-mux-dashboard-link">
+                        <?php _e( 'View MUX Dashboard', 'wp-mux' ); ?>
+                        <span class="dashicons dashicons-external"></span>
+                    </a>
+                </div>
+            </div><!-- .migration-sidebar -->
+            <?php endif; ?>
+
+        </div><!-- .migration-layout -->
 
     <?php endif; ?>
 </div>

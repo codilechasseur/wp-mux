@@ -95,8 +95,9 @@ class Wp_Mux_Api {
 			'timeout' => 30,
 		);
 
-		if ( ! empty( $data ) && in_array( $method, array( 'POST', 'PUT', 'PATCH' ) ) ) {
-			$args['body'] = wp_json_encode( $data );
+		if ( in_array( $method, array( 'POST', 'PUT', 'PATCH' ) ) ) {
+			// For POST/PUT/PATCH, always send a body (even if empty object)
+			$args['body'] = ! empty( $data ) ? wp_json_encode( $data ) : '{}';
 		}
 
 		$response = wp_remote_request( $url, $args );
@@ -110,8 +111,24 @@ class Wp_Mux_Api {
 
 		if ( $response_code >= 400 ) {
 			$error_data = json_decode( $response_body, true );
-			$error_message = isset( $error_data['error']['message'] ) ? $error_data['error']['message'] : __( 'Unknown API error', 'wp-mux' );
-			return new WP_Error( 'api_error', $error_message, array( 'status' => $response_code ) );
+			
+			// Try to get the most specific error message
+			$error_message = __( 'Unknown API error', 'wp-mux' );
+			
+			if ( isset( $error_data['error']['message'] ) ) {
+				$error_message = $error_data['error']['message'];
+			} elseif ( isset( $error_data['error']['messages'] ) && is_array( $error_data['error']['messages'] ) ) {
+				$error_message = implode( ', ', $error_data['error']['messages'] );
+			} elseif ( isset( $error_data['message'] ) ) {
+				$error_message = $error_data['message'];
+			}
+			
+			// Log detailed error for debugging
+			error_log( '[WP MUX] API Error - Code: ' . $response_code . ', Message: ' . $error_message );
+			error_log( '[WP MUX] API Error - Full response: ' . $response_body );
+			error_log( '[WP MUX] API Error - Endpoint: ' . $endpoint . ', Method: ' . $method );
+			
+			return new WP_Error( 'api_error', $error_message, array( 'status' => $response_code, 'response' => $error_data ) );
 		}
 
 		return json_decode( $response_body, true );
@@ -204,10 +221,17 @@ class Wp_Mux_Api {
 	public function create_direct_upload( $options = array() ) {
 		$endpoint = '/video/v1/uploads';
 
+		// Get global defaults
+		$playback_policy = get_option( 'wp_mux_default_playback_policy', 'public' );
+		$mp4_support = get_option( 'wp_mux_default_mp4_support', 'none' );
+		$encoding_tier = get_option( 'wp_mux_default_encoding_tier', 'baseline' );
+
 		$default_options = array(
 			'cors_origin' => home_url(),
 			'new_asset_settings' => array(
-				'playback_policy' => array( 'public' ),
+				'playback_policy' => array( $playback_policy ),
+				'mp4_support' => $mp4_support,
+				'encoding_tier' => $encoding_tier,
 			),
 		);
 
@@ -727,5 +751,400 @@ class Wp_Mux_Api {
 		set_transient( $cache_key, $stats, 5 * MINUTE_IN_SECONDS );
 
 		return $stats;
+	}
+
+	/**
+	 * Request automatic caption generation for an asset.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @param    string    $language    Language code (ISO 639-1).
+	 * @return   array|WP_Error         The text track data or WP_Error on failure.
+	 */
+	public function generate_captions( $asset_id, $language = 'en' ) {
+		// Get the audio track ID
+		$audio_track_id = $this->get_audio_track_id( $asset_id );
+		
+		if ( empty( $audio_track_id ) ) {
+			return new WP_Error(
+				'no_audio_track',
+				__( 'No audio track found for this video. Cannot generate captions.', 'wp-mux' )
+			);
+		}
+		
+		// Use the correct endpoint for generating subtitles
+		$endpoint = "/video/v1/assets/{$asset_id}/tracks/{$audio_track_id}/generate-subtitles";
+		
+		$data = array(
+			'generated_subtitles' => array(
+				array(
+					'name' => sprintf( __( '%s (Auto)', 'wp-mux' ), strtoupper( $language ) ),
+					'language_code' => $language,
+					'passthrough' => 'auto-generated',
+				),
+			),
+		);
+		
+		return $this->make_request( $endpoint, 'POST', $data );
+	}
+
+	/**
+	 * Get caption tracks for an asset.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @return   array|WP_Error         Array of text tracks or WP_Error.
+	 */
+	public function get_caption_tracks( $asset_id ) {
+		$endpoint = "/video/v1/assets/{$asset_id}/tracks";
+		return $this->make_request( $endpoint );
+	}
+
+	/**
+	 * Delete a caption track.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @param    string    $track_id    The track ID to delete.
+	 * @return   array|WP_Error         The API response or WP_Error.
+	 */
+	public function delete_caption_track( $asset_id, $track_id ) {
+		$endpoint = "/video/v1/assets/{$asset_id}/tracks/{$track_id}";
+		return $this->make_request( $endpoint, 'DELETE' );
+	}
+
+	/**
+	 * Update playback policy for an asset.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $asset_id         The MUX asset ID.
+	 * @param    string    $policy           'public' or 'signed'.
+	 * @return   array|WP_Error              The updated asset or WP_Error.
+	 */
+	public function update_playback_policy( $asset_id, $policy ) {
+		$endpoint = "/video/v1/assets/{$asset_id}";
+		
+		$data = array(
+			'playback_policy' => array( $policy ),
+		);
+		
+		$response = $this->make_request( $endpoint, 'PATCH', $data );
+		
+		if ( ! is_wp_error( $response ) ) {
+			delete_transient( "wp_mux_video_details_{$asset_id}" );
+		}
+		
+		return $response;
+	}
+
+	/**
+	 * Update MP4 support for an asset.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $asset_id         The MUX asset ID.
+	 * @param    string    $support          'none', 'standard', or 'audio-only'.
+	 * @return   array|WP_Error              The updated asset or WP_Error.
+	 */
+	public function update_mp4_support( $asset_id, $support ) {
+		$endpoint = "/video/v1/assets/{$asset_id}";
+		
+		$data = array(
+			'mp4_support' => $support,
+		);
+		
+		$response = $this->make_request( $endpoint, 'PATCH', $data );
+		
+		if ( ! is_wp_error( $response ) ) {
+			delete_transient( "wp_mux_video_details_{$asset_id}" );
+		}
+		
+		return $response;
+	}
+
+	/**
+	 * Create a new signing key pair in Mux.
+	 *
+	 * @since    1.3.0
+	 * @return   array|WP_Error    The signing key data or WP_Error on failure.
+	 */
+	public function create_signing_key() {
+		$endpoint = '/system/v1/signing-keys';
+		
+		// Mux signing keys endpoint doesn't require data, but may need an empty JSON object
+		$response = $this->make_request( $endpoint, 'POST', null );
+		
+		// Additional error logging
+		if ( is_wp_error( $response ) ) {
+			error_log( '[WP MUX] Signing key creation failed: ' . $response->get_error_message() );
+			error_log( '[WP MUX] Endpoint: ' . $endpoint );
+			error_log( '[WP MUX] API configured: ' . ( $this->is_configured() ? 'yes' : 'no' ) );
+		} else {
+			error_log( '[WP MUX] Signing key creation response: ' . print_r( $response, true ) );
+		}
+		
+		return $response;
+	}
+
+	/**
+	 * List all signing keys.
+	 *
+	 * @since    1.3.0
+	 * @return   array|WP_Error    Array of signing keys or WP_Error.
+	 */
+	public function list_signing_keys() {
+		$endpoint = '/system/v1/signing-keys';
+		return $this->make_request( $endpoint, 'GET' );
+	}
+
+	/**
+	 * Get details of a specific signing key.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $key_id    The signing key ID.
+	 * @return   array|WP_Error       The signing key details or WP_Error.
+	 */
+	public function get_signing_key( $key_id ) {
+		$endpoint = '/system/v1/signing-keys/' . sanitize_text_field( $key_id );
+		return $this->make_request( $endpoint, 'GET' );
+	}
+
+	/**
+	 * Delete a signing key.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $key_id    The signing key ID to delete.
+	 * @return   array|WP_Error       The API response or WP_Error.
+	 */
+	public function delete_signing_key( $key_id ) {
+		$endpoint = '/system/v1/signing-keys/' . sanitize_text_field( $key_id );
+		return $this->make_request( $endpoint, 'DELETE' );
+	}
+
+	/**
+	 * Auto-configure signing keys for the plugin.
+	 * Creates a new signing key if none exists or uses existing one.
+	 *
+	 * @since    1.3.0
+	 * @return   array|WP_Error    Success data or WP_Error on failure.
+	 */
+	public function auto_configure_signing_keys() {
+		// Check if we already have keys configured
+		$existing_key_id = get_option( 'wp_mux_signing_key_id', '' );
+		$existing_private_key = get_option( 'wp_mux_signing_key_private', '' );
+
+		if ( ! empty( $existing_key_id ) && ! empty( $existing_private_key ) ) {
+			// Verify the existing key is still valid
+			$key_check = $this->get_signing_key( $existing_key_id );
+			
+			if ( ! is_wp_error( $key_check ) ) {
+				return array(
+					'status' => 'existing',
+					'message' => __( 'Signing keys already configured and valid.', 'wp-mux' ),
+					'key_id' => $existing_key_id,
+				);
+			}
+		}
+
+		// Create a new signing key
+		$response = $this->create_signing_key();
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		if ( empty( $response['data']['id'] ) || empty( $response['data']['private_key'] ) ) {
+			return new WP_Error(
+				'invalid_response',
+				__( 'Invalid response from Mux API when creating signing key.', 'wp-mux' )
+			);
+		}
+
+		// Store the new keys
+		$key_id = $response['data']['id'];
+		$private_key = $response['data']['private_key'];
+
+		update_option( 'wp_mux_signing_key_id', $key_id );
+		update_option( 'wp_mux_signing_key_private', base64_encode( $private_key ) );
+
+		// Log the creation
+		error_log( "[WP MUX] Auto-configured signing key: {$key_id}" );
+
+		return array(
+			'status' => 'created',
+			'message' => __( 'New signing key created and configured successfully.', 'wp-mux' ),
+			'key_id' => $key_id,
+			'created_at' => $response['data']['created_at'] ?? '',
+		);
+	}
+
+	/**
+	 * Check if the Mux account has signing keys capability.
+	 * 
+	 * This tests whether the account can access the signing keys API.
+	 * Results are cached for 1 hour to avoid repeated API calls.
+	 *
+	 * @since    1.3.0
+	 * @return   bool    True if signing keys are available, false otherwise.
+	 */
+	public function has_signing_keys_capability() {
+		// Check cache first
+		$cached = get_transient( 'wp_mux_has_signing_keys' );
+		if ( $cached !== false ) {
+			return (bool) $cached;
+		}
+
+		// Check if API is configured
+		if ( ! $this->is_configured() ) {
+			return false;
+		}
+
+		// Try to list signing keys (lightweight test)
+		$result = $this->list_signing_keys();
+
+		$has_capability = ! is_wp_error( $result );
+
+		// Cache for 1 hour
+		set_transient( 'wp_mux_has_signing_keys', $has_capability ? 1 : 0, HOUR_IN_SECONDS );
+
+		return $has_capability;
+	}
+
+	/**
+	 * Check if the Mux account has caption generation capability.
+	 * 
+	 * Tests whether the account can generate auto-captions.
+	 * Results are cached for 1 hour to avoid repeated API calls.
+	 *
+	 * @since    1.3.0
+	 * @return   bool    True if caption generation is available, false otherwise.
+	 */
+	public function has_caption_generation_capability() {
+		// Check cache first
+		$cached = get_transient( 'wp_mux_has_caption_generation' );
+		if ( $cached !== false ) {
+			return (bool) $cached;
+		}
+
+		// Check if API is configured
+		if ( ! $this->is_configured() ) {
+			return false;
+		}
+
+		// Get a sample video to test with
+		$videos = $this->get_videos( 1, 1 );
+		
+		if ( is_wp_error( $videos ) || empty( $videos['data'] ) ) {
+			// No videos to test with, assume capability exists
+			// This prevents blocking the feature when account is empty
+			set_transient( 'wp_mux_has_caption_generation', 1, HOUR_IN_SECONDS );
+			return true;
+		}
+
+		$test_asset_id = $videos['data'][0]['id'];
+		
+		// Get the asset to check for audio track
+		$video = $this->get_video( $test_asset_id );
+		
+		if ( is_wp_error( $video ) ) {
+			// Can't determine, assume capability exists
+			set_transient( 'wp_mux_has_caption_generation', 1, HOUR_IN_SECONDS );
+			return true;
+		}
+		
+		// Find audio track
+		$audio_track_id = null;
+		if ( isset( $video['data']['tracks'] ) && is_array( $video['data']['tracks'] ) ) {
+			foreach ( $video['data']['tracks'] as $track ) {
+				if ( isset( $track['type'] ) && $track['type'] === 'audio' ) {
+					$audio_track_id = $track['id'];
+					break;
+				}
+			}
+		}
+		
+		// If no audio track, we can't definitively test, assume yes
+		if ( empty( $audio_track_id ) ) {
+			set_transient( 'wp_mux_has_caption_generation', 1, HOUR_IN_SECONDS );
+			return true;
+		}
+
+		// Test the endpoint with a HEAD-like approach - check if endpoint exists
+		// We'll check the error code if we get one
+		$endpoint = "/video/v1/assets/{$test_asset_id}/tracks/{$audio_track_id}/generate-subtitles";
+		
+		// Make a test request - the API will fail but tell us if it's permissions or just bad data
+		$test_result = $this->make_request( $endpoint, 'POST', array(
+			'generated_subtitles' => array(
+				array(
+					'name' => 'Test',
+					'language_code' => 'en',
+				),
+			),
+		) );
+
+		// If we get specific permission/auth errors, caption generation is not available
+		if ( is_wp_error( $test_result ) ) {
+			$error_data = $test_result->get_error_data();
+			$status_code = isset( $error_data['status'] ) ? $error_data['status'] : 0;
+			
+			// 401/403 = authentication/permission issue
+			if ( in_array( $status_code, array( 401, 403 ) ) ) {
+				set_transient( 'wp_mux_has_caption_generation', 0, HOUR_IN_SECONDS );
+				return false;
+			}
+			
+			// Any other error (like 400, 422) means the endpoint exists but our test data was bad
+			// This is actually a good sign - the feature is available
+		}
+
+		// Either succeeded or got a non-auth error, so capability exists
+		set_transient( 'wp_mux_has_caption_generation', 1, HOUR_IN_SECONDS );
+		return true;
+	}
+
+	/**
+	 * Check if a video asset has an audio track.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @return   bool                   True if audio track exists, false otherwise.
+	 */
+	public function has_audio_track( $asset_id ) {
+		$video = $this->get_video( $asset_id );
+		
+		if ( is_wp_error( $video ) || ! isset( $video['data']['tracks'] ) ) {
+			return false;
+		}
+		
+		foreach ( $video['data']['tracks'] as $track ) {
+			if ( isset( $track['type'] ) && $track['type'] === 'audio' ) {
+				return true;
+			}
+		}
+		
+		return false;
+	}
+
+	/**
+	 * Get the audio track ID for a video asset.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $asset_id    The MUX asset ID.
+	 * @return   string|false            Audio track ID or false if not found.
+	 */
+	public function get_audio_track_id( $asset_id ) {
+		$video = $this->get_video( $asset_id );
+		
+		if ( is_wp_error( $video ) || ! isset( $video['data']['tracks'] ) ) {
+			return false;
+		}
+		
+		foreach ( $video['data']['tracks'] as $track ) {
+			if ( isset( $track['type'] ) && $track['type'] === 'audio' ) {
+				return $track['id'];
+			}
+		}
+		
+		return false;
 	}
 }

@@ -93,92 +93,85 @@
 	to { transform: rotate(360deg); }
 }
 
-/* Stats Grid */
-.mux-stats-grid {
+/* Stats Grid - 2 column for sidebar */
+.mux-stats-grid-sidebar {
 	display: grid;
 	grid-template-columns: repeat(2, 1fr);
-	gap: 12px;
+	gap: 15px;
+	margin-bottom: 0;
+}
+
+/* Stats Grid */
+.mux-stats-grid {
+	display: flex;
+	gap: 20px;
 	margin-bottom: 15px;
+	flex-wrap: wrap;
+}
+
+/* Desktop: 4 columns */
+@media screen and (min-width: 783px) {
+	.mux-stats-grid {
+		flex-wrap: nowrap;
+	}
 }
 
 /* Stat Card */
 .mux-stat-card {
-	background: #fff;
-	padding: 12px;
-	border-radius: 4px;
-	border: 1px solid #ddd;
+	flex: 1;
+	min-width: 120px;
+	padding: 0;
+	border: none;
 	text-align: center;
-	transition: all 0.2s ease;
+	background: transparent;
 }
 
-.mux-stat-card:hover {
-	border-color: #2271b1;
-	box-shadow: 0 2px 4px rgba(34, 113, 177, 0.1);
-}
-
-/* Primary stats get emphasis */
-.mux-stat-card.mux-stat-primary {
-	background: linear-gradient(135deg, #2271b1 0%, #135e96 100%);
-	color: #fff;
-	border-color: #135e96;
-}
-
-.mux-stat-card.mux-stat-primary .mux-stat-value {
-	color: #fff;
-	font-weight: 700;
-}
-
-.mux-stat-card.mux-stat-primary .mux-stat-label {
-	color: rgba(255, 255, 255, 0.9);
-}
-
-/* Quality score card */
+/* Remove all gradient backgrounds */
+.mux-stat-card.mux-stat-primary,
 .mux-stat-card.mux-stat-quality {
-	background: linear-gradient(135deg, #00a32a 0%, #008a20 100%);
-	color: #fff;
-	border-color: #008a20;
+	background: transparent;
+	border: none;
 }
 
+.mux-stat-card.mux-stat-primary .mux-stat-value,
 .mux-stat-card.mux-stat-quality .mux-stat-value {
-	color: #fff;
-	font-weight: 700;
+	color: #2c3338;
+	font-weight: 600;
 }
 
+.mux-stat-card.mux-stat-primary .mux-stat-label,
 .mux-stat-card.mux-stat-quality .mux-stat-label {
-	color: rgba(255, 255, 255, 0.9);
+	color: #646970;
 }
 
 /* Stat Value */
 .mux-stat-value {
-	font-size: 20px;
+	font-size: 28px;
 	font-weight: 600;
-	color: #2271b1;
+	color: #2c3338;
 	margin-bottom: 5px;
 	line-height: 1.2;
 }
 
 /* Stat Label */
 .mux-stat-label {
-	font-size: 11px;
-	color: #666;
-	text-transform: uppercase;
-	letter-spacing: 0.5px;
-	font-weight: 500;
+	font-size: 12px;
+	color: #646970;
+	font-weight: 400;
 }
 
-/* Stats Footer */
+/* Stats Footer - just show updated time */
 .mux-stats-footer {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding-top: 10px;
-	border-top: 1px solid #ddd;
+	display: block;
+	padding-top: 15px;
+	border-top: 1px solid #dcdcde;
+	text-align: left;
 }
 
 .mux-stats-updated {
-	font-size: 11px;
-	color: #666;
-	font-style: italic;
+	font-size: 12px;
+	color: #646970;
+	font-style: normal;
 }
 
 /* Refresh Messages */

@@ -54,6 +54,7 @@ class Wp_Mux_Admin_Ajax
     {
         require_once plugin_dir_path(__FILE__) . 'class-wp-mux-api.php';
         require_once plugin_dir_path(__FILE__) . 'class-wp-mux-theme-manager.php';
+        require_once plugin_dir_path(__FILE__) . 'class-wp-mux-utils.php';
 
         $this->api = new Wp_Mux_Api();
         $this->themeManager = new Wp_Mux_Theme_Manager();
@@ -89,6 +90,19 @@ class Wp_Mux_Admin_Ajax
 
         // Settings
         add_action('wp_ajax_wp_mux_save_delete_option', [$this, 'saveDeleteOption']);
+
+        // Caption and policy management
+        add_action('wp_ajax_wp_mux_generate_captions', [$this, 'generateCaptions']);
+        add_action('wp_ajax_wp_mux_update_playback_policy', [$this, 'updatePlaybackPolicy']);
+        
+        // Auto-configure signing keys
+        add_action('wp_ajax_wp_mux_auto_configure_keys', [$this, 'autoConfigureKeys']);
+        
+        // Check signing keys
+        add_action('wp_ajax_wp_mux_check_signing_keys', [$this, 'checkSigningKeys']);
+        
+        // Test API connection
+        add_action('wp_ajax_wp_mux_test_api_connection', [$this, 'testApiConnection']);
     }
 
     /**
@@ -422,19 +436,31 @@ class Wp_Mux_Admin_Ajax
 
         $videos = get_posts($args);
 
-        $results = array_map(function ($video) {
+        $totalSize = 0;
+        $results = array_map(function ($video) use (&$totalSize) {
+            $filesize = filesize(get_attached_file($video->ID));
+            $totalSize += $filesize;
+            
             return [
-                'id'       => $video->ID,
-                'title'    => $video->post_title,
-                'url'      => wp_get_attachment_url($video->ID),
-                'filesize' => filesize(get_attached_file($video->ID)),
-                'date'     => $video->post_date,
+                'id'               => $video->ID,
+                'title'            => $video->post_title,
+                'url'              => wp_get_attachment_url($video->ID),
+                'filename'         => basename(get_attached_file($video->ID)),
+                'size_formatted'   => size_format($filesize),
+                'filesize'         => $filesize,
+                'date'             => $video->post_date,
+                'date_formatted'   => date_i18n(get_option('date_format'), strtotime($video->post_date)),
             ];
         }, $videos);
 
         wp_send_json_success(
             Wp_Mux_Utils::successResponse(
-                ['videos' => $results, 'count' => count($results)],
+                [
+                    'videos'               => $results,
+                    'total'                => count($results),
+                    'total_size'           => $totalSize,
+                    'total_size_formatted' => size_format($totalSize),
+                ],
                 sprintf(
                     _n('%d video found', '%d videos found', count($results), 'wp-mux'),
                     count($results)
@@ -593,6 +619,283 @@ class Wp_Mux_Admin_Ajax
             Wp_Mux_Utils::successResponse(
                 ['delete_on_uninstall' => $deleteOnUninstall],
                 __('Setting saved successfully', 'wp-mux')
+            )
+        );
+    }
+
+    /**
+     * Handle caption generation request.
+     *
+     * @since 1.3.0
+     *
+     * @return void Sends JSON response and dies.
+     */
+    public function generateCaptions(): void
+    {
+        error_log('[WP MUX] generateCaptions called');
+        
+        // Verify nonce - action is 'wp_mux_save_settings', field is 'wp_mux_settings_nonce'
+        if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'wp_mux_save_settings')) {
+            error_log('[WP MUX] Nonce verification failed');
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('Security verification failed. Please refresh the page and try again.', 'wp-mux'), 'nonce_failed')
+            );
+        }
+
+        if (!current_user_can('upload_files')) {
+            error_log('[WP MUX] Permission denied for caption generation');
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('Insufficient permissions.', 'wp-mux'), 'permission_denied')
+            );
+        }
+
+        $attachmentId = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+        $language = isset($_POST['language']) ? sanitize_text_field($_POST['language']) : 'en';
+
+        error_log('[WP MUX] Caption generation - Attachment ID: ' . $attachmentId . ', Language: ' . $language);
+
+        if (!$attachmentId) {
+            error_log('[WP MUX] Invalid attachment ID');
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('Invalid attachment ID.', 'wp-mux'), 'invalid_attachment')
+            );
+        }
+
+        $assetId = get_post_meta($attachmentId, '_mux_asset_id', true);
+        error_log('[WP MUX] Asset ID for attachment ' . $attachmentId . ': ' . $assetId);
+
+        if (!$assetId) {
+            error_log('[WP MUX] No MUX asset ID found for attachment');
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('MUX asset ID not found.', 'wp-mux'), 'no_asset_id')
+            );
+        }
+
+        error_log('[WP MUX] Calling API to generate captions for asset: ' . $assetId);
+        $response = $this->api->generate_captions($assetId, $language);
+
+        if (is_wp_error($response)) {
+            error_log('[WP MUX] Caption generation failed: ' . $response->get_error_message());
+            error_log('[WP MUX] Error data: ' . print_r($response->get_error_data(), true));
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse($response->get_error_message())
+            );
+        }
+
+        error_log('[WP MUX] Caption generation response: ' . print_r($response, true));
+
+        // Update metadata
+        update_post_meta($attachmentId, '_mux_has_captions', true);
+        $trackIds = get_post_meta($attachmentId, '_mux_caption_track_ids', true) ?: [];
+        if (isset($response['data'])) {
+            $trackIds = array_merge($trackIds, array_column($response['data'], 'id'));
+        }
+        update_post_meta($attachmentId, '_mux_caption_track_ids', $trackIds);
+
+        error_log('[WP MUX] Caption generation successful');
+
+        wp_send_json_success(
+            Wp_Mux_Utils::successResponse(
+                [
+                    'track_ids' => $trackIds,
+                ],
+                __('Captions generated successfully.', 'wp-mux')
+            )
+        );
+    }
+
+    /**
+     * Handle playback policy update.
+     *
+     * @since 1.3.0
+     *
+     * @return void Sends JSON response and dies.
+     */
+    public function updatePlaybackPolicy(): void
+    {
+        Wp_Mux_Utils::verifyAjaxRequest('wp_mux_settings_nonce');
+
+        if (!current_user_can('upload_files')) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('Insufficient permissions.', 'wp-mux'), 'permission_denied')
+            );
+        }
+
+        $attachmentId = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
+        $policy = isset($_POST['policy']) ? sanitize_text_field($_POST['policy']) : 'public';
+
+        if (!in_array($policy, ['public', 'signed'], true)) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('Invalid playback policy.', 'wp-mux'), 'invalid_policy')
+            );
+        }
+
+        $assetId = get_post_meta($attachmentId, '_mux_asset_id', true);
+
+        if (!$assetId) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('MUX asset ID not found.', 'wp-mux'), 'no_asset_id')
+            );
+        }
+
+        $response = $this->api->update_playback_policy($assetId, $policy);
+
+        if (is_wp_error($response)) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse($response->get_error_message(), 'api_error')
+            );
+        }
+
+        // Update metadata
+        update_post_meta($attachmentId, '_mux_playback_policy', $policy);
+        update_post_meta($attachmentId, '_mux_requires_signed_url', $policy === 'signed');
+
+        wp_send_json_success(
+            Wp_Mux_Utils::successResponse(
+                [],
+                __('Playback policy updated successfully.', 'wp-mux')
+            )
+        );
+    }
+
+    /**
+     * Handle automatic signing key configuration.
+     *
+     * @since 1.3.0
+     *
+     * @return void Sends JSON response and dies.
+     */
+    public function autoConfigureKeys(): void
+    {
+        Wp_Mux_Utils::verifyAjaxRequest('wp_mux_auto_configure_keys');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('Insufficient permissions.', 'wp-mux'), 'permission_denied')
+            );
+        }
+
+        $result = $this->api->auto_configure_signing_keys();
+
+        if (is_wp_error($result)) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse($result->get_error_message(), 'configuration_failed')
+            );
+        }
+
+        wp_send_json_success(
+            Wp_Mux_Utils::successResponse(
+                [
+                    'status' => $result['status'],
+                    'key_id' => $result['key_id'],
+                    'created_at' => $result['created_at'] ?? null,
+                ],
+                $result['message']
+            )
+        );
+    }
+
+    /**
+     * Check if signing keys exist.
+     *
+     * @since 1.3.0
+     *
+     * @return void Sends JSON response and dies.
+     */
+    public function checkSigningKeys(): void
+    {
+        Wp_Mux_Utils::verifyAjaxRequest('wp_mux_check_keys');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('Insufficient permissions.', 'wp-mux'), 'permission_denied')
+            );
+        }
+
+        $key_id = get_option('wp_mux_signing_key_id', '');
+        $has_keys = !empty($key_id);
+
+        wp_send_json_success(
+            Wp_Mux_Utils::successResponse(
+                [
+                    'has_keys' => $has_keys,
+                    'key_id' => $has_keys ? $key_id : null,
+                ],
+                $has_keys ? __('Signing keys already configured.', 'wp-mux') : __('No signing keys configured.', 'wp-mux')
+            )
+        );
+    }
+
+    /**
+     * Test API connection.
+     *
+     * @since 1.3.0
+     *
+     * @return void Sends JSON response and dies.
+     */
+    public function testApiConnection(): void
+    {
+        Wp_Mux_Utils::verifyAjaxRequest('wp_mux_test_api');
+
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(__('Insufficient permissions.', 'wp-mux'), 'permission_denied')
+            );
+        }
+
+        // Test 1: Check if API is configured
+        if (!$this->api->is_configured()) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(
+                    __('API credentials are not configured. Please enter your Mux Access Token and Secret Key in the settings.', 'wp-mux'),
+                    'not_configured'
+                )
+            );
+        }
+
+        // Test 2: Try to list assets (simple API call)
+        $test_result = $this->api->get_videos(1, 1);
+
+        if (is_wp_error($test_result)) {
+            $error_message = $test_result->get_error_message();
+            $error_data = $test_result->get_error_data();
+            
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(
+                    sprintf(
+                        __('API connection failed: %s (Status: %d)', 'wp-mux'),
+                        $error_message,
+                        $error_data['status'] ?? 'unknown'
+                    ),
+                    'api_error'
+                )
+            );
+        }
+
+        // Test 3: Try to check signing keys endpoint
+        $keys_result = $this->api->list_signing_keys();
+        
+        if (is_wp_error($keys_result)) {
+            wp_send_json_error(
+                Wp_Mux_Utils::errorResponse(
+                    sprintf(
+                        __('API connected but signing keys endpoint failed: %s. Your Mux account may not have permission to create signing keys, or the endpoint may require a different API version.', 'wp-mux'),
+                        $keys_result->get_error_message()
+                    ),
+                    'signing_keys_error'
+                )
+            );
+        }
+
+        // Success!
+        wp_send_json_success(
+            Wp_Mux_Utils::successResponse(
+                [
+                    'api_connected' => true,
+                    'signing_keys_available' => true,
+                    'existing_keys' => count($keys_result['data'] ?? []),
+                ],
+                __('API connection successful! Signing keys endpoint is accessible.', 'wp-mux')
             )
         );
     }

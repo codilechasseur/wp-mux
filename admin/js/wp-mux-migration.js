@@ -65,8 +65,10 @@
 			},
 			success: function(response) {
 				if (response.success) {
-					videos = response.data.videos;
-					displayScanResults(response.data);
+					// Handle both old and new response format
+					const responseData = response.data.data || response.data;
+					videos = responseData.videos;
+					displayScanResults(responseData);
 				} else {
 					showError(response.data.message || 'Failed to scan videos');
 				}

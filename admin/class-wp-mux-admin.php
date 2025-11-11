@@ -55,6 +55,12 @@ class Wp_Mux_Admin {
 		// Add admin notices for MUX upload success
 		add_action( 'admin_notices', array( $this, 'show_mux_upload_notices' ) );
 
+		// Add save handler for attachment settings
+		add_action( 'edit_attachment', array( $this, 'save_mux_attachment_settings' ) );
+
+		// Check for deferred signing key creation
+		add_action( 'admin_init', array( $this, 'maybe_create_signing_keys' ) );
+
 	}
 
 	/**
@@ -89,6 +95,90 @@ class Wp_Mux_Admin {
 		} else {
 			error_log( '[WP MUX] No success data found for transient key: ' . $transient_key );
 		}
+
+		// Check for settings update notice
+		$settings_updated_key = 'wp_mux_settings_updated_' . $user_id;
+		if ( get_transient( $settings_updated_key ) ) {
+			echo '<div class="notice notice-success is-dismissible">';
+			echo '<p>' . esc_html__( 'MUX settings updated successfully.', 'wp-mux' ) . '</p>';
+			echo '</div>';
+			delete_transient( $settings_updated_key );
+		}
+
+		// Check for activation notices
+		$this->show_activation_notices();
+	}
+
+	/**
+	 * Show activation-related notices.
+	 *
+	 * @since    1.3.0
+	 */
+	private function show_activation_notices() {
+		// Show signing key success notice
+		$signing_key_success = get_transient( 'wp_mux_signing_key_success' );
+		if ( $signing_key_success ) {
+			echo '<div class="notice notice-success is-dismissible">';
+			echo '<p>';
+			echo '<strong>' . esc_html__( 'WP Mux Activated!', 'wp-mux' ) . '</strong><br>';
+			echo esc_html__( 'Your videos are automatically protected with signed URLs. Signing keys have been configured and stored securely.', 'wp-mux' );
+			echo '</p>';
+			echo '<p>';
+			echo '<strong>' . esc_html__( 'Key ID:', 'wp-mux' ) . '</strong> ';
+			echo '<code>' . esc_html( $signing_key_success ) . '</code>';
+			echo '</p>';
+			echo '</div>';
+			delete_transient( 'wp_mux_signing_key_success' );
+		}
+
+		// Show info notice if automatic key creation wasn't available
+		$signing_keys_info = get_transient( 'wp_mux_signing_keys_info' );
+		if ( $signing_keys_info ) {
+			echo '<div class="notice notice-info is-dismissible">';
+			echo '<p>';
+			echo '<strong>' . esc_html__( 'WP Mux Activated Successfully', 'wp-mux' ) . '</strong><br>';
+			echo esc_html__( 'Your plugin is ready to use with public videos.', 'wp-mux' );
+			echo '</p>';
+			echo '<p>';
+			echo '<strong>' . esc_html__( 'Want Private Videos?', 'wp-mux' ) . '</strong><br>';
+			echo esc_html__( 'Automatic signing key setup requires a Mux account with signing keys API access. You can manually configure signing keys to enable private videos:', 'wp-mux' );
+			echo '</p>';
+			echo '<ol style="margin-left: 20px;">';
+			echo '<li>' . esc_html__( 'Log into', 'wp-mux' ) . ' <a href="https://dashboard.mux.com" target="_blank">dashboard.mux.com</a></li>';
+			echo '<li>' . esc_html__( 'Go to Settings → Signing Keys', 'wp-mux' ) . '</li>';
+			echo '<li>' . esc_html__( 'Create a new signing key', 'wp-mux' ) . '</li>';
+			echo '<li>' . esc_html__( 'Copy the Key ID and Private Key', 'wp-mux' ) . '</li>';
+			echo '<li>' . esc_html__( 'Paste them in the WP Mux settings below', 'wp-mux' ) . '</li>';
+			echo '</ol>';
+			echo '<p>';
+			echo '<a href="' . esc_url( admin_url( 'admin.php?page=wp-mux-settings' ) ) . '" class="button button-primary">';
+			echo esc_html__( 'Go to Settings', 'wp-mux' );
+			echo '</a>';
+			echo ' ';
+			echo '<a href="https://docs.mux.com/guides/secure-video-playback" target="_blank" class="button">';
+			echo esc_html__( 'Learn More', 'wp-mux' );
+			echo '</a>';
+			echo '</p>';
+			echo '</div>';
+			delete_transient( 'wp_mux_signing_keys_info' );
+		}
+
+		// Show notice if API credentials need configuration
+		$needs_api_config = get_transient( 'wp_mux_needs_api_config' );
+		if ( $needs_api_config ) {
+			echo '<div class="notice notice-info is-dismissible">';
+			echo '<p>';
+			echo '<strong>' . esc_html__( 'WP Mux: Setup Required', 'wp-mux' ) . '</strong><br>';
+			echo esc_html__( 'Please configure your Mux API credentials to start using the plugin.', 'wp-mux' );
+			echo '</p>';
+			echo '<p>';
+			echo '<a href="' . esc_url( admin_url( 'admin.php?page=wp-mux-settings' ) ) . '" class="button button-primary">';
+			echo esc_html__( 'Configure API Credentials', 'wp-mux' );
+			echo '</a>';
+			echo '</p>';
+			echo '</div>';
+			delete_transient( 'wp_mux_needs_api_config' );
+		}
 	}
 
 	/**
@@ -120,8 +210,8 @@ class Wp_Mux_Admin {
 		wp_enqueue_style( 'wp-mux-themes', plugin_dir_url( __FILE__ ) . 'css/wp-mux-themes.css', array(), $this->version );
 	}
 
-	// Enqueue migration styles on migration page
-	if ( $screen && $screen->id === 'mux-videos_page_wp-mux-migration' ) {
+	// Enqueue migration styles on migration page and settings page (for sidebar layout)
+	if ( $screen && ( $screen->id === 'mux-videos_page_wp-mux-migration' || $screen->id === 'mux-videos_page_wp-mux-settings' || $screen->id === 'toplevel_page_wp-mux-videos' ) ) {
 		wp_enqueue_style( 'wp-mux-migration', plugin_dir_url( __FILE__ ) . 'css/wp-mux-migration.css', array(), $this->version );
 	}
 
@@ -269,6 +359,17 @@ class Wp_Mux_Admin {
 		wp_add_inline_script( 'wp-mux-block-editor', 'window.wpMuxThemes = ' . json_encode( $theme_options ) . ';', 'before' );
 	}
 
+	// Enqueue attachment settings script on attachment edit page
+	if ( $screen && $screen->id === 'attachment' ) {
+		wp_enqueue_script( 
+			'wp-mux-attachment-settings', 
+			plugin_dir_url( __FILE__ ) . 'js/wp-mux-attachment-settings.js', 
+			array( 'jquery' ), 
+			$this->version, 
+			true 
+		);
+	}
+
 	}
 
 	/**
@@ -386,12 +487,13 @@ class Wp_Mux_Admin {
 
 			// Only show for completed videos
 			if ( $mux_status === 'complete' ) {
+				// Combined meta box for both analytics and settings
 				add_meta_box(
-					'wp_mux_analytics',
-					__( 'Video Analytics', 'wp-mux' ),
-					array( $this, 'render_analytics_meta_box' ),
+					'wp_mux_video_details',
+					__( 'MUX Video Details', 'wp-mux' ),
+					array( $this, 'render_combined_meta_box' ),
 					'attachment',
-					'side',
+					'normal',
 					'default'
 				);
 			}
@@ -399,11 +501,50 @@ class Wp_Mux_Admin {
 	}
 
 	/**
-	 * Render analytics meta box content
+	 * Render combined meta box with analytics and settings
 	 *
-	 * @since    1.2.0
+	 * @since    1.3.0
 	 */
-	public function render_analytics_meta_box( $post ) {
+	public function render_combined_meta_box( $post ) {
+		?>
+		<div class="wp-mux-combined-container">
+			<!-- Analytics Section -->
+			<div class="wp-mux-section">
+				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+					<h3 style="margin: 0;"><?php _e( 'Video Analytics', 'wp-mux' ); ?></h3>
+					<div style="display: flex; align-items: center; gap: 10px;">
+						<span class="mux-stats-updated" style="font-size: 12px; color: #646970;">
+							<?php 
+							$analytics = $this->get_video_analytics( $post->ID, false );
+							$formatted = $this->format_analytics_for_display( $analytics );
+							printf( __( 'Last updated: %s', 'wp-mux' ), esc_html( $formatted['last_updated'] ) ); 
+							?>
+						</span>
+						<button type="button" class="button button-small mux-refresh-stats-edit-page" data-attachment-id="<?php echo esc_attr( $post->ID ); ?>" title="<?php _e( 'Refresh Analytics', 'wp-mux' ); ?>" style="min-width: auto; padding: 4px 8px; color: #646970; border-color: #dcdcde; display: inline-flex; align-items: center; justify-content: center;">
+							<span class="dashicons dashicons-update" style="font-size: 16px; width: 16px; height: 16px; line-height: 1;"></span>
+						</button>
+					</div>
+				</div>
+				<?php $this->render_analytics_content( $post ); ?>
+			</div>
+			
+			<hr style="margin: 30px 0; border: none; border-top: 1px solid #dcdcde;">
+			
+			<!-- Settings Section -->
+			<div class="wp-mux-section">
+				<h3><?php _e( 'Video Settings', 'wp-mux' ); ?></h3>
+				<?php $this->render_settings_content( $post ); ?>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Render analytics content (extracted from render_analytics_meta_box)
+	 *
+	 * @since    1.3.0
+	 */
+	private function render_analytics_content( $post ) {
 		// Get analytics data
 		$analytics = $this->get_video_analytics( $post->ID, false );
 		$formatted = $this->format_analytics_for_display( $analytics );
@@ -413,14 +554,13 @@ class Wp_Mux_Admin {
 
 		?>
 		<div class="mux-video-stats" style="margin: 0; padding: 0; background: transparent; border: none;">
-			<div class="mux-stats-grid" style="margin-bottom: 15px;">
-				<!-- Primary metrics -->
-				<div class="mux-stat-card mux-stat-primary">
+			<div class="mux-stats-grid">
+				<div class="mux-stat-card">
 					<div class="mux-stat-value"><?php echo esc_html( $formatted['total_views'] ); ?></div>
 					<div class="mux-stat-label"><?php _e( 'Total Views', 'wp-mux' ); ?></div>
 				</div>
 
-				<div class="mux-stat-card mux-stat-primary">
+				<div class="mux-stat-card">
 					<div class="mux-stat-value"><?php echo esc_html( $formatted['unique_viewers'] ); ?></div>
 					<div class="mux-stat-label"><?php _e( 'Unique Viewers', 'wp-mux' ); ?></div>
 				</div>
@@ -436,18 +576,11 @@ class Wp_Mux_Admin {
 				</div>
 
 				<?php if ( $formatted['video_quality_score'] !== 'N/A' ) : ?>
-				<div class="mux-stat-card mux-stat-quality">
+				<div class="mux-stat-card">
 					<div class="mux-stat-value"><?php echo esc_html( $formatted['video_quality_score'] ); ?></div>
 					<div class="mux-stat-label"><?php _e( 'Quality Score', 'wp-mux' ); ?></div>
 				</div>
 				<?php endif; ?>
-			</div>
-
-			<div class="mux-stats-footer">
-				<span class="mux-stats-updated"><?php printf( __( 'Updated: %s', 'wp-mux' ), esc_html( $formatted['last_updated'] ) ); ?></span>
-				<button type="button" class="button button-small mux-refresh-stats-edit-page" data-attachment-id="<?php echo esc_attr( $post->ID ); ?>" title="<?php _e( 'Refresh Analytics', 'wp-mux' ); ?>">
-					<span class="dashicons dashicons-update"></span> <?php _e( 'Refresh', 'wp-mux' ); ?>
-				</button>
 			</div>
 		</div>
 
@@ -489,6 +622,105 @@ class Wp_Mux_Admin {
 		});
 		</script>
 		<?php
+	}
+
+	private function render_settings_content( $post ) {
+		$asset_id = get_post_meta( $post->ID, '_mux_asset_id', true );
+		
+		// Get current settings
+		$playback_policy = get_post_meta( $post->ID, '_mux_playback_policy', true ) ?: 'public';
+		$mp4_support = get_post_meta( $post->ID, '_mux_mp4_support', true ) ?: 'none';
+		$encoding_tier = get_post_meta( $post->ID, '_mux_encoding_tier', true ) ?: 'baseline';
+		$has_captions = get_post_meta( $post->ID, '_mux_has_captions', true );
+		
+		// Check if caption generation is available
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
+		$api = new Wp_Mux_Api();
+		$captions_available = $api->has_caption_generation_capability();
+		
+		// Check if video has audio track
+		$has_audio = false;
+		if ( ! empty( $asset_id ) ) {
+			$has_audio = $api->has_audio_track( $asset_id );
+		}
+		
+		// Check if signing keys are available (needed for signed/protected playback)
+		$signing_keys_available = $api->has_signing_keys_capability();
+		
+		wp_nonce_field( 'wp_mux_save_settings', 'wp_mux_settings_nonce' );
+		
+		include plugin_dir_path( __FILE__ ) . 'partials/wp-mux-admin-attachment-settings.php';
+	}
+
+	/**
+	 * Save MUX settings from attachment edit page.
+	 *
+	 * @since    1.3.0
+	 * @param    int    $attachment_id    The attachment post ID.
+	 */
+	public function save_mux_attachment_settings( $attachment_id ) {
+		// Verify nonce
+		if ( ! isset( $_POST['wp_mux_settings_nonce'] ) || 
+			 ! wp_verify_nonce( $_POST['wp_mux_settings_nonce'], 'wp_mux_save_settings' ) ) {
+			return;
+		}
+
+		// Check if this is a MUX video
+		$post = get_post( $attachment_id );
+		if ( ! $post || $post->post_mime_type !== 'video/mux' ) {
+			return;
+		}
+
+		// Check permissions
+		if ( ! current_user_can( 'edit_post', $attachment_id ) ) {
+			return;
+		}
+
+		$asset_id = get_post_meta( $attachment_id, '_mux_asset_id', true );
+		if ( ! $asset_id ) {
+			return;
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
+		$api = new Wp_Mux_Api();
+		$updated = false;
+
+		// Update playback policy if changed
+		if ( isset( $_POST['mux_playback_policy'] ) ) {
+			$new_policy = sanitize_text_field( $_POST['mux_playback_policy'] );
+			$old_policy = get_post_meta( $attachment_id, '_mux_playback_policy', true );
+
+			if ( $new_policy !== $old_policy && in_array( $new_policy, array( 'public', 'signed' ), true ) ) {
+				$response = $api->update_playback_policy( $asset_id, $new_policy );
+				
+				if ( ! is_wp_error( $response ) ) {
+					update_post_meta( $attachment_id, '_mux_playback_policy', $new_policy );
+					update_post_meta( $attachment_id, '_mux_requires_signed_url', $new_policy === 'signed' );
+					$updated = true;
+				}
+			}
+		}
+
+		// Update MP4 support if changed
+		if ( isset( $_POST['mux_mp4_support'] ) ) {
+			$new_support = sanitize_text_field( $_POST['mux_mp4_support'] );
+			$old_support = get_post_meta( $attachment_id, '_mux_mp4_support', true );
+
+			if ( $new_support !== $old_support && 
+				 in_array( $new_support, array( 'none', 'standard', 'audio-only' ), true ) ) {
+				$response = $api->update_mp4_support( $asset_id, $new_support );
+				
+				if ( ! is_wp_error( $response ) ) {
+					update_post_meta( $attachment_id, '_mux_mp4_support', $new_support );
+					$updated = true;
+				}
+			}
+		}
+
+		if ( $updated ) {
+			$user_id = get_current_user_id();
+			set_transient( 'wp_mux_settings_updated_' . $user_id, true, 30 );
+		}
 	}
 
 	/**
@@ -574,7 +806,7 @@ class Wp_Mux_Admin {
 			'wp_mux_access_token',
 			array(
 				'type' => 'string',
-				'sanitize_callback' => 'sanitize_text_field',
+				'sanitize_callback' => array( $this, 'sanitize_api_credentials' ),
 				'default' => '',
 			)
 		);
@@ -634,6 +866,125 @@ class Wp_Mux_Admin {
 			'wp-mux-settings',
 			'wp_mux_api_settings'
 		);
+
+		// Register upload default settings
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_default_playback_policy',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_playback_policy' ),
+				'default' => 'public',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_default_mp4_support',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_mp4_support' ),
+				'default' => 'none',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_default_encoding_tier',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_encoding_tier' ),
+				'default' => 'baseline',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_enable_auto_captions',
+			array(
+				'type' => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default' => false,
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_default_caption_language',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default' => 'en',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_signing_key_id',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default' => '',
+			)
+		);
+
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_signing_key_private',
+			array(
+				'type' => 'string',
+				'sanitize_callback' => array( $this, 'sanitize_signing_key' ),
+				'default' => '',
+			)
+		);
+
+		// Add upload settings section
+		add_settings_section(
+			'wp_mux_upload_settings',
+			__( 'Upload Default Settings', 'wp-mux' ),
+			array( $this, 'upload_settings_section_callback' ),
+			'wp-mux-settings'
+		);
+
+		// Add playback policy field
+		add_settings_field(
+			'wp_mux_default_playback_policy',
+			__( 'Default Playback Policy', 'wp-mux' ),
+			array( $this, 'playback_policy_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_upload_settings'
+		);
+
+		// Add MP4 support field
+		add_settings_field(
+			'wp_mux_default_mp4_support',
+			__( 'MP4 Support', 'wp-mux' ),
+			array( $this, 'mp4_support_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_upload_settings'
+		);
+
+		// Add encoding tier field
+		add_settings_field(
+			'wp_mux_default_encoding_tier',
+			__( 'Encoding Tier', 'wp-mux' ),
+			array( $this, 'encoding_tier_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_upload_settings'
+		);
+
+		// Add auto captions field
+		add_settings_field(
+			'wp_mux_enable_auto_captions',
+			__( 'Auto-Generate Captions', 'wp-mux' ),
+			array( $this, 'auto_captions_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_upload_settings'
+		);
+
+		// Don't add manual signing key configuration field anymore
+		// Signing keys are now automatically managed when users select "Signed URLs"
+		// This makes the settings page much cleaner and less confusing
 	}
 
 	/**
@@ -1119,6 +1470,459 @@ class Wp_Mux_Admin {
 		$checked = checked( 1, get_option( 'wp_mux_override_video_upload', 0 ), false );
 		echo '<input type="checkbox" id="wp_mux_override_video_upload" name="wp_mux_override_video_upload" value="1" ' . $checked . ' /> ';
 		echo '<label for="wp_mux_override_video_upload">' . esc_html__( 'If enabled, all video uploads in the media library will be sent to MUX instead of stored locally.', 'wp-mux' ) . '</label>';
+	}
+
+	/**
+	 * Upload settings section callback.
+	 *
+	 * @since    1.3.0
+	 */
+	public function upload_settings_section_callback() {
+		echo '<p>' . __( 'Configure default settings for new video uploads to MUX. These can be overridden per-video after upload.', 'wp-mux' ) . '</p>';
+	}
+
+	/**
+	 * Playback policy field callback.
+	 *
+	 * @since    1.3.0
+	 */
+	public function playback_policy_field_callback() {
+		$value = get_option( 'wp_mux_default_playback_policy', 'public' );
+		
+		// Check if account has signing keys capability
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
+		$api = new Wp_Mux_Api();
+		$has_capability = $api->has_signing_keys_capability();
+		
+		?>
+		<select name="wp_mux_default_playback_policy" 
+		        id="wp_mux_default_playback_policy"
+		        data-has-capability="<?php echo $has_capability ? '1' : '0'; ?>">
+			<option value="public" <?php selected( $value, 'public' ); ?>>
+				<?php _e( 'Public (Anyone can view)', 'wp-mux' ); ?>
+			</option>
+			<option value="signed" 
+			        <?php selected( $value, 'signed' ); ?>
+			        <?php echo ! $has_capability ? 'disabled' : ''; ?>>
+				<?php _e( 'Signed URLs (Requires token)', 'wp-mux' ); ?>
+				<?php if ( ! $has_capability ) : ?>
+					<?php _e( ' - Upgrade Required', 'wp-mux' ); ?>
+				<?php endif; ?>
+			</option>
+		</select>
+		
+		<?php if ( ! $has_capability ) : ?>
+			<p class="description" style="color: #d63638;">
+				<span class="dashicons dashicons-lock" style="font-size: 16px; vertical-align: middle;"></span>
+				<strong><?php _e( 'Private Videos Unavailable', 'wp-mux' ); ?></strong><br>
+				<?php _e( 'Your Mux account does not have access to signed URLs. This feature requires:', 'wp-mux' ); ?>
+				<ul style="list-style: disc; margin-left: 25px; margin-top: 5px; padding-left: 0;">
+					<li><?php _e( 'A paid Mux plan, OR', 'wp-mux' ); ?></li>
+					<li><?php _e( 'Signing keys API access enabled for your account', 'wp-mux' ); ?></li>
+				</ul>
+				<a href="https://mux.com/pricing" target="_blank"><?php _e( 'View Mux Pricing', 'wp-mux' ); ?> ↗</a>
+			</p>
+		<?php else : ?>
+			<p class="description">
+				<?php _e( 'Public videos can be played by anyone. Signed URLs automatically create secure tokens for each viewer.', 'wp-mux' ); ?>
+				<br>
+				<?php if ( $value === 'signed' ) : ?>
+					<span style="color: #00a32a;">
+						<span class="dashicons dashicons-yes-alt" style="font-size: 16px; vertical-align: middle;"></span>
+						<?php _e( 'Signing keys are configured and ready.', 'wp-mux' ); ?>
+					</span>
+				<?php else : ?>
+					<?php _e( 'Switching to "Signed URLs" will automatically configure signing keys for you.', 'wp-mux' ); ?>
+				<?php endif; ?>
+			</p>
+		<?php endif; ?>
+		
+		<script type="text/javascript">
+		jQuery(document).ready(function($) {
+			$('#wp_mux_default_playback_policy').on('change', function() {
+				var $select = $(this);
+				var newValue = $select.val();
+				var hasCapability = $select.data('has-capability');
+				
+				if (newValue === 'signed' && hasCapability) {
+					// Check if keys already exist
+					$.ajax({
+						url: ajaxurl,
+						method: 'POST',
+						data: {
+							action: 'wp_mux_check_signing_keys',
+							nonce: '<?php echo wp_create_nonce( 'wp_mux_check_keys' ); ?>'
+						},
+						success: function(response) {
+							if (!response.success || !response.data.has_keys) {
+								// Need to create keys
+								if (confirm('<?php _e( 'Switching to signed URLs will automatically create and configure signing keys. Continue?', 'wp-mux' ); ?>')) {
+									// Auto-configure keys
+									$.ajax({
+										url: ajaxurl,
+										method: 'POST',
+										data: {
+											action: 'wp_mux_auto_configure_keys',
+											nonce: '<?php echo wp_create_nonce( 'wp_mux_auto_configure_keys' ); ?>'
+										},
+										success: function(keyResponse) {
+											if (keyResponse.success) {
+												alert('<?php _e( 'Signing keys configured successfully!', 'wp-mux' ); ?>');
+											} else {
+												alert('<?php _e( 'Failed to configure signing keys. Please try again.', 'wp-mux' ); ?>');
+												$select.val('public').trigger('change');
+											}
+										},
+										error: function() {
+											alert('<?php _e( 'Network error. Please try again.', 'wp-mux' ); ?>');
+											$select.val('public').trigger('change');
+										}
+									});
+								} else {
+									// User cancelled, revert
+									$select.val('public').trigger('change');
+								}
+							}
+						}
+					});
+				}
+			});
+		});
+		</script>
+		<?php
+	}
+
+	/**
+	 * MP4 support field callback.
+	 *
+	 * @since    1.3.0
+	 */
+	public function mp4_support_field_callback() {
+		$value = get_option( 'wp_mux_default_mp4_support', 'none' );
+		?>
+		<select name="wp_mux_default_mp4_support" id="wp_mux_default_mp4_support">
+			<option value="none" <?php selected( $value, 'none' ); ?>>
+				<?php _e( 'None (Lowest cost)', 'wp-mux' ); ?>
+			</option>
+			<option value="standard" <?php selected( $value, 'standard' ); ?>>
+				<?php _e( 'Standard (Enable downloadable MP4)', 'wp-mux' ); ?>
+			</option>
+			<option value="audio-only" <?php selected( $value, 'audio-only' ); ?>>
+				<?php _e( 'Audio Only', 'wp-mux' ); ?>
+			</option>
+		</select>
+		<p class="description">
+			<?php _e( 'MP4 support allows downloading videos but increases storage costs.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Encoding tier field callback.
+	 *
+	 * @since    1.3.0
+	 */
+	public function encoding_tier_field_callback() {
+		$value = get_option( 'wp_mux_default_encoding_tier', 'baseline' );
+		?>
+		<select name="wp_mux_default_encoding_tier" id="wp_mux_default_encoding_tier">
+			<option value="baseline" <?php selected( $value, 'baseline' ); ?>>
+				<?php _e( 'Baseline (Standard quality)', 'wp-mux' ); ?>
+			</option>
+			<option value="smart" <?php selected( $value, 'smart' ); ?>>
+				<?php _e( 'Smart (Optimized encoding)', 'wp-mux' ); ?>
+			</option>
+			<option value="plus" <?php selected( $value, 'plus' ); ?>>
+				<?php _e( 'Plus (Premium quality)', 'wp-mux' ); ?>
+			</option>
+		</select>
+		<p class="description">
+			<?php _e( 'Higher tiers provide better quality but increase processing costs. Cannot be changed after upload.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Auto captions field callback.
+	 *
+	 * @since    1.3.0
+	 */
+	public function auto_captions_field_callback() {
+		$enabled = get_option( 'wp_mux_enable_auto_captions', false );
+		$language = get_option( 'wp_mux_default_caption_language', 'en' );
+		?>
+		<label>
+			<input type="checkbox" name="wp_mux_enable_auto_captions" value="1" <?php checked( $enabled ); ?> />
+			<?php _e( 'Automatically generate captions on upload', 'wp-mux' ); ?>
+		</label>
+		
+		<div style="margin-top: 10px;">
+			<label for="wp_mux_default_caption_language"><?php _e( 'Caption Language:', 'wp-mux' ); ?></label>
+			<select name="wp_mux_default_caption_language" id="wp_mux_default_caption_language">
+				<option value="en" <?php selected( $language, 'en' ); ?>><?php _e( 'English', 'wp-mux' ); ?></option>
+				<option value="es" <?php selected( $language, 'es' ); ?>><?php _e( 'Spanish', 'wp-mux' ); ?></option>
+				<option value="fr" <?php selected( $language, 'fr' ); ?>><?php _e( 'French', 'wp-mux' ); ?></option>
+				<option value="de" <?php selected( $language, 'de' ); ?>><?php _e( 'German', 'wp-mux' ); ?></option>
+				<option value="it" <?php selected( $language, 'it' ); ?>><?php _e( 'Italian', 'wp-mux' ); ?></option>
+				<option value="pt" <?php selected( $language, 'pt' ); ?>><?php _e( 'Portuguese', 'wp-mux' ); ?></option>
+				<option value="ja" <?php selected( $language, 'ja' ); ?>><?php _e( 'Japanese', 'wp-mux' ); ?></option>
+				<option value="zh" <?php selected( $language, 'zh' ); ?>><?php _e( 'Chinese', 'wp-mux' ); ?></option>
+			</select>
+		</div>
+		
+		<p class="description">
+			<?php _e( 'Requires Mux captions to be enabled on your account. May incur additional costs.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Signing keys field callback.
+	 *
+	 * @since    1.3.0
+	 */
+	public function signing_keys_field_callback() {
+		$key_id = get_option( 'wp_mux_signing_key_id', '' );
+		$has_private_key = ! empty( get_option( 'wp_mux_signing_key_private', '' ) );
+		?>
+		<div class="wp-mux-signing-keys-container">
+			<div class="wp-mux-auto-configure-section" style="background: #f0f0f1; padding: 15px; margin-bottom: 15px; border-radius: 4px;">
+				<h4 style="margin-top: 0;"><?php _e( 'Quick Setup', 'wp-mux' ); ?></h4>
+				<p><?php _e( 'Let WP Mux automatically create and configure signing keys for you.', 'wp-mux' ); ?></p>
+				<button type="button" 
+						class="button button-secondary" 
+						id="wp-mux-auto-configure-keys"
+						<?php echo $has_private_key ? 'disabled' : ''; ?>>
+					<span class="dashicons dashicons-admin-network" style="margin-top: 3px;"></span>
+					<?php _e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>
+				</button>
+				<?php if ( $has_private_key ) : ?>
+					<p class="description" style="margin-top: 10px;">
+						<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span>
+						<?php _e( 'Signing keys are already configured.', 'wp-mux' ); ?>
+						<button type="button" 
+								class="button button-link" 
+								id="wp-mux-reconfigure-keys"
+								style="color: #b32d2e;">
+							<?php _e( 'Reconfigure', 'wp-mux' ); ?>
+						</button>
+					</p>
+				<?php endif; ?>
+				<div id="wp-mux-auto-configure-status" style="margin-top: 10px;"></div>
+			</div>
+
+			<div class="wp-mux-manual-keys-section">
+				<h4><?php _e( 'Manual Configuration', 'wp-mux' ); ?></h4>
+				<div>
+					<label for="wp_mux_signing_key_id"><?php _e( 'Signing Key ID:', 'wp-mux' ); ?></label>
+					<input type="text" 
+						   name="wp_mux_signing_key_id" 
+						   id="wp_mux_signing_key_id" 
+						   value="<?php echo esc_attr( $key_id ); ?>" 
+						   class="regular-text" 
+						   readonly />
+				</div>
+				
+				<div style="margin-top: 10px;">
+					<label for="wp_mux_signing_key_private"><?php _e( 'Private Key (Base64):', 'wp-mux' ); ?></label>
+					<textarea name="wp_mux_signing_key_private" 
+							  id="wp_mux_signing_key_private" 
+							  rows="4" 
+							  class="large-text code"
+							  readonly
+							  placeholder="<?php echo $has_private_key ? esc_attr__( '••••••••', 'wp-mux' ) : ''; ?>"></textarea>
+					<?php if ( $has_private_key ) : ?>
+						<p class="description">
+							<?php _e( 'Keys are configured and stored securely.', 'wp-mux' ); ?>
+						</p>
+					<?php endif; ?>
+				</div>
+			</div>
+		</div>
+		
+		<p class="description">
+			<?php _e( 'Signing keys are required for signed URLs and protected videos.', 'wp-mux' ); ?>
+			<br />
+			<a href="https://docs.mux.com/guides/secure-video-playback" target="_blank">
+				<?php _e( 'Learn more about securing video playback', 'wp-mux' ); ?> ↗
+			</a>
+		</p>
+
+		<script type="text/javascript">
+		jQuery(document).ready(function($) {
+			$('#wp-mux-auto-configure-keys').on('click', function() {
+				var $button = $(this);
+				var $status = $('#wp-mux-auto-configure-status');
+				
+				$button.prop('disabled', true).text('<?php _e( 'Configuring...', 'wp-mux' ); ?>');
+				$status.html('<p><?php _e( 'Creating signing keys in Mux...', 'wp-mux' ); ?></p>');
+				
+				$.ajax({
+					url: ajaxurl,
+					method: 'POST',
+					data: {
+						action: 'wp_mux_auto_configure_keys',
+						nonce: '<?php echo wp_create_nonce( 'wp_mux_auto_configure_keys' ); ?>'
+					},
+					success: function(response) {
+						if (response.success) {
+							$status.html('<div class="notice notice-success inline"><p>' + response.data.message + '</p></div>');
+							if (response.data.key_id) {
+								$('#wp_mux_signing_key_id').val(response.data.key_id);
+							}
+							setTimeout(function() {
+								location.reload();
+							}, 1500);
+						} else {
+							$status.html('<div class="notice notice-error inline"><p>' + (response.data.message || '<?php _e( 'Failed to configure keys', 'wp-mux' ); ?>') + '</p></div>');
+							$button.prop('disabled', false).text('<?php _e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>');
+						}
+					},
+					error: function() {
+						$status.html('<div class="notice notice-error inline"><p><?php _e( 'Network error. Please try again.', 'wp-mux' ); ?></p></div>');
+						$button.prop('disabled', false).text('<?php _e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>');
+					}
+				});
+			});
+
+			$('#wp-mux-reconfigure-keys').on('click', function(e) {
+				e.preventDefault();
+				if (confirm('<?php _e( 'This will create new signing keys. Old keys will still exist in Mux but can be deleted manually. Continue?', 'wp-mux' ); ?>')) {
+					$('#wp-mux-auto-configure-keys').prop('disabled', false).trigger('click');
+				}
+			});
+		});
+		</script>
+
+		<style>
+		.wp-mux-signing-keys-container .dashicons {
+			vertical-align: middle;
+		}
+		.wp-mux-manual-keys-section h4 {
+			margin-bottom: 10px;
+		}
+		</style>
+		<?php
+	}
+
+	/**
+	 * Sanitize playback policy value.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $value    The value to sanitize.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_playback_policy( $value ) {
+		$allowed = array( 'public', 'signed' );
+		return in_array( $value, $allowed, true ) ? $value : 'public';
+	}
+
+	/**
+	 * Sanitize MP4 support value.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $value    The value to sanitize.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_mp4_support( $value ) {
+		$allowed = array( 'none', 'standard', 'audio-only' );
+		return in_array( $value, $allowed, true ) ? $value : 'none';
+	}
+
+	/**
+	 * Sanitize encoding tier value.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $value    The value to sanitize.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_encoding_tier( $value ) {
+		$allowed = array( 'baseline', 'smart', 'plus' );
+		return in_array( $value, $allowed, true ) ? $value : 'baseline';
+	}
+
+	/**
+	 * Sanitize signing key value.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $value    The value to sanitize.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_signing_key( $value ) {
+		if ( empty( $value ) ) {
+			return get_option( 'wp_mux_signing_key_private', '' );
+		}
+		
+		return base64_encode( $value );
+	}
+
+	/**
+	 * Sanitize API credentials and trigger auto-setup of signing keys.
+	 *
+	 * @since    1.3.0
+	 * @param    string    $value    The access token value.
+	 * @return   string              The sanitized value.
+	 */
+	public function sanitize_api_credentials( $value ) {
+		$sanitized = sanitize_text_field( $value );
+		
+		// Check if this is a new credential being saved (not empty)
+		$old_value = get_option( 'wp_mux_access_token', '' );
+		$secret_key = isset( $_POST['wp_mux_secret_key'] ) ? sanitize_text_field( $_POST['wp_mux_secret_key'] ) : '';
+		
+		// If credentials are being set for the first time or changed
+		if ( ! empty( $sanitized ) && ! empty( $secret_key ) ) {
+			// Check if signing keys don't exist yet
+			$has_keys = ! empty( get_option( 'wp_mux_signing_key_id', '' ) );
+			
+			if ( ! $has_keys ) {
+				// Schedule signing key creation on next page load
+				set_transient( 'wp_mux_needs_key_creation', true, HOUR_IN_SECONDS );
+			}
+		}
+		
+		return $sanitized;
+	}
+
+	/**
+	 * Maybe create signing keys if API credentials were just configured.
+	 *
+	 * @since    1.3.0
+	 */
+	public function maybe_create_signing_keys() {
+		// Check if we need to create keys
+		if ( ! get_transient( 'wp_mux_needs_key_creation' ) ) {
+			return;
+		}
+
+		// Delete the transient so we don't retry unnecessarily
+		delete_transient( 'wp_mux_needs_key_creation' );
+
+		// Load the API class
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
+		$api = new Wp_Mux_Api();
+
+		// Check if API is configured
+		if ( ! $api->is_configured() ) {
+			return;
+		}
+
+		// Try to auto-configure signing keys
+		$result = $api->auto_configure_signing_keys();
+
+		if ( ! is_wp_error( $result ) ) {
+			// Success! Set transient to show notice
+			set_transient( 'wp_mux_signing_key_success', $result['key_id'], WEEK_IN_SECONDS );
+			
+			// Also set default playback policy to signed
+			update_option( 'wp_mux_default_playback_policy', 'signed' );
+			
+			error_log( '[WP MUX] Signing keys auto-configured after API credentials saved: ' . $result['key_id'] );
+		} else {
+			// Log error
+			error_log( '[WP MUX] Failed to auto-configure signing keys: ' . $result->get_error_message() );
+			set_transient( 'wp_mux_signing_key_error', $result->get_error_message(), DAY_IN_SECONDS );
+		}
 	}
 
 	/**
@@ -1799,6 +2603,10 @@ class Wp_Mux_Admin {
 
 			$response['mux_upload_id'] = $mux_upload_id;
 			$response['mux_processing'] = $mux_processing;
+
+			// Add MUX identifiers
+			$response['mux_asset_id'] = $asset_id;
+			$response['mux_playback_id'] = get_post_meta( $attachment->ID, '_mux_playback_id', true );
 
 			// Add analytics data if video is complete
 			if ( $mux_status === 'complete' ) {

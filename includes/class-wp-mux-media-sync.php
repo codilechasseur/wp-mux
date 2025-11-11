@@ -74,11 +74,33 @@ class Wp_Mux_Media_Sync {
                         update_post_meta( $attach_id, '_mux_duration', $asset['data']['duration'] ?? '' );
                         update_post_meta( $attach_id, '_mux_created_at', $asset['data']['created_at'] ?? '' );
 
+                        // Store initial settings from asset
+                        $playback_policy = $asset['data']['playback_policy'][0] ?? 'public';
+                        $mp4_support = $asset['data']['mp4_support'] ?? 'none';
+                        $encoding_tier = $asset['data']['encoding_tier'] ?? 'baseline';
+                        
+                        update_post_meta( $attach_id, '_mux_playback_policy', $playback_policy );
+                        update_post_meta( $attach_id, '_mux_mp4_support', $mp4_support );
+                        update_post_meta( $attach_id, '_mux_encoding_tier', $encoding_tier );
+                        update_post_meta( $attach_id, '_mux_requires_signed_url', $playback_policy === 'signed' );
+
                         // Update thumbnail if available
                         if ( ! empty( $asset['data']['playback_ids'][0]['id'] ) ) {
                             $playback_id = $asset['data']['playback_ids'][0]['id'];
                             $thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=240&height=160";
                             update_post_meta( $attach_id, '_mux_thumbnail_url', $thumbnail_url );
+                        }
+
+                        // Generate auto-captions if enabled
+                        if ( get_option( 'wp_mux_enable_auto_captions', false ) ) {
+                            $language = get_option( 'wp_mux_default_caption_language', 'en' );
+                            $caption_response = $api->generate_captions( $asset_id, $language );
+                            
+                            if ( ! is_wp_error( $caption_response ) && isset( $caption_response['data']['id'] ) ) {
+                                update_post_meta( $attach_id, '_mux_has_captions', true );
+                                update_post_meta( $attach_id, '_mux_caption_track_ids', array( $caption_response['data']['id'] ) );
+                                error_log( "[WP MUX] Auto-generated captions for asset {$asset_id}" );
+                            }
                         }
 
                         // Remove processing flags
