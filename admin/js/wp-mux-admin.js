@@ -6,6 +6,7 @@
 	 */
 
 	let currentPage = 1;
+	let maxPage = 1;
 	let isLoading = false;
 
 	$(function() {
@@ -127,9 +128,12 @@
 
 		$('#current-page').on('change', function() {
 			const page = parseInt($(this).val());
-			if (page > 0) {
+			if (page > 0 && page <= maxPage) {
 				currentPage = page;
 				loadVideos();
+			} else {
+				// Reset to current page if invalid
+				$(this).val(currentPage);
 			}
 		});
 	}
@@ -495,13 +499,25 @@
 	}
 
 	function updatePagination(data) {
-		// Update page info (this is simplified, you might want to get actual pagination data from API)
-		$('#current-page').val(currentPage);
-		$('#videos-count').text(`${data.data.length} items`);
+		const videos = data.data || data;
+		const videoCount = Array.isArray(videos) ? videos.length : 0;
+		
+		// Calculate max page based on whether we got a full page of results
+		if (videoCount < 25) {
+			// We got fewer than a full page, so this is the last page
+			maxPage = currentPage;
+		} else {
+			// We got a full page, so there might be more
+			maxPage = currentPage + 1;
+		}
+		
+		$('#current-page').val(currentPage).attr('max', maxPage);
+		$('#total-pages').text(maxPage);
+		$('#videos-count').text(`${videoCount} items`);
 
 		// Enable/disable pagination buttons
 		$('#prev-page').prop('disabled', currentPage <= 1);
-		$('#next-page').prop('disabled', data.data.length < 25);
+		$('#next-page').prop('disabled', currentPage >= maxPage);
 	}
 
 	function showVideosError(message) {
