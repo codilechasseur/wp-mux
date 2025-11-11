@@ -11,26 +11,26 @@
 	max-width: 1400px;
 }
 
-.migration-layout {
+.wp-mux-layout {
 	display: flex;
 	gap: 20px;
 	margin-top: 20px;
 	align-items: flex-start; /* Align to top */
 }
 
-.migration-main {
+.wp-mux-main {
 	flex: 1;
 	min-width: 0;
 	/* Add max-width for better readability on very wide screens */
 	max-width: calc(100% - 320px);
 }
 
-.migration-sidebar {
+.wp-mux-sidebar-panel {
 	width: 300px;
 	flex-shrink: 0;
 }
 
-.migration-info-box {
+.wp-mux-info-box {
 	background: #fff;
 	padding: 20px;
 	border: 1px solid #c3c4c7;
@@ -39,7 +39,7 @@
 	top: 32px;
 }
 
-.migration-info-box h3 {
+.wp-mux-info-box h3 {
 	margin-top: 0;
 	font-size: 16px;
 	border-bottom: 1px solid #dcdcde;
@@ -47,25 +47,25 @@
 	margin-bottom: 15px;
 }
 
-.migration-info-box h4 {
+.wp-mux-info-box h4 {
 	font-size: 14px;
 	margin: 15px 0 8px 0;
 	color: #1d2327;
 }
 
-.migration-info-box .description {
+.wp-mux-info-box .description {
 	font-size: 13px;
 	margin-bottom: 15px;
 	line-height: 1.5;
 }
 
-.migration-info-box ul {
+.wp-mux-info-box ul {
 	margin: 0 0 15px 0;
 	padding: 0;
 	list-style: none;
 }
 
-.migration-info-box ul li {
+.wp-mux-info-box ul li {
 	padding: 4px 0 4px 24px; /* Increased from 20px to 24px for better icon spacing */
 	position: relative;
 	font-size: 13px;
@@ -507,16 +507,16 @@
 
 /* Responsive adjustments */
 @media screen and (max-width: 1024px) {
-	.migration-layout {
+	.wp-mux-layout {
 		flex-direction: column;
 	}
 
-	.migration-sidebar {
+	.wp-mux-sidebar-panel {
 		width: 100%;
 		order: -1;
 	}
 
-	.migration-info-box {
+	.wp-mux-info-box {
 		position: static;
 	}
 }

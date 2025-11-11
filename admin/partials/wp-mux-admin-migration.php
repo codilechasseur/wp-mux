@@ -47,8 +47,8 @@ $delete_after_migration = get_option( 'wp_mux_delete_local_after_migration', '0'
 		</div>
 	<?php else : ?>
 
-	<div class="migration-layout">
-		<div class="migration-main">
+	<div class="wp-mux-layout">
+		<div class="wp-mux-main">
 
 			<div class="migration-controls">
 				<button id="start-migration" class="button button-secondary button-large" style="display: none;" disabled>
@@ -179,8 +179,8 @@ $delete_after_migration = get_option( 'wp_mux_delete_local_after_migration', '0'
 
 		</div>
 
-		<div class="migration-sidebar">
-			<div class="migration-info-box">
+		<div class="wp-mux-sidebar-panel">
+			<div class="wp-mux-info-box">
 				<h3><?php esc_html_e( 'About Migration', 'wp-mux' ); ?></h3>
 				<p class="description">
 					<?php esc_html_e( 'This tool helps you migrate locally hosted videos to MUX.', 'wp-mux' ); ?>

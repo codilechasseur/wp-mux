@@ -18,8 +18,8 @@
 
     <?php settings_errors(); ?>
 
-    <div class="migration-layout">
-        <div class="migration-main">
+    <div class="wp-mux-layout">
+        <div class="wp-mux-main">
             <form method="post" action="options.php">
                 <?php
                 settings_fields( 'wp_mux_settings_group' );
@@ -29,8 +29,8 @@
             </form>
         </div>
 
-        <div class="migration-sidebar">
-            <div class="migration-info-box">
+        <div class="wp-mux-sidebar-panel">
+            <div class="wp-mux-info-box">
                 <h3><?php _e( 'Getting Started', 'wp-mux' ); ?></h3>
                 <p class="description">
                     <?php _e( 'Follow these steps to configure WP Mux:', 'wp-mux' ); ?>

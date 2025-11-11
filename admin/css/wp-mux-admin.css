@@ -8,16 +8,22 @@
     /* Remove max-width when using sidebar layout */
 }
 
-.wp-mux-settings-page .migration-layout {
+/* Remove margin-top from first settings section heading (API Settings) */
+.wp-mux-settings-page .wp-mux-main form > h2:first-of-type,
+.wp-mux-settings-page .wp-mux-main form .form-table:first-child {
+    margin-top: 0;
+}
+
+.wp-mux-settings-page .wp-mux-layout {
     max-width: 1400px; /* Match WordPress admin standards */
 }
 
-.wp-mux-settings-page .migration-main {
+.wp-mux-settings-page .wp-mux-main {
     /* Main content area matches other pages */
     max-width: calc(100% - 320px);
 }
 
-.wp-mux-settings-page .migration-main form {
+.wp-mux-settings-page .wp-mux-main form {
     background: #fff;
     padding: 20px;
     border: 1px solid #c3c4c7;
@@ -69,11 +75,11 @@
     /* Removed fixed width to allow sidebar layout */
 }
 
-.wp-mux-videos-page .migration-layout {
+.wp-mux-videos-page .wp-mux-layout {
     max-width: 1400px;
 }
 
-.wp-mux-videos-page .migration-main {
+.wp-mux-videos-page .wp-mux-main {
     max-width: calc(100% - 320px);
 }
 
@@ -586,16 +592,16 @@
 
 /* Responsive */
 @media screen and (max-width: 1200px) {
-    .migration-layout {
+    .wp-mux-layout {
         display: block !important;
     }
     
-    .migration-main {
+    .wp-mux-main {
         max-width: 100% !important;
         margin-right: 0 !important;
     }
     
-    .migration-sidebar {
+    .wp-mux-sidebar-panel {
         width: 100% !important;
         margin-top: 20px;
     }

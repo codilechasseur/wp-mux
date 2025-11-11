@@ -39,8 +39,8 @@ if ( $api->is_configured() ) {
 
         <hr class="wp-header-end">
 
-        <div class="migration-layout">
-            <div class="migration-main">
+        <div class="wp-mux-layout">
+            <div class="wp-mux-main">
 
         <!-- Upload Section -->
         <div id="upload-section" class="wp-mux-upload-section" style="display: none;">
@@ -127,12 +127,12 @@ if ( $api->is_configured() ) {
             </div>
             </div>
 
-            </div><!-- .migration-main -->
+            </div><!-- .wp-mux-main -->
 
             <!-- Sidebar with Account Overview -->
             <?php if ( $account_stats && ! is_wp_error( $account_stats ) ) : ?>
-            <div class="migration-sidebar">
-                <div class="migration-info-box wp-mux-account-stats-sidebar">
+            <div class="wp-mux-sidebar-panel">
+                <div class="wp-mux-info-box wp-mux-account-stats-sidebar">
                     <div class="wp-mux-stats-header">
                         <h3><?php _e( 'Account Overview', 'wp-mux' ); ?></h3>
                     </div>
@@ -222,10 +222,10 @@ if ( $api->is_configured() ) {
                         <span class="dashicons dashicons-external"></span>
                     </a>
                 </div>
-            </div><!-- .migration-sidebar -->
+            </div><!-- .wp-mux-sidebar-panel -->
             <?php endif; ?>
 
-        </div><!-- .migration-layout -->
+        </div><!-- .wp-mux-layout -->
 
     <?php endif; ?>
 </div>

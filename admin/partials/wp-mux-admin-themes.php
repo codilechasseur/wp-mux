@@ -54,7 +54,7 @@ if ( $error_message ) {
 	<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
 	<div class="wp-mux-themes-container">
-		<div class="wp-mux-themes-sidebar">
+		<div class="wp-mux-themes-main">
 			<div class="wp-mux-theme-form">
 				<h2><?php echo $edit_mode ? __( 'Edit Theme', 'wp-mux' ) : __( 'Create New Theme', 'wp-mux' ); ?></h2>
 
@@ -175,7 +175,7 @@ if ( $error_message ) {
 			</div>
 		</div>
 
-		<div class="wp-mux-themes-main">
+		<div class="wp-mux-themes-sidebar">
 			<h2><?php _e( 'Existing Themes', 'wp-mux' ); ?></h2>
 
 			<?php if ( empty( $themes ) ): ?>
@@ -293,153 +293,4 @@ if ( $error_message ) {
 	</div>
 </div>
 
-<style>
-.wp-mux-themes-container {
-	display: flex;
-	gap: 20px;
-	margin-top: 20px;
-}
 
-.wp-mux-themes-sidebar {
-	flex: 0 0 350px;
-}
-
-.wp-mux-themes-main {
-	flex: 1;
-}
-
-.wp-mux-theme-form {
-	background: #fff;
-	border: 1px solid #ccd0d4;
-	padding: 20px;
-	border-radius: 4px;
-}
-
-.wp-mux-controls-sections {
-	margin: 20px 0;
-}
-
-.wp-mux-control-section {
-	margin-bottom: 25px;
-	padding-bottom: 15px;
-	border-bottom: 1px solid #f0f0f1;
-}
-
-.wp-mux-control-section:last-child {
-	border-bottom: none;
-}
-
-.wp-mux-control-section h4 {
-	margin: 0 0 10px 0;
-	color: #1d2327;
-	text-transform: capitalize;
-}
-
-.wp-mux-control-item {
-	margin-bottom: 10px;
-}
-
-.wp-mux-control-item label {
-	display: block;
-	padding: 8px 0;
-}
-
-.wp-mux-themes-grid {
-	display: grid;
-	grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-	gap: 20px;
-	margin-bottom: 30px;
-}
-
-.wp-mux-theme-card {
-	background: #fff;
-	border: 1px solid #ccd0d4;
-	border-radius: 4px;
-	padding: 20px;
-	position: relative;
-}
-
-.wp-mux-theme-card.is-default {
-	border-color: #00a32a;
-	box-shadow: 0 0 0 1px #00a32a;
-}
-
-.wp-mux-theme-header {
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	margin-bottom: 10px;
-}
-
-.wp-mux-theme-header h3 {
-	margin: 0;
-	font-size: 18px;
-}
-
-.wp-mux-default-badge {
-	background: #00a32a;
-	color: white;
-	padding: 2px 8px;
-	border-radius: 3px;
-	font-size: 11px;
-	font-weight: 600;
-	text-transform: uppercase;
-}
-
-.wp-mux-theme-description {
-	color: #646970;
-	margin-bottom: 15px;
-}
-
-.wp-mux-theme-preview {
-	margin: 15px 0;
-}
-
-.preview-player {
-	background: #000;
-	border-radius: 4px;
-	padding: 40px 20px;
-	text-align: center;
-	position: relative;
-	min-height: 80px;
-}
-
-.preview-controls {
-	color: #fff;
-	font-size: 14px;
-}
-
-.wp-mux-theme-meta {
-	margin: 15px 0;
-	color: #646970;
-}
-
-.wp-mux-theme-actions {
-	margin-top: 15px;
-	padding-top: 15px;
-	border-top: 1px solid #f0f0f1;
-}
-
-.wp-mux-theme-actions .button {
-	margin-right: 8px;
-}
-
-.wp-mux-theme-usage {
-	background: #f6f7f7;
-	border: 1px solid #c3c4c7;
-	border-radius: 4px;
-	padding: 20px;
-	margin-top: 30px;
-}
-
-.wp-mux-theme-usage code {
-	display: block;
-	background: #2c3338;
-	color: #fff;
-	padding: 10px;
-	border-radius: 3px;
-	margin-top: 10px;
-	font-family: Consolas, Monaco, monospace;
-	font-size: 13px;
-}
-</style>
