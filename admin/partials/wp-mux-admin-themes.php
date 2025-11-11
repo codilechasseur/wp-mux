@@ -273,12 +273,6 @@ if ( $error_message ) {
 				<h3><?php _e( 'About Themes', 'wp-mux' ); ?></h3>
 				<p><?php _e( 'Themes control which player controls are visible and their appearance.', 'wp-mux' ); ?></p>
 				<p><?php _e( 'The default theme is automatically applied to all video players.', 'wp-mux' ); ?></p>
-				
-				<h4><?php _e( 'Quick Templates', 'wp-mux' ); ?></h4>
-				<ul class="wp-mux-quick-templates">
-					<li><strong><?php _e( 'Full Controls:', 'wp-mux' ); ?></strong> <?php _e( 'All controls enabled', 'wp-mux' ); ?></li>
-					<li><strong><?php _e( 'Background Video:', 'wp-mux' ); ?></strong> <?php _e( 'Controls disabled for ambient playback', 'wp-mux' ); ?></li>
-				</ul>
 			</div>
 
 			<?php if ( $edit_mode ): ?>
