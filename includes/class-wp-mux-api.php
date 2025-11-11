@@ -120,12 +120,25 @@ class Wp_Mux_Api {
 	/**
 	 * Get a list of videos from MUX.
 	 *
+	 * Implements caching with 15-minute expiration to reduce API calls.
+	 *
 	 * @since    1.0.0
-	 * @param    int    $limit    Number of videos to retrieve (max 100).
-	 * @param    int    $page     Page number for pagination.
-	 * @return   array|WP_Error   The videos list or WP_Error on failure.
+	 * @param    int    $limit         Number of videos to retrieve (max 100).
+	 * @param    int    $page          Page number for pagination.
+	 * @param    bool   $bypass_cache  Whether to bypass cache and fetch fresh data.
+	 * @return   array|WP_Error        The videos list or WP_Error on failure.
 	 */
-	public function get_videos( $limit = 25, $page = 1 ) {
+	public function get_videos( $limit = 25, $page = 1, $bypass_cache = false ) {
+		$cache_key = "wp_mux_videos_list_{$limit}_{$page}";
+
+		// Return cached result if available and not bypassing cache
+		if ( ! $bypass_cache ) {
+			$cached = get_transient( $cache_key );
+			if ( false !== $cached ) {
+				return $cached;
+			}
+		}
+
 		$endpoint = '/video/v1/assets';
 		$params = array(
 			'limit' => min( $limit, 100 ),
@@ -141,6 +154,9 @@ class Wp_Mux_Api {
 			foreach ( $response['data'] as &$video ) {
 				$video = $this->enhance_video_data( $video );
 			}
+
+			// Cache successful response for 15 minutes
+			set_transient( $cache_key, $response, 15 * MINUTE_IN_SECONDS );
 		}
 
 		return $response;
@@ -149,13 +165,33 @@ class Wp_Mux_Api {
 	/**
 	 * Get details for a specific video.
 	 *
+	 * Implements caching with 1-hour expiration to reduce API calls.
+	 *
 	 * @since    1.0.0
-	 * @param    string    $asset_id    The MUX asset ID.
-	 * @return   array|WP_Error         The video details or WP_Error on failure.
+	 * @param    string    $asset_id       The MUX asset ID.
+	 * @param    bool      $bypass_cache   Whether to bypass cache and fetch fresh data.
+	 * @return   array|WP_Error            The video details or WP_Error on failure.
 	 */
-	public function get_video( $asset_id ) {
+	public function get_video( $asset_id, $bypass_cache = false ) {
+		$cache_key = "wp_mux_video_details_{$asset_id}";
+
+		// Return cached result if available and not bypassing cache
+		if ( ! $bypass_cache ) {
+			$cached = get_transient( $cache_key );
+			if ( false !== $cached ) {
+				return $cached;
+			}
+		}
+
 		$endpoint = '/video/v1/assets/' . sanitize_text_field( $asset_id );
-		return $this->make_request( $endpoint );
+		$response = $this->make_request( $endpoint );
+
+		// Cache successful response for 1 hour
+		if ( ! is_wp_error( $response ) ) {
+			set_transient( $cache_key, $response, HOUR_IN_SECONDS );
+		}
+
+		return $response;
 	}
 
 	/**
