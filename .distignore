@@ -1,0 +1,40 @@
+# Exclude these files from the distribution build
+.git
+.github
+.gitignore
+.distignore
+.ddev
+
+# Development files
+composer.json
+composer.lock
+package.json
+package-lock.json
+phpunit.xml
+phpunit.xml.dist
+
+# Tests
+tests/
+bin/
+
+# Documentation (keep only essential)
+*.md
+!README.md
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Build artifacts
+vendor/
+node_modules/
+coverage/
+.phpunit.cache/
+.phpunit.result.cache
+
+# OS files
+.DS_Store
+Thumbs.db
+*~

@@ -1,0 +1,34 @@
+# Composer
+/vendor/
+composer.lock
+
+# PHPUnit
+/coverage/
+/.phpunit.cache/
+/.phpunit.result.cache
+
+# WordPress Test Library
+/tmp/
+
+# IDE
+/.vscode/
+/.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node
+node_modules/
+package-lock.json
+
+# Build artifacts
+*.zip
+/dist/
+
+# Environment
+.env
+.env.local
