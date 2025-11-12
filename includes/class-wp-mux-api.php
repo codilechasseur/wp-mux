@@ -124,9 +124,6 @@ class Wp_Mux_Api {
 			}
 			
 			// Log detailed error for debugging
-			error_log( '[WP MUX] API Error - Code: ' . $response_code . ', Message: ' . $error_message );
-			error_log( '[WP MUX] API Error - Full response: ' . $response_body );
-			error_log( '[WP MUX] API Error - Endpoint: ' . $endpoint . ', Method: ' . $method );
 			
 			return new WP_Error( 'api_error', $error_message, array( 'status' => $response_code, 'response' => $error_data ) );
 		}
@@ -875,11 +872,7 @@ class Wp_Mux_Api {
 		
 		// Additional error logging
 		if ( is_wp_error( $response ) ) {
-			error_log( '[WP MUX] Signing key creation failed: ' . $response->get_error_message() );
-			error_log( '[WP MUX] Endpoint: ' . $endpoint );
-			error_log( '[WP MUX] API configured: ' . ( $this->is_configured() ? 'yes' : 'no' ) );
 		} else {
-			error_log( '[WP MUX] Signing key creation response: ' . print_r( $response, true ) );
 		}
 		
 		return $response;
@@ -967,7 +960,6 @@ class Wp_Mux_Api {
 		update_option( 'wp_mux_signing_key_private', base64_encode( $private_key ) );
 
 		// Log the creation
-		error_log( "[WP MUX] Auto-configured signing key: {$key_id}" );
 
 		return array(
 			'status' => 'created',

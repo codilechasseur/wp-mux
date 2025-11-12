@@ -99,7 +99,6 @@ class Wp_Mux_Media_Sync {
                             if ( ! is_wp_error( $caption_response ) && isset( $caption_response['data']['id'] ) ) {
                                 update_post_meta( $attach_id, '_mux_has_captions', true );
                                 update_post_meta( $attach_id, '_mux_caption_track_ids', array( $caption_response['data']['id'] ) );
-                                error_log( "[WP MUX] Auto-generated captions for asset {$asset_id}" );
                             }
                         }
 
@@ -134,7 +133,6 @@ class Wp_Mux_Media_Sync {
         if ( !empty($existing) ) {
             // If there are duplicates, log it for debugging
             if ( count($existing) > 1 ) {
-                error_log( 'WP-MUX: Found ' . count($existing) . ' duplicate attachments for asset ID: ' . $mux_id );
             }
             return;
         }

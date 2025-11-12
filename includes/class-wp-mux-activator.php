@@ -71,14 +71,12 @@ class Wp_Mux_Activator {
 		if ( ! $api->is_configured() ) {
 			// Can't create keys without API credentials
 			set_transient( 'wp_mux_needs_api_config', true, DAY_IN_SECONDS );
-			error_log( '[WP MUX] Plugin activated but API credentials not configured.' );
 			return;
 		}
 		
 		// Check if keys already exist (from previous installation)
 		$existing_key_id = get_option( 'wp_mux_signing_key_id', '' );
 		if ( ! empty( $existing_key_id ) ) {
-			error_log( '[WP MUX] Signing keys already exist: ' . $existing_key_id );
 			// If keys exist, set default to signed
 			update_option( 'wp_mux_default_playback_policy', 'signed' );
 			return;
@@ -90,7 +88,6 @@ class Wp_Mux_Activator {
 		if ( is_wp_error( $result ) ) {
 			// Log but don't show error - this is expected for many Mux accounts
 			$error_msg = $result->get_error_message();
-			error_log( '[WP MUX] Automatic signing key creation not available: ' . $error_msg );
 			
 			// Set a transient with helpful info (not an error, just informational)
 			set_transient( 'wp_mux_signing_keys_info', $error_msg, WEEK_IN_SECONDS );
@@ -99,7 +96,6 @@ class Wp_Mux_Activator {
 			update_option( 'wp_mux_default_playback_policy', 'public' );
 		} else {
 			// Success! Log it and set to signed
-			error_log( '[WP MUX] Signing keys auto-configured on activation: ' . $result['key_id'] );
 			set_transient( 'wp_mux_signing_key_success', $result['key_id'], WEEK_IN_SECONDS );
 			
 			// Now we can default to signed URLs

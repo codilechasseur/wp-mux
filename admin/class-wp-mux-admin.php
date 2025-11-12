@@ -73,13 +73,9 @@ class Wp_Mux_Admin {
 		$transient_key = 'wp_mux_upload_success_' . $user_id;
 		$success_data = get_transient( $transient_key );
 
-		// Debug: always show if we're on upload page
 		$screen = get_current_screen();
-		error_log( '[WP MUX] Checking for success notice - Screen: ' . ($screen ? $screen->id : 'none') . ', User: ' . $user_id . ', Transient key: ' . $transient_key );
-		error_log( '[WP MUX] Retrieved success data: ' . print_r($success_data, true) );
 
 		if ( $success_data ) {
-			error_log( '[WP MUX] SUCCESS NOTICE WILL BE DISPLAYED' );
 			echo '<div class="notice notice-success is-dismissible">';
 			echo '<p><strong>' . esc_html__( 'MUX Upload Successful!', 'wp-mux' ) . '</strong> ';
 			echo sprintf(
@@ -89,11 +85,7 @@ class Wp_Mux_Admin {
 			);
 			echo '</p></div>';
 
-			// Delete the transient so it only shows once
 			delete_transient( $transient_key );
-			error_log( '[WP MUX] Success notice displayed and transient deleted' );
-		} else {
-			error_log( '[WP MUX] No success data found for transient key: ' . $transient_key );
 		}
 
 		// Check for settings update notice
@@ -1089,6 +1081,34 @@ class Wp_Mux_Admin {
 			'wp-mux-settings',
 			'wp_mux_player_settings'
 		);
+
+		// Register uninstall behavior setting
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_delete_on_uninstall',
+			array(
+				'type' => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default' => false,
+			)
+		);
+
+		// Add uninstall settings section
+		add_settings_section(
+			'wp_mux_uninstall_settings',
+			__( 'Uninstall Options', 'wp-mux' ),
+			array( $this, 'uninstall_settings_section_callback' ),
+			'wp-mux-settings'
+		);
+
+		// Add uninstall behavior field
+		add_settings_field(
+			'wp_mux_delete_on_uninstall',
+			__( 'Delete Data on Uninstall', 'wp-mux' ),
+			array( $this, 'delete_on_uninstall_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_uninstall_settings'
+		);
 	}
 
 	/**
@@ -2015,16 +2035,9 @@ class Wp_Mux_Admin {
 		$result = $api->auto_configure_signing_keys();
 
 		if ( ! is_wp_error( $result ) ) {
-			// Success! Set transient to show notice
 			set_transient( 'wp_mux_signing_key_success', $result['key_id'], WEEK_IN_SECONDS );
-			
-			// Also set default playback policy to signed
 			update_option( 'wp_mux_default_playback_policy', 'signed' );
-			
-			error_log( '[WP MUX] Signing keys auto-configured after API credentials saved: ' . $result['key_id'] );
 		} else {
-			// Log error
-			error_log( '[WP MUX] Failed to auto-configure signing keys: ' . $result->get_error_message() );
 			set_transient( 'wp_mux_signing_key_error', $result->get_error_message(), DAY_IN_SECONDS );
 		}
 	}
@@ -2157,6 +2170,82 @@ class Wp_Mux_Admin {
 		<p class="description">
 			<?php _e( 'Useful for troubleshooting playback issues. Outputs HLS.js and Mux Data debug messages.', 'wp-mux' ); ?>
 		</p>
+		<?php
+	}
+
+	/**
+	 * Uninstall settings section callback.
+	 *
+	 * @since    1.1.1
+	 */
+	public function uninstall_settings_section_callback() {
+		echo '<p>' . __( 'Configure what happens when you uninstall WP Mux.', 'wp-mux' ) . '</p>';
+		echo '<div class="notice notice-warning inline" style="padding: 10px; margin: 15px 0;">';
+		echo '<p><strong>' . __( 'Critical Information:', 'wp-mux' ) . '</strong></p>';
+		echo '<ul style="margin: 10px 0 10px 20px; list-style: disc;">';
+		echo '<li>' . __( 'Videos on Mux.com are NEVER automatically deleted', 'wp-mux' ) . '</li>';
+		echo '<li>' . __( 'Attachment IDs are preserved to prevent broken Gutenberg blocks', 'wp-mux' ) . '</li>';
+		echo '<li>' . __( 'You can reinstall and reconnect videos later', 'wp-mux' ) . '</li>';
+		echo '</ul>';
+		echo '</div>';
+	}
+
+	/**
+	 * Delete on uninstall field callback.
+	 *
+	 * @since    1.1.1
+	 */
+	public function delete_on_uninstall_field_callback() {
+		$checked = checked( 1, get_option( 'wp_mux_delete_on_uninstall', 0 ), false );
+		?>
+		<label>
+			<input type="checkbox" name="wp_mux_delete_on_uninstall" value="1" <?php echo $checked; ?> id="wp_mux_delete_on_uninstall" />
+			<?php _e( 'Remove plugin settings and disconnect videos on uninstall', 'wp-mux' ); ?>
+		</label>
+		
+		<div id="wp-mux-delete-warning" style="display: none; margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107;">
+			<p style="margin: 0 0 10px 0;"><strong>⚠️ <?php _e( 'This will remove:', 'wp-mux' ); ?></strong></p>
+			<ul style="margin: 0 0 10px 20px; list-style: disc;">
+				<li><?php _e( 'All plugin settings and API credentials', 'wp-mux' ); ?></li>
+				<li><?php _e( 'All player themes you created', 'wp-mux' ); ?></li>
+				<li><?php _e( 'All video metadata (playback IDs, asset IDs, etc.)', 'wp-mux' ); ?></li>
+			</ul>
+			<p style="margin: 0 0 10px 0;"><strong>✓ <?php _e( 'Will be preserved:', 'wp-mux' ); ?></strong></p>
+			<ul style="margin: 0 0 10px 20px; list-style: disc;">
+				<li><?php _e( 'Attachment posts (marked as disconnected)', 'wp-mux' ); ?></li>
+				<li><?php _e( 'Attachment IDs (Gutenberg blocks won\'t break)', 'wp-mux' ); ?></li>
+				<li><?php _e( 'Recovery data (playback/asset IDs stored for reconnection)', 'wp-mux' ); ?></li>
+			</ul>
+			<p style="margin: 10px 0 0 0;"><strong>🔄 <?php _e( 'Recovery:', 'wp-mux' ); ?></strong> <?php _e( 'Reinstall the plugin and enter your API credentials to automatically reconnect videos.', 'wp-mux' ); ?></p>
+		</div>
+		
+		<div id="wp-mux-keep-notice" style="padding: 15px; background: #d1f0d1; border-left: 4px solid #46b450; margin-top: 15px;">
+			<p style="margin: 0;"><strong>✅ <?php _e( 'Recommended (Default):', 'wp-mux' ); ?></strong> <?php _e( 'Keep this unchecked. All data will be preserved so you can reinstall without any loss.', 'wp-mux' ); ?></p>
+		</div>
+		
+		<div class="notice notice-error inline" style="margin-top: 15px; padding: 10px;">
+			<p style="margin: 0;"><strong>🚨 <?php _e( 'Important:', 'wp-mux' ); ?></strong> <?php _e( 'Videos on Mux.com are NEVER automatically deleted. You must manually delete them from', 'wp-mux' ); ?> <a href="https://dashboard.mux.com" target="_blank">dashboard.mux.com</a> <?php _e( 'to stop billing charges.', 'wp-mux' ); ?></p>
+		</div>
+		
+		<script type="text/javascript">
+		jQuery(document).ready(function($) {
+			function toggleDeleteWarning() {
+				if ($('#wp_mux_delete_on_uninstall').is(':checked')) {
+					$('#wp-mux-delete-warning').slideDown();
+					$('#wp-mux-keep-notice').slideUp();
+				} else {
+					$('#wp-mux-delete-warning').slideUp();
+					$('#wp-mux-keep-notice').slideDown();
+				}
+			}
+			
+			// Show/hide on load
+			toggleDeleteWarning();
+			
+			// Show/hide on change
+			$('#wp_mux_delete_on_uninstall').on('change', toggleDeleteWarning);
+		});
+		</script>
 		<?php
 	}
 
@@ -2323,13 +2412,7 @@ class Wp_Mux_Admin {
 	 * Log debug info for MUX upload override.
 	 */
 	private function mux_debug_log( $message, $context = [] ) {
-		if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
-			$log = '[WP MUX] ' . $message;
-			if ( ! empty( $context ) ) {
-				$log .= ' | ' . json_encode( $context );
-			}
-			error_log( $log );
-		}
+		// Debug logging disabled for production
 	}
 
 	/**
@@ -3052,9 +3135,7 @@ class Wp_Mux_Admin {
 	 * Debug function to log all AJAX requests
 	 */
 	public function debug_all_ajax() {
-		if ( defined( 'DOING_AJAX' ) && DOING_AJAX ) {
-			error_log( 'WP-MUX: AJAX request detected - action = ' . ( isset( $_POST['action'] ) ? $_POST['action'] : ( isset( $_GET['action'] ) ? $_GET['action'] : 'not set' ) ) );
-		}
+		// Debug logging disabled for production
 	}
 
 	/**
@@ -3365,14 +3446,6 @@ class Wp_Mux_Admin {
 				'attachment_id' => $attachment_id,
 				'mux_asset_id'  => $mux_asset_id,
 				'error'         => $result->get_error_message(),
-			) );
-
-			// Log error but don't prevent WordPress deletion
-			error_log( sprintf(
-				'WP-MUX: Failed to delete MUX asset %s for attachment %d: %s',
-				$mux_asset_id,
-				$attachment_id,
-				$result->get_error_message()
 			) );
 		} else {
 			$this->mux_debug_log( 'Successfully deleted MUX asset', array(

@@ -121,7 +121,6 @@ class Wp_Mux_Public {
 		}
 
 		// Debug logging
-		error_log( 'WP MUX: render_mux_video called with URL: ' . $url );
 
 		// Check if this is a MUX stream URL (both .m3u8 and .mp4, or has mux=1 parameter)
 		if ( strpos( $url, 'stream.mux.com' ) !== false &&
@@ -129,7 +128,6 @@ class Wp_Mux_Public {
 			   strpos( $url, '.mp4' ) !== false ||
 			   strpos( $url, 'mux=1' ) !== false ) ) {
 
-			error_log( 'WP MUX: Processing MUX video URL' );
 
 			// Extract playback ID from the URL
 			$parsed_url = parse_url( $url );
@@ -137,7 +135,6 @@ class Wp_Mux_Public {
 			$playback_id = basename( $path, '.m3u8' );
 			$playback_id = basename( $playback_id, '.mp4' );
 
-			error_log( 'WP MUX: Extracted playback ID: ' . $playback_id );
 
 			$poster = isset( $attr['poster'] ) ? $attr['poster'] : '';
 
@@ -181,7 +178,6 @@ class Wp_Mux_Public {
 			// Apply theme to the player
 			$html = $this->apply_theme_to_player( $html );
 
-			error_log( 'WP MUX: Generated HTML: ' . $html );
 		}
 
 		return $html;
@@ -191,19 +187,16 @@ class Wp_Mux_Public {
 	 * Process content for MUX videos
 	 */
 	public function process_content_videos( $content ) {
-		error_log( 'WP MUX: process_content_videos called' );
 
 		// Look for video elements with MUX URLs (both .m3u8 and .mp4)
 		$pattern = '/<video[^>]*src=["\']([^"\']*stream\.mux\.com[^"\']*\.(m3u8|mp4)[^"\']*)["\']/i';
 
 		if ( preg_match_all( $pattern, $content, $matches, PREG_SET_ORDER ) ) {
-			error_log( 'WP MUX: Found ' . count( $matches ) . ' MUX videos in content' );
 
 			foreach ( $matches as $match ) {
 				$full_match = $match[0];
 				$url = $match[1];
 
-				error_log( 'WP MUX: Processing video with URL: ' . $url );
 
 				// Extract playback ID
 				$path = parse_url( $url, PHP_URL_PATH );
@@ -223,7 +216,6 @@ class Wp_Mux_Public {
 				// Also replace closing video tags with mux-player
 				$content = str_replace( '</video>', '</mux-player>', $content );
 
-				error_log( 'WP MUX: Replaced with: ' . $replacement );
 			}
 		}
 
@@ -235,9 +227,6 @@ class Wp_Mux_Public {
 	 */
 	public function process_video_blocks( $block_content, $block ) {
 		if ( $block['blockName'] === 'core/video' ) {
-			error_log( 'WP MUX: Processing video block' );
-			error_log( 'WP MUX: Block content: ' . $block_content );
-			error_log( 'WP MUX: Block data: ' . print_r( $block, true ) );
 
 			$is_mux_video = false;
 			$playback_id = '';
@@ -250,14 +239,12 @@ class Wp_Mux_Public {
 				if ( $attachment && $attachment->post_mime_type === 'video/mux' ) {
 					$is_mux_video = true;
 					$playback_id = get_post_meta( $attachment_id, '_mux_playback_id', true );
-					error_log( 'WP MUX: Found MUX video by attachment ID: ' . $attachment_id . ', playback_id: ' . $playback_id );
 				}
 			}
 
 			// Check if this block contains a MUX stream URL (both .m3u8 and .mp4)
 			if ( ! $is_mux_video && strpos( $block_content, 'stream.mux.com' ) !== false && ( strpos( $block_content, '.m3u8' ) !== false || strpos( $block_content, '.mp4' ) !== false ) ) {
 				$is_mux_video = true;
-				error_log( 'WP MUX: Found MUX video by stream.mux.com URL' );
 
 				// Extract URL and get playback ID
 				$pattern = '/src=["\']([^"\']*stream\.mux\.com[^"\']*\.(m3u8|mp4)[^"\']*)["\']/i';
@@ -266,13 +253,11 @@ class Wp_Mux_Public {
 					$path = parse_url( $url, PHP_URL_PATH );
 					$playback_id = basename( $path, '.m3u8' );
 					$playback_id = basename( $playback_id, '.mp4' );
-					error_log( 'WP MUX: Extracted playback ID from URL: ' . $playback_id );
 				}
 			}
 
 			// Process if this is a MUX video
 			if ( $is_mux_video && ! empty( $playback_id ) ) {
-				error_log( 'WP MUX: Processing as MUX video with playback ID: ' . $playback_id );
 
 				// Check if user wants to use custom uploaded poster instead of Mux thumbnails
 				$use_custom_poster = isset( $block['attrs']['mux_use_custom_poster'] ) ? $block['attrs']['mux_use_custom_poster'] : false;
@@ -294,10 +279,6 @@ class Wp_Mux_Public {
 
 				// Get theme from block attributes
 				$theme_id = isset( $block['attrs']['mux_theme'] ) ? $block['attrs']['mux_theme'] : '';
-				error_log( 'WP MUX: Theme ID from block attributes: "' . $theme_id . '"' );
-				error_log( 'WP MUX: Use custom poster: ' . ( $use_custom_poster ? 'true' : 'false' ) );
-				error_log( 'WP MUX: Generated thumbnail URL: ' . $thumbnail_url );
-				error_log( 'WP MUX: Available block attributes: ' . print_r( $block['attrs'], true ) );
 
 				// Check if Gutenberg block has controls enabled
 				// In Gutenberg, when controls are disabled, the video element won't have the controls attribute
@@ -311,9 +292,6 @@ class Wp_Mux_Public {
 				// Gutenberg block controls should override everything
 				$controls_attr = $block_controls_enabled ? 'controls' : '';
 
-				error_log( 'WP MUX: Has controls attribute in HTML: ' . ( $has_controls_attr ? 'true' : 'false' ) );
-				error_log( 'WP MUX: Block controls enabled: ' . ( $block_controls_enabled ? 'true' : 'false' ) );
-				error_log( 'WP MUX: Final controls attribute: "' . $controls_attr . '"' );
 
 				// Build the mux-player opening tag
 				$mux_player_tag = '<mux-player playback-id="' . esc_attr( $playback_id ) . '"';
@@ -348,7 +326,6 @@ class Wp_Mux_Public {
 					$block_content = $this->apply_theme_to_player( $block_content, null, ! $block_controls_enabled );
 				}
 
-				error_log( 'WP MUX: Modified block content: ' . $block_content );
 			}
 		}
 
@@ -466,33 +443,25 @@ class Wp_Mux_Public {
 		$theme_manager = new Wp_Mux_Theme_Manager();
 
 		// Log what theme ID we received
-		error_log( 'WP MUX: apply_theme_to_player called with theme_id: "' . $theme_id . '", force_disable_controls: ' . ( $force_disable_controls ? 'true' : 'false' ) );
 
 		// Use default theme if none specified or if explicitly empty
 		if ( empty( $theme_id ) ) {
 			$theme_id = $theme_manager->get_default_theme_id();
-			error_log( 'WP MUX: No theme specified, using default theme ID: "' . $theme_id . '"' );
 		}
 
 		// Get theme data
 		$theme = $theme_manager->get_theme( $theme_id );
 		if ( ! $theme ) {
-			error_log( 'WP MUX: Theme not found for ID: "' . $theme_id . '"' );
 			return $player_html;
 		}
 
-		error_log( 'WP MUX: Found theme: "' . $theme['name'] . '" for ID: "' . $theme_id . '"' );
 
 		// Check if main controls are enabled in theme
 		$main_controls_enabled = isset( $theme['controls']['controls'] ) ? $theme['controls']['controls'] : true;
 
-		error_log( 'WP MUX: Theme ID: ' . $theme_id );
-		error_log( 'WP MUX: Theme main controls enabled: ' . ( $main_controls_enabled ? 'true' : 'false' ) );
-		error_log( 'WP MUX: Theme controls data: ' . print_r( $theme['controls'], true ) );
 
 		// If Gutenberg explicitly disabled controls, remove the controls attribute completely
 		if ( $force_disable_controls ) {
-			error_log( 'WP MUX: Gutenberg block has controls disabled - removing controls attribute and adding CSS' );
 
 			// Remove controls attribute completely (standalone or with value)
 			// Match: controls, controls="", controls='', controls="true", etc.
@@ -534,11 +503,9 @@ class Wp_Mux_Public {
 				);
 			}
 
-			error_log( 'WP MUX: After removing controls and adding CSS: ' . $player_html );
 		} else {
 			// Normal theme application - ensure controls attribute is present if theme has controls enabled
 			// CSS will handle visibility based on theme settings
-			error_log( 'WP MUX: Applying theme controls normally' );
 			if ( $main_controls_enabled && strpos( $player_html, 'controls' ) === false ) {
 				$player_html = preg_replace(
 					'/(<mux-player[^>]*?)>/',

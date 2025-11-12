@@ -632,18 +632,15 @@ class Wp_Mux_Admin_Ajax
      */
     public function generateCaptions(): void
     {
-        error_log('[WP MUX] generateCaptions called');
         
         // Verify nonce - action is 'wp_mux_save_settings', field is 'wp_mux_settings_nonce'
         if (!isset($_POST['nonce']) || !wp_verify_nonce($_POST['nonce'], 'wp_mux_save_settings')) {
-            error_log('[WP MUX] Nonce verification failed');
             wp_send_json_error(
                 Wp_Mux_Utils::errorResponse(__('Security verification failed. Please refresh the page and try again.', 'wp-mux'), 'nonce_failed')
             );
         }
 
         if (!current_user_can('upload_files')) {
-            error_log('[WP MUX] Permission denied for caption generation');
             wp_send_json_error(
                 Wp_Mux_Utils::errorResponse(__('Insufficient permissions.', 'wp-mux'), 'permission_denied')
             );
@@ -652,37 +649,29 @@ class Wp_Mux_Admin_Ajax
         $attachmentId = isset($_POST['attachment_id']) ? intval($_POST['attachment_id']) : 0;
         $language = isset($_POST['language']) ? sanitize_text_field($_POST['language']) : 'en';
 
-        error_log('[WP MUX] Caption generation - Attachment ID: ' . $attachmentId . ', Language: ' . $language);
 
         if (!$attachmentId) {
-            error_log('[WP MUX] Invalid attachment ID');
             wp_send_json_error(
                 Wp_Mux_Utils::errorResponse(__('Invalid attachment ID.', 'wp-mux'), 'invalid_attachment')
             );
         }
 
         $assetId = get_post_meta($attachmentId, '_mux_asset_id', true);
-        error_log('[WP MUX] Asset ID for attachment ' . $attachmentId . ': ' . $assetId);
 
         if (!$assetId) {
-            error_log('[WP MUX] No MUX asset ID found for attachment');
             wp_send_json_error(
                 Wp_Mux_Utils::errorResponse(__('MUX asset ID not found.', 'wp-mux'), 'no_asset_id')
             );
         }
 
-        error_log('[WP MUX] Calling API to generate captions for asset: ' . $assetId);
         $response = $this->api->generate_captions($assetId, $language);
 
         if (is_wp_error($response)) {
-            error_log('[WP MUX] Caption generation failed: ' . $response->get_error_message());
-            error_log('[WP MUX] Error data: ' . print_r($response->get_error_data(), true));
             wp_send_json_error(
                 Wp_Mux_Utils::errorResponse($response->get_error_message())
             );
         }
 
-        error_log('[WP MUX] Caption generation response: ' . print_r($response, true));
 
         // Update metadata
         update_post_meta($attachmentId, '_mux_has_captions', true);
@@ -692,7 +681,6 @@ class Wp_Mux_Admin_Ajax
         }
         update_post_meta($attachmentId, '_mux_caption_track_ids', $trackIds);
 
-        error_log('[WP MUX] Caption generation successful');
 
         wp_send_json_success(
             Wp_Mux_Utils::successResponse(

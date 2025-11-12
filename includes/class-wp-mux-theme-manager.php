@@ -124,7 +124,6 @@ class Wp_Mux_Theme_Manager {
 
 		// Check if we have a theme with ID 'default' that isn't actually the default theme
 		if ( isset( $themes['default'] ) && $themes['default']['name'] !== 'Default' ) {
-			error_log( 'WP MUX: Theme migration needed - found non-default theme with default ID' );
 
 			$old_default_theme = $themes['default'];
 			$new_theme_id = $this->create_slug_from_name( $old_default_theme['name'] );
@@ -162,7 +161,6 @@ class Wp_Mux_Theme_Manager {
 			update_option( 'wp_mux_themes', $themes );
 			$migration_needed = true;
 
-			error_log( 'WP MUX: Theme migration completed - moved "' . $old_default_theme['name'] . '" from ID "default" to "' . $new_theme_id . '"' );
 		}
 
 		return $migration_needed;

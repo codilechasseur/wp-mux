@@ -1,114 +1,173 @@
-=== Plugin Name ===
-Contributors: (this should be a list of wordpress.org userid's)
-Donate link: https://codilechasseur@gmail.com/
-Tags: comments, spam
-Requires at least: 3.0.1
-Tested up to: 3.4
-Stable tag: 4.3
+=== WP Mux ===
+Contributors: codilechasseur
+Tags: video, mux, streaming, media, video hosting, hls, video player
+Requires at least: 5.0
+Tested up to: 6.4
+Requires PHP: 7.4
+Stable tag: 1.1.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
-Here is a short description of the plugin.  This should be no more than 150 characters.  No markup here.
+Seamlessly integrate Mux video streaming platform with your WordPress media library for professional video hosting and playback.
 
 == Description ==
 
-This is the long description.  No limit, and you can use Markdown (as well as in the following sections).
+WP Mux brings professional video streaming to WordPress by integrating with Mux, the powerful video hosting and streaming platform. Upload videos directly through your WordPress media library and deliver them via Mux's lightning-fast CDN with adaptive bitrate streaming.
 
-For backwards compatibility, if this section is missing, the full length of the short description will be used, and
-Markdown parsed.
+= Key Features =
 
-A few notes about the sections above:
+* **Direct Media Library Integration** - Upload videos through WordPress and automatically send them to Mux
+* **Professional Video Player** - Beautiful, customizable Mux Player with full controls
+* **Adaptive Streaming** - Automatic quality adjustment based on viewer's connection speed
+* **Video Analytics** - Track views, watch time, and engagement metrics
+* **Custom Player Themes** - Create and manage multiple player themes
+* **Gutenberg Support** - Native video block integration
+* **Signed URLs** - Protect your videos with automatic signing key management
+* **Bulk Migration** - Migrate existing WordPress videos to Mux
+* **Multiple Quality Tiers** - Choose from baseline, smart, or premium encoding
 
-*   "Contributors" is a comma separated list of wp.org/wp-plugins.org usernames
-*   "Tags" is a comma separated list of tags that apply to the plugin
-*   "Requires at least" is the lowest version that the plugin will work on
-*   "Tested up to" is the highest version that you've *successfully used to test the plugin*. Note that it might work on
-higher versions... this is just the highest one you've verified.
-*   Stable tag should indicate the Subversion "tag" of the latest stable version, or "trunk," if you use `/trunk/` for
-stable.
+= Perfect For =
 
-    Note that the `readme.txt` of the stable tag is the one that is considered the defining one for the plugin, so
-if the `/trunk/readme.txt` file says that the stable tag is `4.3`, then it is `/tags/4.3/readme.txt` that'll be used
-for displaying information about the plugin.  In this situation, the only thing considered from the trunk `readme.txt`
-is the stable tag pointer.  Thus, if you develop in trunk, you can update the trunk `readme.txt` to reflect changes in
-your in-development version, without having that information incorrectly disclosed about the current stable version
-that lacks those changes -- as long as the trunk's `readme.txt` points to the correct stable tag.
+* Content creators and video publishers
+* Membership sites with video courses
+* Marketing teams sharing product demos
+* Anyone who needs reliable, professional video delivery
 
-    If no stable tag is provided, it is assumed that trunk is stable, but you should specify "trunk" if that's where
-you put the stable version, in order to eliminate any doubt.
+= What is Mux? =
+
+Mux is a video hosting platform that handles encoding, storage, and delivery of your videos. It provides:
+
+* Global CDN for fast video delivery
+* Automatic transcoding to multiple formats
+* Adaptive bitrate streaming (HLS)
+* Real-time analytics and quality monitoring
+* 99.9% uptime SLA
+
+You'll need a Mux account to use this plugin. Sign up at [mux.com](https://mux.com).
+
+= Documentation =
+
+For detailed setup instructions and feature guides, visit the plugin documentation.
 
 == Installation ==
 
-This section describes how to install the plugin and get it working.
+= Automatic Installation =
 
-e.g.
+1. Log in to your WordPress admin panel
+2. Go to Plugins > Add New
+3. Search for "WP Mux"
+4. Click "Install Now" and then "Activate"
 
-1. Upload `wp-mux.php` to the `/wp-content/plugins/` directory
-1. Activate the plugin through the 'Plugins' menu in WordPress
-1. Place `<?php do_action('plugin_name_hook'); ?>` in your templates
+= Manual Installation =
+
+1. Download the plugin zip file
+2. Go to Plugins > Add New > Upload Plugin
+3. Choose the zip file and click "Install Now"
+4. Activate the plugin
+
+= Setup =
+
+1. Go to MUX Videos > Settings
+2. Enter your Mux API credentials (Access Token and Secret Key)
+3. Get your credentials from [dashboard.mux.com](https://dashboard.mux.com) under Settings > Access Tokens
+4. Configure your default upload settings
+5. Start uploading videos!
+
+= Quick Start =
+
+After setup, you can:
+
+* Upload videos through Media > Add New
+* Enable "Override Video Uploads" in settings to automatically send all video uploads to Mux
+* Use videos in posts/pages via the Gutenberg video block
+* View video analytics in the media library
+* Manage all Mux videos from MUX Videos > All Videos
 
 == Frequently Asked Questions ==
 
-= A question that someone might have =
+= Do I need a Mux account? =
 
-An answer to that question.
+Yes, you need a Mux account to use this plugin. Sign up at [mux.com](https://mux.com). They offer a free trial with generous limits.
 
-= What about foo bar? =
+= What happens to my videos if I uninstall the plugin? =
 
-Answer to foo bar dilemma.
+By default, all your data is preserved when you uninstall. If you enable "full cleanup" in settings, your WordPress attachments are converted to disconnected placeholders (preserving attachment IDs so Gutenberg blocks don't break), but videos remain on Mux. You can reinstall and reconnect them anytime.
+
+= Will my Gutenberg video blocks break if I uninstall? =
+
+No! We preserve attachment IDs specifically to prevent this. Videos won't play while the plugin is uninstalled, but the blocks remain intact and will work again when you reinstall.
+
+= Are videos automatically deleted from Mux when I uninstall? =
+
+No. Videos on Mux are NEVER automatically deleted on uninstall. You must manually delete them from your Mux dashboard at [dashboard.mux.com](https://dashboard.mux.com) to stop billing charges.
+
+= Can I migrate my existing WordPress videos to Mux? =
+
+Yes! Go to MUX Videos > Migrate Videos to bulk migrate your existing video files to Mux.
+
+= Do I need to enable MP4 support? =
+
+MP4 support is optional. It allows users to download videos directly but increases storage costs on Mux. Most users only need HLS streaming which is enabled by default.
+
+= Can I protect my videos? =
+
+Yes! Enable "Signed URLs" in upload settings. The plugin automatically manages signing keys for you, creating secure tokens for each viewer.
+
+= What video formats are supported? =
+
+Mux accepts virtually any video format (MP4, MOV, AVI, MKV, WebM, etc.). It automatically transcodes them to HLS for streaming.
+
+= How do I customize the video player? =
+
+Go to MUX Videos > Themes to create custom player themes with different colors, controls, and behaviors.
+
+= Can I see video analytics? =
+
+Yes! Click on any video in your media library to view detailed analytics including views, watch time, quality scores, and more.
+
+= What's the difference between encoding tiers? =
+
+* **Baseline**: Standard quality, lowest cost
+* **Smart**: Optimized encoding with better quality-to-size ratio
+* **Plus**: Premium quality with advanced encoding
+
+Note: Encoding tier cannot be changed after upload.
+
+= Can I use this with Gutenberg? =
+
+Yes! Full Gutenberg support. Simply use the video block and select your Mux video from the media library.
+
+= Does this work with page builders? =
+
+The plugin works with any WordPress site. For page builders, insert videos using their media/video modules and select from your media library.
+
+= What happens if Mux is down? =
+
+Mux has 99.9% uptime. In the rare case of an outage, videos will display a loading state until service is restored. Your WordPress site remains fully functional.
 
 == Screenshots ==
 
-1. This screen shot description corresponds to screenshot-1.(png|jpg|jpeg|gif). Note that the screenshot is taken from
-the /assets directory or the directory that contains the stable readme.txt (tags or trunk). Screenshots in the /assets
-directory take precedence. For example, `/assets/screenshot-1.png` would win over `/tags/4.3/screenshot-1.png`
-(or jpg, jpeg, gif).
-2. This is the second screen shot
+1. Plugin settings page with API credentials and upload defaults
+2. Video management interface showing all Mux videos
+3. Media library with Mux videos and analytics
+4. Video analytics dashboard with engagement metrics
+5. Player theme editor for customization
+6. Bulk video migration interface
 
 == Changelog ==
 
-= 1.0 =
-* A change since the previous version.
-* Another change.
-
-= 0.5 =
-* List versions from most recent at top to oldest at bottom.
+= 1.1.1 =
+* Initial public release
+* Smart uninstall system that preserves attachment IDs
+* Automatic signing key management for private videos
+* Media library integration with analytics
+* Custom player themes
+* Bulk video migration tool
+* Gutenberg block support
+* Player options for quality control
+* Account statistics overview
 
 == Upgrade Notice ==
 
-= 1.0 =
-Upgrade notices describe the reason a user should upgrade.  No more than 300 characters.
-
-= 0.5 =
-This version fixes a security related bug.  Upgrade immediately.
-
-== Arbitrary section ==
-
-You may provide arbitrary sections, in the same format as the ones above.  This may be of use for extremely complicated
-plugins where more information needs to be conveyed that doesn't fit into the categories of "description" or
-"installation."  Arbitrary sections will be shown below the built-in sections outlined above.
-
-== A brief Markdown Example ==
-
-Ordered list:
-
-1. Some feature
-1. Another feature
-1. Something else about the plugin
-
-Unordered list:
-
-* something
-* something else
-* third thing
-
-Here's a link to [WordPress](http://wordpress.org/ "Your favorite software") and one to [Markdown's Syntax Documentation][markdown syntax].
-Titles are optional, naturally.
-
-[markdown syntax]: http://daringfireball.net/projects/markdown/syntax
-            "Markdown is what the parser uses to process much of the readme file"
-
-Markdown uses email style notation for blockquotes and I've been told:
-> Asterisks for *emphasis*. Double it up  for **strong**.
-
-`<?php code(); // goes in backticks ?>`
+= 1.1.1 =
+First stable release! Professional video streaming for WordPress with Mux integration.

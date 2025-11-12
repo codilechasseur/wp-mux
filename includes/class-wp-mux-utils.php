@@ -211,7 +211,6 @@ class Wp_Mux_Utils
     {
         if (defined('WP_DEBUG') && WP_DEBUG && defined('WP_DEBUG_LOG') && WP_DEBUG_LOG) {
             $prefix = '[WP MUX ' . strtoupper($level) . ']';
-            error_log($prefix . ' ' . $message);
         }
     }
 
