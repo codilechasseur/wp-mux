@@ -2272,43 +2272,29 @@ class Wp_Mux_Admin {
 	 * @since    1.1.1
 	 */
 	public function uninstall_settings_section_callback() {
-		// Count MUX videos on the site
 		$mux_video_count = $this->get_mux_video_count();
 		
+		echo '<p style="margin: 0 0 20px 0;">';
 		if ( $mux_video_count > 0 ) {
-			// Site has MUX videos - recommend migrate back
-			echo '<div class="notice notice-info inline" style="padding: 10px; margin: 15px 0 0 0;">';
-			echo '<p><strong>' . __( 'MUX Videos Detected:', 'wp-mux' ) . '</strong> ';
 			echo sprintf(
 				_n( 
-					'Your site has <strong>%d MUX video</strong>.', 
-					'Your site has <strong>%d MUX videos</strong>.', 
+					'You have <strong>%d MUX video</strong> on your site. Choose what happens if you uninstall this plugin:', 
+					'You have <strong>%d MUX videos</strong> on your site. Choose what happens if you uninstall this plugin:', 
 					$mux_video_count, 
 					'wp-mux' 
 				),
 				$mux_video_count
 			);
-			echo '</p></div>';
-			
-			echo '<div class="notice notice-warning inline" style="padding: 10px; margin: 15px 0;">';
-			echo '<p><strong>⚠️ ' . __( 'Before Uninstalling:', 'wp-mux' ) . '</strong></p>';
-			echo '<ol style="margin: 10px 0 10px 20px; list-style: decimal;">';
-			echo '<li><strong>' . __( 'Recommended:', 'wp-mux' ) . '</strong> ' . sprintf(
-				__( 'Use the %sMigrate Videos%s page to download your videos back to WordPress before uninstalling.', 'wp-mux' ),
-				'<a href="' . admin_url( 'admin.php?page=wp-mux-migration' ) . '">',
-				'</a>'
-			) . '</li>';
-			echo '<li>' . __( 'Important: Videos on Mux.com are NEVER automatically deleted and will continue to incur storage costs.', 'wp-mux' ) . '</li>';
-			echo '<li>' . __( 'Delete videos manually from', 'wp-mux' ) . ' <a href="https://dashboard.mux.com" target="_blank">dashboard.mux.com</a> ' . __( 'to stop billing charges.', 'wp-mux' ) . '</li>';
-			echo '</ol>';
-			echo '</div>';
 		} else {
-			// No MUX videos - simpler message
-			echo '<p>' . __( 'Configure what happens when you uninstall WP Mux. No MUX videos detected on your site.', 'wp-mux' ) . '</p>';
-			echo '<div class="notice notice-info inline" style="padding: 10px; margin: 15px 0;">';
-			echo '<p><strong>' . __( 'Safe to Uninstall:', 'wp-mux' ) . '</strong> ' . __( 'Your site has no MUX videos. You can safely uninstall the plugin at any time.', 'wp-mux' ) . '</p>';
-			echo '</div>';
+			_e( 'No MUX videos detected. Choose what happens if you uninstall this plugin:', 'wp-mux' );
 		}
+		echo '</p>';
+		
+		echo '<div style="background: #f0f6fc; border: 1px solid #0c5c9d; border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;">';
+		echo '<p style="margin: 0; color: #0c5c9d;"><strong>⚠️ ' . __( 'Important:', 'wp-mux' ) . '</strong> ';
+		_e( 'Videos stored on Mux.com are NEVER automatically deleted and will continue to incur storage costs. You must delete them manually from', 'wp-mux' );
+		echo ' <a href="https://dashboard.mux.com" target="_blank">dashboard.mux.com</a>.</p>';
+		echo '</div>';
 	}
 
 	/**
@@ -2320,63 +2306,78 @@ class Wp_Mux_Admin {
 		$checked = checked( 1, get_option( 'wp_mux_delete_on_uninstall', 0 ), false );
 		$mux_video_count = $this->get_mux_video_count();
 		?>
-		<label>
-			<input type="checkbox" name="wp_mux_delete_on_uninstall" value="1" <?php echo $checked; ?> id="wp_mux_delete_on_uninstall" />
-			<?php _e( 'Remove plugin settings and disconnect videos on uninstall', 'wp-mux' ); ?>
-		</label>
 		
-		<div id="wp-mux-delete-warning" style="display: none; margin-top: 15px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107;">
-			<p style="margin: 0 0 10px 0;"><strong>⚠️ <?php _e( 'This will remove:', 'wp-mux' ); ?></strong></p>
-			<ul style="margin: 0 0 10px 20px; list-style: disc;">
-				<li><?php _e( 'All plugin settings and API credentials', 'wp-mux' ); ?></li>
-				<li><?php _e( 'All player themes you created', 'wp-mux' ); ?></li>
-				<li><?php _e( 'All video metadata (playback IDs, asset IDs, etc.)', 'wp-mux' ); ?></li>
-			</ul>
-			<p style="margin: 0 0 10px 0;"><strong>✓ <?php _e( 'Will be preserved:', 'wp-mux' ); ?></strong></p>
-			<ul style="margin: 0 0 10px 20px; list-style: disc;">
-				<li><?php _e( 'Attachment posts (marked as disconnected)', 'wp-mux' ); ?></li>
-				<li><?php _e( 'Attachment IDs (Gutenberg blocks won\'t break)', 'wp-mux' ); ?></li>
-				<li><?php _e( 'Recovery data (playback/asset IDs stored for reconnection)', 'wp-mux' ); ?></li>
-			</ul>
-			<p style="margin: 10px 0 0 0;"><strong>🔄 <?php _e( 'Recovery:', 'wp-mux' ); ?></strong> <?php _e( 'Reinstall the plugin and enter your API credentials to automatically reconnect videos.', 'wp-mux' ); ?></p>
-		</div>
-		
-		<?php if ( $mux_video_count > 0 ) : ?>
-		<div id="wp-mux-keep-notice" style="padding: 15px; background: #d1f0d1; border-left: 4px solid #46b450; margin-top: 15px;">
-			<p style="margin: 0 0 10px 0;"><strong>✅ <?php _e( 'Recommended (Default):', 'wp-mux' ); ?></strong> <?php _e( 'Keep this unchecked. All data will be preserved so you can reinstall without any loss.', 'wp-mux' ); ?></p>
-			<p style="margin: 0;"><strong>💡 <?php _e( 'Better Option:', 'wp-mux' ); ?></strong> <?php 
-				echo sprintf(
-					__( 'Use the %sMigrate Videos%s page to download your videos back to WordPress before uninstalling.', 'wp-mux' ),
-					'<a href="' . admin_url( 'admin.php?page=wp-mux-migration' ) . '">',
-					'</a>'
-				);
-			?></p>
-		</div>
-		<?php else : ?>
-		<div id="wp-mux-keep-notice" style="padding: 15px; background: #d1f0d1; border-left: 4px solid #46b450; margin-top: 15px;">
-			<p style="margin: 0;"><strong>✅ <?php _e( 'Recommended (Default):', 'wp-mux' ); ?></strong> <?php _e( 'Keep this unchecked. All data will be preserved so you can reinstall without any loss.', 'wp-mux' ); ?></p>
-		</div>
-		<?php endif; ?>
-		
-		<script type="text/javascript">
-		jQuery(document).ready(function($) {
-			function toggleDeleteWarning() {
-				if ($('#wp_mux_delete_on_uninstall').is(':checked')) {
-					$('#wp-mux-delete-warning').slideDown();
-					$('#wp-mux-keep-notice').slideUp();
-				} else {
-					$('#wp-mux-delete-warning').slideUp();
-					$('#wp-mux-keep-notice').slideDown();
-				}
-			}
+		<div style="max-width: 800px;">
+			<!-- Option 1: Keep Everything (Default) -->
+			<div style="border: 2px solid #46b450; border-radius: 6px; padding: 20px; margin-bottom: 16px; background: #f6fef6;">
+				<h3 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 16px;">
+					<span style="background: #46b450; color: white; border-radius: 50%; width: 28px; height: 28px; display: inline-block; text-align: center; line-height: 28px; margin-right: 8px;">1</span>
+					<?php _e( 'Keep Everything (Recommended)', 'wp-mux' ); ?>
+				</h3>
+				<p style="margin: 0 0 12px 0;"><?php _e( 'Leave the checkbox below <strong>unchecked</strong> when you uninstall.', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php _e( 'What happens:', 'wp-mux' ); ?></p>
+				<ul style="margin: 0 0 12px 0; padding-left: 24px; list-style-type: disc;">
+					<li><?php _e( 'Temporary data cleared (caches, queues)', 'wp-mux' ); ?></li>
+					<li><?php _e( 'All videos, settings, and themes preserved', 'wp-mux' ); ?></li>
+					<li><?php _e( 'Can reinstall anytime without data loss', 'wp-mux' ); ?></li>
+					<li><?php _e( 'Video blocks in content: Will stop working but can be reactivated by reinstalling', 'wp-mux' ); ?></li>
+				</ul>
+				<p style="margin: 0; color: #2e7d32;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Testing, troubleshooting, or taking a break from Mux', 'wp-mux' ); ?></p>
+			</div>
 			
-			// Show/hide on load
-			toggleDeleteWarning();
+			<?php if ( $mux_video_count > 0 ) : ?>
+			<!-- Option 2: Migrate Videos Back -->
+			<div style="border: 2px solid #0073aa; border-radius: 6px; padding: 20px; margin-bottom: 16px; background: #f0f6fc;">
+				<h3 style="margin: 0 0 12px 0; color: #0073aa; font-size: 16px;">
+					<span style="background: #0073aa; color: white; border-radius: 50%; width: 28px; height: 28px; display: inline-block; text-align: center; line-height: 28px; margin-right: 8px;">2</span>
+					<?php _e( 'Migrate Videos Back to WordPress', 'wp-mux' ); ?>
+				</h3>
+				<p style="margin: 0 0 12px 0;"><?php _e( 'Before uninstalling, download your videos from Mux back to WordPress hosting.', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php _e( 'Steps:', 'wp-mux' ); ?></p>
+				<ol style="margin: 0 0 12px 0; padding-left: 24px;">
+					<li><?php 
+						echo sprintf(
+							__( 'Use the %sMigrate Back%s page to download videos', 'wp-mux' ),
+							'<a href="' . admin_url( 'admin.php?page=wp-mux-migrate-back' ) . '">',
+							'</a>'
+						);
+					?></li>
+					<li><?php _e( 'Migration will update video blocks in your content to use WordPress-hosted videos', 'wp-mux' ); ?></li>
+					<li><?php _e( 'Optionally delete videos from Mux.com to stop billing', 'wp-mux' ); ?></li>
+					<li><?php _e( 'Then uninstall the plugin (Option 1 or 3)', 'wp-mux' ); ?></li>
+				</ol>
+				<p style="margin: 0; color: #0073aa;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Permanently moving away from Mux hosting', 'wp-mux' ); ?></p>
+			</div>
+			<?php endif; ?>
 			
-			// Show/hide on change
-			$('#wp_mux_delete_on_uninstall').on('change', toggleDeleteWarning);
-		});
-		</script>
+			<!-- Option 3: Full Cleanup -->
+			<div style="border: 2px solid #dba617; border-radius: 6px; padding: 20px; background: #fffbf0;">
+				<h3 style="margin: 0 0 12px 0; color: #8a6d15; font-size: 16px;">
+					<span style="background: #dba617; color: white; border-radius: 50%; width: 28px; height: 28px; display: inline-block; text-align: center; line-height: 28px; margin-right: 8px;"><?php echo $mux_video_count > 0 ? '3' : '2'; ?></span>
+					<?php _e( 'Full Cleanup', 'wp-mux' ); ?>
+				</h3>
+				<p style="margin: 0 0 12px 0;"><?php _e( '<strong>Check the box below</strong> before uninstalling to remove all plugin data.', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php _e( 'What happens:', 'wp-mux' ); ?></p>
+				<ul style="margin: 0 0 12px 0; padding-left: 24px; list-style-type: disc;">
+					<li><?php _e( 'All settings, themes, and credentials deleted', 'wp-mux' ); ?></li>
+					<li><?php _e( 'All video attachments and metadata removed', 'wp-mux' ); ?></li>
+					<li><?php _e( 'Videos on Mux.com remain untouched', 'wp-mux' ); ?></li>
+					<li><?php _e( 'Video blocks in content: Will show as broken/missing until manually removed or replaced with new videos', 'wp-mux' ); ?></li>
+				</ul>
+				<p style="margin: 0; color: #8a6d15;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Complete removal, testing, or starting fresh', 'wp-mux' ); ?></p>
+			</div>
+			
+			<!-- Checkbox Control -->
+			<div style="margin-top: 24px; padding: 16px; background: white; border: 1px solid #ddd; border-radius: 4px;">
+				<label style="display: flex; align-items: center; cursor: pointer;">
+					<input type="checkbox" name="wp_mux_delete_on_uninstall" value="1" <?php echo $checked; ?> id="wp_mux_delete_on_uninstall" style="margin: 0 8px 0 0;" />
+					<span style="font-size: 14px; font-weight: 600;"><?php _e( 'Enable Full Cleanup (Option ' . ( $mux_video_count > 0 ? '3' : '2' ) . ') - Delete all plugin data when uninstalling', 'wp-mux' ); ?></span>
+				</label>
+				<p style="margin: 12px 0 0 28px; color: #666; font-size: 13px;">
+					<?php _e( 'Leave unchecked for Option 1 (Keep Everything). Check this box only if you want Option ' . ( $mux_video_count > 0 ? '3' : '2' ) . ' (Full Cleanup).', 'wp-mux' ); ?>
+				</p>
+			</div>
+		</div>
 		<?php
 	}
 
