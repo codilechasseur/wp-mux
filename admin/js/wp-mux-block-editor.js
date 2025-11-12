@@ -272,7 +272,6 @@
                                 });
 
                             };
-                            };
 
                             // Run multiple times to catch dynamic content
                             hideWithClass();
