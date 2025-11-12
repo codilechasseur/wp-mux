@@ -239,6 +239,15 @@ class Wp_Mux {
 		$this->loader->add_action( 'wp_ajax_wp_mux_get_migration_status', $plugin_admin, 'ajax_get_migration_status' );
 		$this->loader->add_action( 'wp_ajax_wp_mux_save_delete_option', $plugin_admin, 'ajax_save_delete_option' );
 
+		// Add AJAX handlers for migrate-back feature
+		$this->loader->add_action( 'wp_ajax_migrate_back_system_check', $plugin_admin, 'ajax_migrate_back_system_check' );
+		$this->loader->add_action( 'wp_ajax_migrate_back_scan', $plugin_admin, 'ajax_migrate_back_scan' );
+		$this->loader->add_action( 'wp_ajax_migrate_back_enable_mp4', $plugin_admin, 'ajax_migrate_back_enable_mp4' );
+		$this->loader->add_action( 'wp_ajax_migrate_back_scan_content', $plugin_admin, 'ajax_migrate_back_scan_content' );
+		$this->loader->add_action( 'wp_ajax_migrate_back_video', $plugin_admin, 'ajax_migrate_back_video' );
+		$this->loader->add_action( 'wp_ajax_migrate_back_update_content', $plugin_admin, 'ajax_migrate_back_update_content' );
+		$this->loader->add_action( 'wp_ajax_migrate_back_cleanup', $plugin_admin, 'ajax_migrate_back_cleanup' );
+
 		// Add Gutenberg/Block editor support for MUX videos
 		$this->loader->add_action( 'enqueue_block_editor_assets', $plugin_admin, 'enqueue_block_editor_assets' );
 

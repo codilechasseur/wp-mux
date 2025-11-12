@@ -13,8 +13,17 @@
 	let failedVideos = [];
 
 	$(document).ready(function() {
-		// Only run on migration page
+		// Only run on migration page to-mux tab
 		if (!$('.wp-mux-migration-page').length) {
+			return;
+		}
+
+		// Get current tab from URL
+		const urlParams = new URLSearchParams(window.location.search);
+		const currentTab = urlParams.get('tab') || 'to-mux';
+		
+		// Only initialize and scan on to-mux tab
+		if (currentTab !== 'to-mux') {
 			return;
 		}
 

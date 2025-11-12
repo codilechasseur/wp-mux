@@ -101,7 +101,6 @@
 
 
                                         if (response.mime_type === 'video/mux' || response.subtype === 'mux') {
-                                            console.log('MUX Video detected:', response);
                                             setIsMuxVideo(true);
                                             setMuxStatus(response.mux_status || 'complete');
                                             setPlaybackId(response.mux_playback_id || response.playback_id);
@@ -109,14 +108,7 @@
                                             // Get video duration from media metadata
                                             if (response.media_details && response.media_details.length) {
                                                 setVideoDuration(response.media_details.length);
-                                                console.log('Video duration:', response.media_details.length, 'seconds');
                                             }
-
-                                            console.log('Set state:', {
-                                                isMuxVideo: true,
-                                                muxStatus: response.mux_status || 'complete',
-                                                playbackId: response.mux_playback_id || response.playback_id
-                                            });
 
                                             // Update block attributes to use MUX URL if it changed
                                             if (response.url && response.url !== props.attributes.src) {
@@ -197,8 +189,6 @@
                         // Let React re-render the video block with the new MUX URL first,
                         // then let the existing convertMuxVideos() function handle the conversion
                         useEffect(() => {
-                            console.log('MUX conversion trigger:', { isMuxVideo, playbackId, muxStatus });
-
                             if (!isMuxVideo || !playbackId || muxStatus !== 'complete') {
                                 return;
                             }
@@ -206,8 +196,6 @@
                             // Give React time to re-render the video block with the new src,
                             // then trigger the existing conversion function with increasing delays
                             // to handle various React render timing scenarios
-                            console.log('MUX video ready, triggering convertMuxVideos()...');
-
                             const delays = [100, 500, 1000, 2000];
                             delays.forEach(delay => {
                                 setTimeout(() => {
@@ -250,13 +238,10 @@
                                         display: none !important;
                                     }
                                 `;
-
-                                console.log('CSS rule added to hide poster controls');
                             } else {
                                 // Remove the style element when not hiding
                                 if (styleElement) {
                                     styleElement.remove();
-                                    console.log('CSS rule removed, poster controls should be visible');
                                 }
                             }
 
@@ -286,18 +271,7 @@
                                     }
                                 });
 
-                                if (foundCount > 0) {
-                                    console.log(`✓ Found and ${shouldHide ? 'hid' : 'showed'} ${foundCount} poster control(s)`);
-                                } else if (shouldHide) {
-                                    // Debug: show what we can find
-                                    const toolsItems = document.querySelectorAll('.components-tools-panel-item');
-                                    const posterControls = document.querySelectorAll('.editor-video-poster-control');
-                                    console.log('Tools panel items found:', toolsItems.length);
-                                    console.log('Video poster controls found:', posterControls.length);
-                                    if (posterControls.length > 0) {
-                                        console.log('Poster control structure:', posterControls[0].outerHTML.substring(0, 200));
-                                    }
-                                }
+                            };
                             };
 
                             // Run multiple times to catch dynamic content
@@ -632,14 +606,11 @@
                                                         display: isLoadingPreview || previewError ? 'none' : 'block'
                                                     },
                                                     onLoad: function(e) {
-                                                        // Image loaded successfully
-                                                        console.log('Poster preview loaded successfully');
                                                         setIsLoadingPreview(false);
                                                         setPreviewError(false);
                                                         e.target.style.display = 'block';
                                                     },
                                                     onError: function(e) {
-                                                        console.error('Failed to load poster preview:', posterPreviewUrl);
                                                         setIsLoadingPreview(false);
                                                         setPreviewError(true);
                                                         e.target.style.display = 'none';
@@ -758,7 +729,6 @@
                             playbackId = playbackId.slice(0, -5);
                         }
 
-
                         // Create thumbnail URL for poster attribute (default settings for editor preview)
                         const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0&width=640&height=360&fit_mode=smartcrop`;
 
@@ -816,13 +786,10 @@
                         // Replace the video element
                         video.parentNode.replaceChild(muxElement, video);
 
-
                         // Force the element to initialize
                         setTimeout(function() {
-
                             // If it's a MUX element and has no children, try to force initialization
                             if ((muxElement.tagName === 'MUX-VIDEO' || muxElement.tagName === 'MUX-PLAYER') && muxElement.children.length === 0) {
-
                                 // Try different initialization methods
                                 if (muxElement.connectedCallback) {
                                     try {
@@ -851,7 +818,6 @@
                         // Final check after 2 seconds
                         setTimeout(function() {
                             if ((muxElement.tagName === 'MUX-VIDEO' || muxElement.tagName === 'MUX-PLAYER') && muxElement.children.length === 0) {
-
                                 // Create thumbnail URL from playback ID (default settings for editor)
                                 const thumbnailUrl = `https://image.mux.com/${playbackId}/thumbnail.jpg?time=0&width=640&height=360&fit_mode=smartcrop`;
 
@@ -910,7 +876,6 @@
                                 `;
 
                                 muxElement.appendChild(placeholder);
-                            } else {
                             }
                         }, 2000);
                     } catch (error) {
@@ -977,7 +942,6 @@
     // Wait for WordPress to be ready
     if (typeof wp !== 'undefined' && wp.domReady) {
         wp.domReady(function() {
-
             // Add CSS to make mux-video elements display properly in editor
             const style = document.createElement('style');
             style.textContent = `

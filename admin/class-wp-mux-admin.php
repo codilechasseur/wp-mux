@@ -202,8 +202,12 @@ class Wp_Mux_Admin {
 		wp_enqueue_style( 'wp-mux-themes', plugin_dir_url( __FILE__ ) . 'css/wp-mux-themes.css', array(), $this->version );
 	}
 
-	// Enqueue migration styles on migration page and settings page (for sidebar layout)
-	if ( $screen && ( $screen->id === 'mux-videos_page_wp-mux-migration' || $screen->id === 'mux-videos_page_wp-mux-settings' || $screen->id === 'toplevel_page_wp-mux-videos' ) ) {
+	// Enqueue migration styles on migration page, settings page (for sidebar layout)
+	if ( $screen && ( 
+		$screen->id === 'mux-videos_page_wp-mux-migration' || 
+		$screen->id === 'mux-videos_page_wp-mux-settings' || 
+		$screen->id === 'toplevel_page_wp-mux-videos' 
+	) ) {
 		wp_enqueue_style( 'wp-mux-migration', plugin_dir_url( __FILE__ ) . 'css/wp-mux-migration.css', array(), $this->version );
 	}
 
@@ -335,6 +339,25 @@ class Wp_Mux_Admin {
 			'nonce' => wp_create_nonce( 'wp_mux_migration_nonce' ),
 			'strings' => array(
 				'noVideosFound' => __( 'No local videos found that need migration.', 'wp-mux' ),
+				'pending' => __( 'Pending', 'wp-mux' ),
+				'processing' => __( 'Processing...', 'wp-mux' ),
+				'success' => __( 'Success', 'wp-mux' ),
+				'failed' => __( 'Failed', 'wp-mux' ),
+			),
+		) );
+	}
+
+	// Enqueue migrate-back script on migration page (from-mux tab)
+	if ( ( $screen && $screen->id === 'mux-videos_page_wp-mux-migration' && isset( $_GET['tab'] ) && $_GET['tab'] === 'from-mux' ) || 
+	     ( isset( $_GET['page'] ) && $_GET['page'] === 'wp-mux-migration' && isset( $_GET['tab'] ) && $_GET['tab'] === 'from-mux' ) ) {
+		wp_enqueue_script( 'wp-mux-migrate-back', plugin_dir_url( __FILE__ ) . 'js/wp-mux-migrate-back.js', array( 'jquery' ), $this->version, true );
+
+		// Localize script with necessary data
+		wp_localize_script( 'wp-mux-migrate-back', 'wpMuxMigrateBack', array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'wp_mux_migrate_back' ),
+			'strings' => array(
+				'noVideosFound' => __( 'No Mux videos found.', 'wp-mux' ),
 				'pending' => __( 'Pending', 'wp-mux' ),
 				'processing' => __( 'Processing...', 'wp-mux' ),
 				'success' => __( 'Success', 'wp-mux' ),
@@ -784,6 +807,7 @@ class Wp_Mux_Admin {
 			'wp-mux-themes',
 			array( $this, 'display_themes_page' )
 		);
+
 	}
 
 	/**
@@ -1145,6 +1169,15 @@ class Wp_Mux_Admin {
 	 */
 	public function display_migration_page() {
 		include_once plugin_dir_path( __FILE__ ) . 'partials/wp-mux-admin-migration.php';
+	}
+
+	/**
+	 * Display the migrate back page.
+	 *
+	 * @since    1.3.0
+	 */
+	public function display_migrate_back_page() {
+		include_once plugin_dir_path( __FILE__ ) . 'partials/wp-mux-admin-migrate-back.php';
 	}
 
 	/**
@@ -3456,6 +3489,147 @@ class Wp_Mux_Admin {
 			// Clear the account stats cache so the overview updates immediately
 			delete_transient( 'wp_mux_account_stats' );
 		}
+	}
+
+	/**
+	 * AJAX handler: Migrate-back system check
+	 *
+	 * @since    1.3.0
+	 */
+	public function ajax_migrate_back_system_check() {
+		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
+		$migrator = new Wp_Mux_Migrate_Back();
+		$result = $migrator->validate_system();
+
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX handler: Scan Mux videos for migration
+	 *
+	 * @since    1.3.0
+	 */
+	public function ajax_migrate_back_scan() {
+		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
+		$migrator = new Wp_Mux_Migrate_Back();
+		$result = $migrator->scan_mux_videos();
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		}
+
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX handler: Enable MP4 support for a video
+	 *
+	 * @since    1.3.0
+	 */
+	public function ajax_migrate_back_enable_mp4() {
+		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
+
+		$asset_id = isset( $_POST['asset_id'] ) ? sanitize_text_field( $_POST['asset_id'] ) : '';
+		if ( empty( $asset_id ) ) {
+			wp_send_json_error( __( 'Missing asset ID', 'wp-mux' ) );
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
+		$migrator = new Wp_Mux_Migrate_Back();
+		$result = $migrator->enable_mp4_support( $asset_id );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		}
+
+		wp_send_json_success();
+	}
+
+	/**
+	 * AJAX handler: Scan content for video references
+	 *
+	 * @since    1.3.0
+	 */
+	public function ajax_migrate_back_scan_content() {
+		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-content-scanner.php';
+		$scanner = new Wp_Mux_Content_Scanner();
+		$result = $scanner->scan_content_references();
+
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX handler: Migrate a single video back to local
+	 *
+	 * @since    1.3.0
+	 */
+	public function ajax_migrate_back_video() {
+		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
+
+		$attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
+		if ( ! $attachment_id ) {
+			wp_send_json_error( __( 'Missing attachment ID', 'wp-mux' ) );
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
+		$migrator = new Wp_Mux_Migrate_Back();
+		$result = $migrator->migrate_video_to_local( $attachment_id );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		}
+
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX handler: Update content references
+	 *
+	 * @since    1.3.0
+	 */
+	public function ajax_migrate_back_update_content() {
+		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
+
+		$post_ids = isset( $_POST['post_ids'] ) ? array_map( 'intval', $_POST['post_ids'] ) : array();
+		if ( empty( $post_ids ) ) {
+			wp_send_json_error( __( 'No posts specified', 'wp-mux' ) );
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-content-scanner.php';
+		$scanner = new Wp_Mux_Content_Scanner();
+		$result = $scanner->batch_update_content( $post_ids, true );
+
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * AJAX handler: Cleanup Mux video
+	 *
+	 * @since    1.3.0
+	 */
+	public function ajax_migrate_back_cleanup() {
+		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
+
+		$attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
+		if ( ! $attachment_id ) {
+			wp_send_json_error( __( 'Missing attachment ID', 'wp-mux' ) );
+		}
+
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
+		$migrator = new Wp_Mux_Migrate_Back();
+		$result = $migrator->cleanup_mux_video( $attachment_id );
+
+		if ( is_wp_error( $result ) ) {
+			wp_send_json_error( $result->get_error_message() );
+		}
+
+		wp_send_json_success();
 	}
 
 }
