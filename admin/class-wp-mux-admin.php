@@ -61,6 +61,9 @@ class Wp_Mux_Admin {
 		// Check for deferred signing key creation
 		add_action( 'admin_init', array( $this, 'maybe_create_signing_keys' ) );
 
+		// Redirect to settings if API is not configured
+		add_action( 'admin_init', array( $this, 'maybe_redirect_to_settings' ) );
+
 	}
 
 	/**
@@ -95,6 +98,25 @@ class Wp_Mux_Admin {
 			echo '<p>' . esc_html__( 'MUX settings updated successfully.', 'wp-mux' ) . '</p>';
 			echo '</div>';
 			delete_transient( $settings_updated_key );
+		}
+
+		// Check for API required notice (redirected from protected page)
+		$api_required_page = get_transient( 'wp_mux_api_required_notice' );
+		if ( $api_required_page ) {
+			$page_names = array(
+				'wp-mux-videos' => __( 'All Videos', 'wp-mux' ),
+				'wp-mux-migration' => __( 'Migrate Videos', 'wp-mux' ),
+			);
+			$page_name = isset( $page_names[ $api_required_page ] ) ? $page_names[ $api_required_page ] : __( 'that page', 'wp-mux' );
+			
+			echo '<div class="notice notice-warning is-dismissible">';
+			echo '<p><strong>' . esc_html__( 'MUX API Configuration Required', 'wp-mux' ) . '</strong></p>';
+			echo '<p>' . sprintf(
+				esc_html__( 'To access %s, you need to configure your MUX API credentials below. Enter your Access Token and Secret Key to get started.', 'wp-mux' ),
+				'<strong>' . esc_html( $page_name ) . '</strong>'
+			) . '</p>';
+			echo '</div>';
+			delete_transient( 'wp_mux_api_required_notice' );
 		}
 
 		// Check for activation notices
@@ -778,16 +800,6 @@ class Wp_Mux_Admin {
 			array( $this, 'display_videos_page' )
 		);
 
-		// Add submenu for bulk migration
-		add_submenu_page(
-			'wp-mux-videos',
-			__( 'Migrate Local Videos', 'wp-mux' ),
-			__( 'Migrate Videos', 'wp-mux' ),
-			'manage_options',
-			'wp-mux-migration',
-			array( $this, 'display_migration_page' )
-		);
-
 		// Add submenu for settings
 		add_submenu_page(
 			'wp-mux-videos',
@@ -806,6 +818,16 @@ class Wp_Mux_Admin {
 			'manage_options',
 			'wp-mux-themes',
 			array( $this, 'display_themes_page' )
+		);
+
+		// Add submenu for bulk migration
+		add_submenu_page(
+			'wp-mux-videos',
+			__( 'Migrate Local Videos', 'wp-mux' ),
+			__( 'Migrate Videos', 'wp-mux' ),
+			'manage_options',
+			'wp-mux-migration',
+			array( $this, 'display_migration_page' )
 		);
 
 	}
@@ -2076,6 +2098,44 @@ class Wp_Mux_Admin {
 	}
 
 	/**
+	 * Redirect to settings page if API is not configured and user is trying to access protected pages.
+	 *
+	 * @since    1.5.0
+	 */
+	public function maybe_redirect_to_settings() {
+		// Check if we're on an admin page
+		if ( ! is_admin() ) {
+			return;
+		}
+
+		// Get current page
+		$current_page = isset( $_GET['page'] ) ? sanitize_text_field( $_GET['page'] ) : '';
+
+		// List of pages that require API configuration
+		$protected_pages = array(
+			'wp-mux-videos',
+			'wp-mux-migration',
+		);
+
+		// Check if current page requires API configuration
+		if ( ! in_array( $current_page, $protected_pages ) ) {
+			return;
+		}
+
+		// Check if API is configured
+		if ( $this->is_api_configured() ) {
+			return;
+		}
+
+		// Set transient to show notice on settings page
+		set_transient( 'wp_mux_api_required_notice', $current_page, 30 );
+
+		// Redirect to settings page
+		wp_safe_redirect( admin_url( 'admin.php?page=wp-mux-settings' ) );
+		exit;
+	}
+
+	/**
 	 * Player settings section callback.
 	 *
 	 * @since    1.4.0
@@ -2212,15 +2272,43 @@ class Wp_Mux_Admin {
 	 * @since    1.1.1
 	 */
 	public function uninstall_settings_section_callback() {
-		echo '<p>' . __( 'Configure what happens when you uninstall WP Mux.', 'wp-mux' ) . '</p>';
-		echo '<div class="notice notice-warning inline" style="padding: 10px; margin: 15px 0;">';
-		echo '<p><strong>' . __( 'Critical Information:', 'wp-mux' ) . '</strong></p>';
-		echo '<ul style="margin: 10px 0 10px 20px; list-style: disc;">';
-		echo '<li>' . __( 'Videos on Mux.com are NEVER automatically deleted', 'wp-mux' ) . '</li>';
-		echo '<li>' . __( 'Attachment IDs are preserved to prevent broken Gutenberg blocks', 'wp-mux' ) . '</li>';
-		echo '<li>' . __( 'You can reinstall and reconnect videos later', 'wp-mux' ) . '</li>';
-		echo '</ul>';
-		echo '</div>';
+		// Count MUX videos on the site
+		$mux_video_count = $this->get_mux_video_count();
+		
+		if ( $mux_video_count > 0 ) {
+			// Site has MUX videos - recommend migrate back
+			echo '<div class="notice notice-info inline" style="padding: 10px; margin: 15px 0 0 0;">';
+			echo '<p><strong>' . __( 'MUX Videos Detected:', 'wp-mux' ) . '</strong> ';
+			echo sprintf(
+				_n( 
+					'Your site has <strong>%d MUX video</strong>.', 
+					'Your site has <strong>%d MUX videos</strong>.', 
+					$mux_video_count, 
+					'wp-mux' 
+				),
+				$mux_video_count
+			);
+			echo '</p></div>';
+			
+			echo '<div class="notice notice-warning inline" style="padding: 10px; margin: 15px 0;">';
+			echo '<p><strong>⚠️ ' . __( 'Before Uninstalling:', 'wp-mux' ) . '</strong></p>';
+			echo '<ol style="margin: 10px 0 10px 20px; list-style: decimal;">';
+			echo '<li><strong>' . __( 'Recommended:', 'wp-mux' ) . '</strong> ' . sprintf(
+				__( 'Use the %sMigrate Videos%s page to download your videos back to WordPress before uninstalling.', 'wp-mux' ),
+				'<a href="' . admin_url( 'admin.php?page=wp-mux-migration' ) . '">',
+				'</a>'
+			) . '</li>';
+			echo '<li>' . __( 'Important: Videos on Mux.com are NEVER automatically deleted and will continue to incur storage costs.', 'wp-mux' ) . '</li>';
+			echo '<li>' . __( 'Delete videos manually from', 'wp-mux' ) . ' <a href="https://dashboard.mux.com" target="_blank">dashboard.mux.com</a> ' . __( 'to stop billing charges.', 'wp-mux' ) . '</li>';
+			echo '</ol>';
+			echo '</div>';
+		} else {
+			// No MUX videos - simpler message
+			echo '<p>' . __( 'Configure what happens when you uninstall WP Mux. No MUX videos detected on your site.', 'wp-mux' ) . '</p>';
+			echo '<div class="notice notice-info inline" style="padding: 10px; margin: 15px 0;">';
+			echo '<p><strong>' . __( 'Safe to Uninstall:', 'wp-mux' ) . '</strong> ' . __( 'Your site has no MUX videos. You can safely uninstall the plugin at any time.', 'wp-mux' ) . '</p>';
+			echo '</div>';
+		}
 	}
 
 	/**
@@ -2230,6 +2318,7 @@ class Wp_Mux_Admin {
 	 */
 	public function delete_on_uninstall_field_callback() {
 		$checked = checked( 1, get_option( 'wp_mux_delete_on_uninstall', 0 ), false );
+		$mux_video_count = $this->get_mux_video_count();
 		?>
 		<label>
 			<input type="checkbox" name="wp_mux_delete_on_uninstall" value="1" <?php echo $checked; ?> id="wp_mux_delete_on_uninstall" />
@@ -2252,13 +2341,22 @@ class Wp_Mux_Admin {
 			<p style="margin: 10px 0 0 0;"><strong>🔄 <?php _e( 'Recovery:', 'wp-mux' ); ?></strong> <?php _e( 'Reinstall the plugin and enter your API credentials to automatically reconnect videos.', 'wp-mux' ); ?></p>
 		</div>
 		
+		<?php if ( $mux_video_count > 0 ) : ?>
+		<div id="wp-mux-keep-notice" style="padding: 15px; background: #d1f0d1; border-left: 4px solid #46b450; margin-top: 15px;">
+			<p style="margin: 0 0 10px 0;"><strong>✅ <?php _e( 'Recommended (Default):', 'wp-mux' ); ?></strong> <?php _e( 'Keep this unchecked. All data will be preserved so you can reinstall without any loss.', 'wp-mux' ); ?></p>
+			<p style="margin: 0;"><strong>💡 <?php _e( 'Better Option:', 'wp-mux' ); ?></strong> <?php 
+				echo sprintf(
+					__( 'Use the %sMigrate Videos%s page to download your videos back to WordPress before uninstalling.', 'wp-mux' ),
+					'<a href="' . admin_url( 'admin.php?page=wp-mux-migration' ) . '">',
+					'</a>'
+				);
+			?></p>
+		</div>
+		<?php else : ?>
 		<div id="wp-mux-keep-notice" style="padding: 15px; background: #d1f0d1; border-left: 4px solid #46b450; margin-top: 15px;">
 			<p style="margin: 0;"><strong>✅ <?php _e( 'Recommended (Default):', 'wp-mux' ); ?></strong> <?php _e( 'Keep this unchecked. All data will be preserved so you can reinstall without any loss.', 'wp-mux' ); ?></p>
 		</div>
-		
-		<div class="notice notice-error inline" style="margin-top: 15px; padding: 10px;">
-			<p style="margin: 0;"><strong>🚨 <?php _e( 'Important:', 'wp-mux' ); ?></strong> <?php _e( 'Videos on Mux.com are NEVER automatically deleted. You must manually delete them from', 'wp-mux' ); ?> <a href="https://dashboard.mux.com" target="_blank">dashboard.mux.com</a> <?php _e( 'to stop billing charges.', 'wp-mux' ); ?></p>
-		</div>
+		<?php endif; ?>
 		
 		<script type="text/javascript">
 		jQuery(document).ready(function($) {
@@ -2280,6 +2378,41 @@ class Wp_Mux_Admin {
 		});
 		</script>
 		<?php
+	}
+
+	/**
+	 * Get count of MUX videos on the site.
+	 *
+	 * @since    1.5.0
+	 * @return   int    Number of MUX videos
+	 */
+	private function get_mux_video_count() {
+		$count = wp_count_posts( 'attachment' );
+		
+		// Query to count only video/mux mime type
+		global $wpdb;
+		$mux_count = $wpdb->get_var( 
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM $wpdb->posts WHERE post_type = %s AND post_mime_type = %s",
+				'attachment',
+				'video/mux'
+			)
+		);
+		
+		return (int) $mux_count;
+	}
+
+	/**
+	 * Check if MUX API is configured.
+	 *
+	 * @since    1.5.0
+	 * @return   bool    True if API credentials are set, false otherwise
+	 */
+	private function is_api_configured() {
+		$access_token = get_option( 'wp_mux_access_token', '' );
+		$secret_key = get_option( 'wp_mux_secret_key', '' );
+		
+		return ! empty( $access_token ) && ! empty( $secret_key );
 	}
 
 	/**
