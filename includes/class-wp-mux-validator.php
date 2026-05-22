@@ -8,7 +8,7 @@ declare(strict_types=1);
  * Provides standardized validation methods for theme data, API credentials,
  * and other plugin data to ensure consistency and reduce duplication.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.3.0
  *
  * @package    Wp_Mux
@@ -22,7 +22,7 @@ declare(strict_types=1);
  *
  * @package    Wp_Mux
  * @subpackage Wp_Mux/includes
- * @author     Codi Lechasseur <codilechasseur@gmail.com>
+ * @author     Codi Lechasseur
  */
 class Wp_Mux_Validator
 {

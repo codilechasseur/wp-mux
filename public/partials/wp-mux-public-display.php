@@ -5,7 +5,7 @@
  *
  * This file is used to markup the public-facing aspects of the plugin.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.0.0
  *
  * @package    Wp_Mux

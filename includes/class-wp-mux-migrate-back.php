@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Handles migration from Mux back to local WordPress hosting
  *

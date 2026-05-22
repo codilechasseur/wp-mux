@@ -8,7 +8,7 @@ declare(strict_types=1);
  * Provides common functionality used across the plugin to reduce code duplication.
  * Refactored with PHP 8.5 features and PSR-12 coding standards.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.2.0
  *
  * @package    Wp_Mux
@@ -23,7 +23,7 @@ declare(strict_types=1);
  *
  * @package    Wp_Mux
  * @subpackage Wp_Mux/includes
- * @author     Codi Lechasseur <codilechasseur@gmail.com>
+ * @author     Codi Lechasseur
  */
 class Wp_Mux_Utils
 {
@@ -468,5 +468,72 @@ class Wp_Mux_Utils
         }
 
         return $sanitized;
+    }
+
+    /**
+     * Generate a signed Mux playback JWT (RS256) for a given playback ID.
+     *
+     * Falls back to returning an unsigned plain `https://stream.mux.com/{id}.m3u8`
+     * URL when signing keys are not configured, so the player still works on
+     * public assets.
+     *
+     * @since 1.2.0
+     *
+     * @param string $playback_id  Mux playback ID.
+     * @param string $type         Audience type: 'video', 'thumbnail', 'storyboard'. Default 'video'.
+     * @param int    $expiry       Token lifetime in seconds from now. Default 4 hours.
+     *
+     * @return string Signed JWT token, or empty string if signing keys unavailable.
+     */
+    public static function generateMuxJwt(string $playback_id, string $type = 'video', int $expiry = 14400): string
+    {
+        $key_id      = get_option('wp_mux_signing_key_id', '');
+        $private_b64 = get_option('wp_mux_signing_key_private', '');
+
+        if (empty($key_id) || empty($private_b64)) {
+            return '';
+        }
+
+        $private_pem = base64_decode($private_b64, true);
+        if ($private_pem === false || empty($private_pem)) {
+            return '';
+        }
+
+        $audience_map = [
+            'video'      => 'v',
+            'thumbnail'  => 't',
+            'storyboard' => 's',
+            'gif'        => 'g',
+        ];
+        $aud = $audience_map[$type] ?? 'v';
+
+        $header  = json_encode(['alg' => 'RS256', 'typ' => 'JWT', 'kid' => $key_id]);
+        $payload = json_encode([
+            'sub' => $playback_id,
+            'aud' => $aud,
+            'exp' => time() + $expiry,
+        ]);
+
+        if ($header === false || $payload === false) {
+            return '';
+        }
+
+        $b64_header  = rtrim(strtr(base64_encode($header), '+/', '-_'), '=');
+        $b64_payload = rtrim(strtr(base64_encode($payload), '+/', '-_'), '=');
+        $signing_input = $b64_header . '.' . $b64_payload;
+
+        $pkey = openssl_pkey_get_private($private_pem);
+        if ($pkey === false) {
+            return '';
+        }
+
+        $signature = '';
+        if (!openssl_sign($signing_input, $signature, $pkey, OPENSSL_ALGO_SHA256)) {
+            return '';
+        }
+
+        $b64_sig = rtrim(strtr(base64_encode($signature), '+/', '-_'), '=');
+
+        return $signing_input . '.' . $b64_sig;
     }
 }

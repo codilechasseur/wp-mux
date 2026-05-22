@@ -2,7 +2,7 @@
 /**
  * Mux settings meta box template for attachment edit page.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.3.0
  *
  * @package    Wp_Mux
@@ -32,7 +32,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						<?php endif; ?>
 					</option>
 				</select>
-				
+
 				<?php if ( ! $signing_keys_available ) : ?>
 					<p class="description" style="color: #d63638;">
 						<span class="dashicons dashicons-lock" style="font-size: 16px; vertical-align: middle;"></span>
@@ -58,7 +58,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<?php endif; ?>
 			</td>
 		</tr>
-		
+
 		<tr>
 			<th scope="row">
 				<label for="mux_mp4_support"><?php _e( 'MP4 Support', 'wp-mux' ); ?></label>
@@ -83,7 +83,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</p>
 			</td>
 		</tr>
-		
+
 		<tr>
 			<th scope="row">
 				<?php _e( 'Encoding Tier', 'wp-mux' ); ?>
@@ -95,7 +95,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 				</p>
 			</td>
 		</tr>
-		
+
 		<tr>
 			<th scope="row">
 				<?php _e( 'Captions', 'wp-mux' ); ?>
@@ -104,19 +104,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 				<?php if ( $has_captions ) : ?>
 					<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span>
 					<?php _e( 'Captions available', 'wp-mux' ); ?>
-					<button type="button" 
-							class="button button-secondary" 
+					<button type="button"
+							class="button button-secondary"
 							id="mux-manage-captions"
+							data-attachment-id="<?php echo esc_attr( $post->ID ); ?>"
+							data-track-id="<?php echo esc_attr( isset( $caption_track_ids[0] ) ? $caption_track_ids[0] : '' ); ?>"
 							style="margin-left: 10px;">
-						<?php _e( 'Manage Captions', 'wp-mux' ); ?>
+						<?php _e( 'Edit Captions', 'wp-mux' ); ?>
 					</button>
+
+					<!-- Inline caption editor -->
+					<div id="mux-caption-editor" style="display:none; margin-top: 16px;">
+						<p class="description" style="margin-bottom: 8px;">
+							<?php _e( 'Edit the WebVTT caption text below and click Save. Changes are uploaded back to Mux.', 'wp-mux' ); ?>
+						</p>
+						<textarea id="mux-caption-vtt-content"
+								  rows="14"
+								  style="width:100%; font-family: monospace; font-size: 12px;"
+								  placeholder="<?php esc_attr_e( 'Loading captions\u2026', 'wp-mux' ); ?>"></textarea>
+						<div style="margin-top: 8px;">
+							<button type="button" class="button button-primary" id="mux-save-captions">
+								<?php _e( 'Save Captions', 'wp-mux' ); ?>
+							</button>
+							<button type="button" class="button button-secondary" id="mux-cancel-captions" style="margin-left: 8px;">
+								<?php _e( 'Cancel', 'wp-mux' ); ?>
+							</button>
+							<span id="mux-caption-save-status" style="margin-left: 12px; font-style: italic; color: #666;"></span>
+						</div>
+					</div>
 				<?php elseif ( ! $has_audio ) : ?>
 					<!-- No UI elements, just error message -->
 				<?php else : ?>
 					<span class="dashicons dashicons-minus" style="color: #999;"></span>
 					<?php _e( 'No captions', 'wp-mux' ); ?>
-					<button type="button" 
-							class="button button-secondary" 
+					<button type="button"
+							class="button button-secondary"
 							id="mux-generate-captions"
 							data-asset-id="<?php echo esc_attr( $asset_id ); ?>"
 							data-attachment-id="<?php echo esc_attr( $post->ID ); ?>"
@@ -124,7 +146,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 							<?php echo ! $captions_available ? 'disabled' : ''; ?>>
 						<?php _e( 'Generate Captions', 'wp-mux' ); ?>
 					</button>
-					
+
 					<div id="mux-caption-options" style="display: none; margin-top: 10px;">
 						<label for="caption_language"><?php _e( 'Language:', 'wp-mux' ); ?></label>
 						<select name="caption_language" id="caption_language">
@@ -140,7 +162,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 						</button>
 					</div>
 				<?php endif; ?>
-				
+
 				<p class="description">
 					<?php if ( ! $has_audio ) : ?>
 						<strong style="color: #d63638;">
@@ -157,7 +179,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 			</td>
 		</tr>
 	</table>
-	
+
 	<div style="margin-top: 20px;">
 		<button type="submit" class="button button-primary" name="mux_save_settings">
 			<?php _e( 'Update MUX Settings', 'wp-mux' ); ?>

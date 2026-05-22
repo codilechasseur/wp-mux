@@ -8,7 +8,7 @@ declare(strict_types=1);
  * Handles queuing, processing, and status tracking for video uploads to MUX.
  * Includes support for batch processing, retry logic, and queue health monitoring.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.3.0
  *
  * @package    Wp_Mux
@@ -26,7 +26,7 @@ declare(strict_types=1);
  *
  * @package    Wp_Mux
  * @subpackage Wp_Mux/includes
- * @author     Codi Lechasseur <codilechasseur@gmail.com>
+ * @author     Codi Lechasseur
  */
 class Wp_Mux_Queue_Manager
 {
@@ -90,9 +90,13 @@ class Wp_Mux_Queue_Manager
     {
         Wp_Mux_Utils::log("Begin queueing video: {$attachmentId}", 'info');
 
+        // Pro gate: seamless upload override requires a WP Mux Pro license.
+        if ( ! wp_mux_is_pro() ) {
+            return false;
+        }
+
         // Check if MUX override is enabled
-        $overrideEnabled = get_option('wp_mux_override_video_upload', '0');
-        if ($overrideEnabled !== '1' && $overrideEnabled !== 1 && $overrideEnabled !== true) {
+        if (get_option('wp_mux_override_video_upload', '0') !== '1') {
             return false;
         }
 
@@ -226,89 +230,45 @@ class Wp_Mux_Queue_Manager
     private function processQueueItem(array $item): array
     {
         $attachmentId = (int) $item['attachment_id'];
-        $filePath = $item['file_path'] ?? '';
+        $filePath     = $item['file_path'] ?? '';
+        $mimeType     = $item['mime_type'] ?? 'video/mp4';
 
         Wp_Mux_Utils::log("Processing queue item: {$attachmentId}", 'info');
 
         try {
-            // Update status to processing
             update_post_meta($attachmentId, '_wp_mux_status', 'processing');
             update_post_meta($attachmentId, '_wp_mux_processing_started', current_time('mysql'));
 
-            // If file path is empty, try to get it from attachment
             if (empty($filePath)) {
                 $filePath = get_attached_file($attachmentId);
-                Wp_Mux_Utils::log("Retrieved file path: {$filePath}", 'info');
             }
 
-            // Verify file still exists
             if (empty($filePath) || !file_exists($filePath)) {
                 throw new \Exception("Source file not found: {$filePath}");
             }
 
             if (!$this->api->is_configured()) {
-                throw new \Exception('MUX API credentials are not configured');
+                throw new \Exception('Mux API credentials are not configured');
             }
 
-            // Create MUX direct upload
-            $upload = $this->api->create_direct_upload();
-
-            if (is_wp_error($upload) || empty($upload['data']['url'])) {
-                $errorMsg = is_wp_error($upload)
-                    ? $upload->get_error_message()
-                    : 'Failed to create MUX upload';
-                throw new \Exception($errorMsg);
+            $result = $this->api->upload_local_file($filePath, $mimeType);
+            if (is_wp_error($result)) {
+                throw new \Exception($result->get_error_message());
             }
 
-            $uploadUrl = $upload['data']['url'];
-            $uploadId = $upload['data']['id'];
+            update_post_meta($attachmentId, '_mux_upload_id', $result['upload_id']);
 
-            // Upload file to MUX
-            $uploadResult = wp_remote_request($uploadUrl, [
-                'headers' => [
-                    'Content-Type' => $item['mime_type'] ?? 'video/mp4',
-                ],
-                'body'    => file_get_contents($filePath),
-                'timeout' => 300, // 5 minutes for large files
-                'method'  => 'PUT',
-            ]);
-
-            if (is_wp_error($uploadResult)) {
-                throw new \Exception('MUX upload error: ' . $uploadResult->get_error_message());
+            if ($result['asset_id']) {
+                update_post_meta($attachmentId, '_mux_asset_id', $result['asset_id']);
             }
 
-            $responseCode = wp_remote_retrieve_response_code($uploadResult);
-            if ($responseCode < 200 || $responseCode >= 300) {
-                throw new \Exception("Failed to upload video to MUX. Response code: {$responseCode}");
+            if ($result['playback_id']) {
+                update_post_meta($attachmentId, '_mux_playback_id', $result['playback_id']);
             }
 
-            // Wait for MUX to process the upload
-            sleep(2);
-            $uploadStatus = $this->api->get_upload($uploadId);
-            $assetId = null;
-
-            if (!is_wp_error($uploadStatus) && !empty($uploadStatus['data']['asset_id'])) {
-                $assetId = $uploadStatus['data']['asset_id'];
-
-                // Get additional asset details including playback ID
-                $assetDetails = $this->api->get_video($assetId);
-                if (!is_wp_error($assetDetails) && !empty($assetDetails['data'])) {
-                    $playbackId = $assetDetails['data']['playback_ids'][0]['id'] ?? '';
-                    if ($playbackId) {
-                        update_post_meta($attachmentId, '_mux_playback_id', $playbackId);
-                    }
-                }
-            }
-
-            // Update attachment with MUX data
-            update_post_meta($attachmentId, '_mux_upload_id', $uploadId);
-            if ($assetId) {
-                update_post_meta($attachmentId, '_mux_asset_id', $assetId);
-            }
             update_post_meta($attachmentId, '_wp_mux_status', 'complete');
             update_post_meta($attachmentId, '_wp_mux_completed_at', current_time('mysql'));
 
-            // Update attachment to use MUX mime type
             wp_update_post([
                 'ID'             => $attachmentId,
                 'post_mime_type' => 'video/mux',
@@ -477,18 +437,31 @@ class Wp_Mux_Queue_Manager
      */
     private function triggerBackgroundProcessing(): void
     {
-        $url = admin_url('admin-ajax.php');
-        $args = [
-            'timeout'   => 0.01, // Non-blocking
+        wp_remote_post(admin_url('admin-ajax.php'), [
+            'timeout'   => 0.01,
             'blocking'  => false,
-            'sslverify' => false,
+            // sslverify is intentionally false here: this is a loopback request to the
+            // same server, which may use a self-signed cert in local/staging environments.
+            'sslverify' => apply_filters('https_local_ssl_verify', false),
             'body'      => [
-                'action'     => 'wp_mux_process_queue',
-                'background' => '1',
+                'action' => 'wp_mux_process_queue',
+                'token'  => $this->getBackgroundToken(),
             ],
-        ];
+        ]);
+    }
 
-        wp_remote_post($url, $args);
+    /**
+     * Generate a deterministic server-side token for authenticating background queue requests.
+     *
+     * Uses a salted hash so the token is verifiable without a user session.
+     *
+     * @since 1.3.0
+     *
+     * @return string
+     */
+    private function getBackgroundToken(): string
+    {
+        return wp_hash('wp_mux_background_queue_' . wp_salt('auth'));
     }
 
     /**
@@ -512,6 +485,8 @@ class Wp_Mux_Queue_Manager
     /**
      * Calculate priority for queue item.
      *
+     * Recent uploads (< 1 hour old) get priority 30; everything else gets 10.
+     *
      * @since 1.3.0
      *
      * @param int $attachmentId Attachment ID.
@@ -520,21 +495,28 @@ class Wp_Mux_Queue_Manager
      */
     private function calculatePriority(int $attachmentId): int
     {
-        // Default priority
-        $priority = 10;
-
-        // Increase priority for recently uploaded files
         $post = get_post($attachmentId);
-        if ($post) {
-            $age = time() - strtotime($post->post_date);
-            if ($age < HOUR_IN_SECONDS) {
-                $priority += 20; // Recent uploads get higher priority
-            }
+        if ($post && (time() - strtotime($post->post_date)) < HOUR_IN_SECONDS) {
+            return 30;
         }
 
-        // Could add more priority logic here (e.g., based on file size, user role, etc.)
+        return 10;
+    }
 
-        return $priority;
+    /**
+     * Register all hooks for queue management.
+     *
+     * @since 1.3.0
+     *
+     * @return void
+     */
+    public function registerHooks(): void
+    {
+        add_action('add_attachment', [$this, 'queueVideo']);
+        add_action('wp_ajax_wp_mux_process_queue', [$this, 'ajaxProcessQueue']);
+        add_action('wp_ajax_wp_mux_get_queue_status', [$this, 'ajaxGetQueueStatus']);
+        add_action('wp_mux_process_queue_event', [$this, 'cronProcessQueue']);
+        add_filter('heartbeat_received', [$this, 'heartbeatProcessQueue'], 10, 2);
     }
 
     /**
@@ -546,8 +528,8 @@ class Wp_Mux_Queue_Manager
      */
     public function ajaxProcessQueue(): void
     {
-        // Allow background processing without nonce check
-        $isBackground = isset($_POST['background']) && $_POST['background'] === '1';
+        $token = sanitize_text_field($_POST['token'] ?? '');
+        $isBackground = hash_equals($this->getBackgroundToken(), $token);
 
         if (!$isBackground) {
             Wp_Mux_Utils::verifyAjaxRequest('wp_mux_queue_nonce');
@@ -569,7 +551,7 @@ class Wp_Mux_Queue_Manager
      */
     public function cronProcessQueue(): void
     {
-        $this->processQueue(5); // Process up to 5 items in cron
+        $this->processQueue(5);
     }
 
     /**
@@ -588,12 +570,40 @@ class Wp_Mux_Queue_Manager
             $status = $this->getQueueStatus();
             $response['wp_mux_queue_status'] = $status;
 
-            // Process one item if queue is not empty
             if ($status['total'] > 0) {
                 $this->processQueue(1);
             }
         }
 
         return $response;
+    }
+
+    /**
+     * AJAX handler for queue status.
+     *
+     * @since 1.3.0
+     *
+     * @return void
+     */
+    public function ajaxGetQueueStatus(): void
+    {
+        check_ajax_referer('wp_mux_queue_status_nonce', 'nonce');
+
+        $attachmentId = isset($_POST['attachment_id']) ? (int) $_POST['attachment_id'] : 0;
+
+        if ($attachmentId) {
+            $status  = get_post_meta($attachmentId, '_wp_mux_status', true);
+            $assetId = get_post_meta($attachmentId, '_mux_asset_id', true);
+            $error   = get_post_meta($attachmentId, '_wp_mux_error', true);
+
+            wp_send_json_success([
+                'attachment_id' => $attachmentId,
+                'status'        => $status ?: 'unknown',
+                'asset_id'      => $assetId,
+                'error'         => $error,
+            ]);
+        }
+
+        wp_send_json_success($this->getQueueStatus());
     }
 }

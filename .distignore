@@ -28,7 +28,6 @@ bin/
 *.swo
 
 # Build artifacts
-vendor/
 node_modules/
 coverage/
 .phpunit.cache/

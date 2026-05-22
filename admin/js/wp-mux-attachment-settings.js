@@ -2,7 +2,97 @@
     'use strict';
 
     $(document).ready(function() {
-        // Show caption language selector
+        // ---------------------------------------------------------------
+        // Caption review / inline editor
+        // ---------------------------------------------------------------
+        $('#mux-manage-captions').on('click', function() {
+            var $btn        = $(this);
+            var attachId    = $btn.data('attachment-id');
+            var trackId     = $btn.data('track-id');
+            var $editor     = $('#mux-caption-editor');
+            var $textarea   = $('#mux-caption-vtt-content');
+
+            if ($editor.is(':visible')) {
+                $editor.slideUp();
+                return;
+            }
+
+            $textarea.val('Loading captions\u2026');
+            $editor.slideDown();
+
+            $.ajax({
+                url: ajaxurl,
+                method: 'POST',
+                data: {
+                    action: 'wp_mux_get_caption_vtt',
+                    nonce: $('#wp_mux_settings_nonce').val(),
+                    attachment_id: attachId,
+                    track_id: trackId
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $textarea.val(response.data.vtt_content);
+                        // Store the resolved track ID (may differ from data attribute).
+                        $btn.data('track-id', response.data.track_id);
+                        $('#mux-save-captions').data('track-id', response.data.track_id);
+                    } else {
+                        $textarea.val('Error: ' + (response.data.message || 'Could not load captions.'));
+                    }
+                },
+                error: function() {
+                    $textarea.val('Network error \u2014 could not load captions.');
+                }
+            });
+        });
+
+        $('#mux-cancel-captions').on('click', function() {
+            $('#mux-caption-editor').slideUp();
+        });
+
+        $('#mux-save-captions').on('click', function() {
+            var $btn      = $(this);
+            var $status   = $('#mux-caption-save-status');
+            var attachId  = $('#mux-manage-captions').data('attachment-id');
+            var trackId   = $btn.data('track-id') || $('#mux-manage-captions').data('track-id');
+            var vttContent = $('#mux-caption-vtt-content').val();
+
+            $btn.prop('disabled', true).text('Saving\u2026');
+            $status.text('');
+
+            $.ajax({
+                url: ajaxurl,
+                method: 'POST',
+                data: {
+                    action: 'wp_mux_save_caption_vtt',
+                    nonce: $('#wp_mux_settings_nonce').val(),
+                    attachment_id: attachId,
+                    track_id: trackId,
+                    vtt_content: vttContent
+                },
+                success: function(response) {
+                    if (response.success) {
+                        $status.css('color', '#46b450').text(response.data.message || 'Saved!');
+                        // Update track ID in case Mux issued a new one.
+                        if (response.data.new_track_id) {
+                            $btn.data('track-id', response.data.new_track_id);
+                            $('#mux-manage-captions').data('track-id', response.data.new_track_id);
+                        }
+                    } else {
+                        $status.css('color', '#d63638').text('Error: ' + (response.data.message || 'Save failed.'));
+                    }
+                },
+                error: function() {
+                    $status.css('color', '#d63638').text('Network error \u2014 save failed.');
+                },
+                complete: function() {
+                    $btn.prop('disabled', false).text('Save Captions');
+                }
+            });
+        });
+
+        // ---------------------------------------------------------------
+        // Show caption language selector (existing generate flow)
+        // ---------------------------------------------------------------
         $('#mux-generate-captions').on('click', function() {
             $('#mux-caption-options').slideToggle();
         });

@@ -18,7 +18,7 @@
  *
  * Users can enable full cleanup by checking the option in Settings before uninstalling.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.0.0
  *
  * @package    Wp_Mux

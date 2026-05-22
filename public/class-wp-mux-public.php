@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * The public-facing functionality of the plugin.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.0.0
  *
  * @package    Wp_Mux
@@ -18,7 +20,7 @@
  *
  * @package    Wp_Mux
  * @subpackage Wp_Mux/public
- * @author     Codi Lechasseur <codilechasseur@gmail.com>
+ * @author     Codi Lechasseur
  */
 class Wp_Mux_Public {
 
@@ -259,6 +261,35 @@ class Wp_Mux_Public {
 			// Process if this is a MUX video
 			if ( $is_mux_video && ! empty( $playback_id ) ) {
 
+				// ---- Feature #5: Access restrictions ----
+				// Block-level role restriction: if set, only allow the listed roles.
+				$required_roles_raw = isset( $block['attrs']['mux_required_roles'] ) ? trim( $block['attrs']['mux_required_roles'] ) : '';
+				if ( ! empty( $required_roles_raw ) ) {
+					$required_roles = array_filter( array_map( 'trim', explode( ',', $required_roles_raw ) ) );
+					if ( ! empty( $required_roles ) ) {
+						$user_allowed = false;
+						if ( is_user_logged_in() ) {
+							$current_user = wp_get_current_user();
+							foreach ( $required_roles as $role ) {
+								if ( in_array( $role, (array) $current_user->roles, true ) ) {
+									$user_allowed = true;
+									break;
+								}
+							}
+							// Admins always have access.
+							if ( current_user_can( 'manage_options' ) ) {
+								$user_allowed = true;
+							}
+						}
+						if ( ! $user_allowed ) {
+							// Replace the whole block with an access-denied message.
+							return '<div class="wp-mux-access-denied" style="padding:24px;border:1px solid #ddd;border-radius:4px;text-align:center;background:#f9f9f9;">' .
+								'<p>' . esc_html__( 'This video is restricted. Please log in with an account that has the required access.', 'wp-mux' ) . '</p>' .
+								'</div>';
+						}
+					}
+				}
+
 				// Check if user wants to use custom uploaded poster instead of Mux thumbnails
 				$use_custom_poster = isset( $block['attrs']['mux_use_custom_poster'] ) ? $block['attrs']['mux_use_custom_poster'] : false;
 
@@ -296,6 +327,32 @@ class Wp_Mux_Public {
 				// Build the mux-player opening tag
 				$mux_player_tag = '<mux-player playback-id="' . esc_attr( $playback_id ) . '"';
 
+				// ---- Feature #4: Per-block signed URL token expiry ----
+				// If the playback policy for this asset is 'signed', generate a JWT.
+				$playback_policy = '';
+				if ( isset( $attachment_id ) ) {
+					$playback_policy = get_post_meta( $attachment_id, '_mux_playback_policy', true );
+				}
+				if ( $playback_policy === 'signed' ) {
+					$global_expiry = (int) get_option( 'wp_mux_signed_url_expiry', 14400 );
+					$block_expiry  = isset( $block['attrs']['mux_token_expiry'] ) ? (int) $block['attrs']['mux_token_expiry'] : 0;
+					$expiry        = ( $block_expiry > 0 ) ? $block_expiry : $global_expiry;
+
+					$jwt = Wp_Mux_Utils::generateMuxJwt( $playback_id, 'video', $expiry );
+					if ( ! empty( $jwt ) ) {
+						$mux_player_tag .= ' playback-token="' . esc_attr( $jwt ) . '"';
+						// Also sign the thumbnail and storyboard tokens.
+						$thumb_jwt  = Wp_Mux_Utils::generateMuxJwt( $playback_id, 'thumbnail', $expiry );
+						$story_jwt  = Wp_Mux_Utils::generateMuxJwt( $playback_id, 'storyboard', $expiry );
+						if ( ! empty( $thumb_jwt ) ) {
+							$mux_player_tag .= ' thumbnail-token="' . esc_attr( $thumb_jwt ) . '"';
+						}
+						if ( ! empty( $story_jwt ) ) {
+							$mux_player_tag .= ' storyboard-token="' . esc_attr( $story_jwt ) . '"';
+						}
+					}
+				}
+
 				// Only add controls attribute if it should be enabled
 				if ( ! empty( $controls_attr ) ) {
 					$mux_player_tag .= ' ' . $controls_attr;
@@ -303,6 +360,20 @@ class Wp_Mux_Public {
 
 				// Add player options
 				$mux_player_tag .= $this->get_player_options_attributes();
+
+				// Storyboard scrubbing — injected automatically when the video is ready.
+				$mux_player_tag .= ' storyboard-src="https://image.mux.com/' . esc_attr( $playback_id ) . '/storyboard.vtt"';
+
+				// Video clipping: start-time / end-time from block attributes.
+				$clip_start = isset( $block['attrs']['mux_clip_start'] ) ? floatval( $block['attrs']['mux_clip_start'] ) : null;
+				$clip_end   = isset( $block['attrs']['mux_clip_end'] )   ? floatval( $block['attrs']['mux_clip_end'] )   : null;
+				if ( $clip_start !== null && $clip_start > 0 ) {
+					$mux_player_tag .= ' start-time="' . esc_attr( (string) $clip_start ) . '"';
+				}
+				if ( $clip_end !== null && $clip_end > 0 ) {
+					// mux-player has no native end-time attribute; use data attr + JS.
+					$mux_player_tag .= ' data-end-time="' . esc_attr( (string) $clip_end ) . '"';
+				}
 
 				$mux_player_tag .= ' stream-type="on-demand" poster="' . esc_attr( $thumbnail_url ) . '"$1>';
 
@@ -572,6 +643,117 @@ class Wp_Mux_Public {
 	 * @since    1.4.0
 	 * @return   string    HTML attributes string for mux-player
 	 */
+	/**
+	 * Output VideoObject JSON-LD schema for any Mux videos on the current singular page.
+	 *
+	 * Hooked to wp_head (priority 5) so it runs before third-party SEO plugins
+	 * that may also add schema, allowing them to merge/override if desired.
+	 *
+	 * @since 1.2.0
+	 */
+	public function output_video_seo_schema() {
+		if ( ! is_singular() ) {
+			return;
+		}
+
+		$post_id = get_the_ID();
+		if ( ! $post_id ) {
+			return;
+		}
+
+		// Find all Mux attachment IDs referenced in this post's blocks.
+		$post    = get_post( $post_id );
+		$content = $post->post_content ?? '';
+
+		// Collect from block attrs (id field on core/video blocks).
+		$attach_ids = [];
+		if ( has_blocks( $content ) ) {
+			$blocks = parse_blocks( $content );
+			$this->collect_mux_block_ids( $blocks, $attach_ids );
+		}
+
+		if ( empty( $attach_ids ) ) {
+			return;
+		}
+
+		foreach ( $attach_ids as $attach_id ) {
+			$attachment = get_post( $attach_id );
+			if ( ! $attachment || $attachment->post_mime_type !== 'video/mux' ) {
+				continue;
+			}
+
+			$playback_id = get_post_meta( $attach_id, '_mux_playback_id', true );
+			if ( empty( $playback_id ) ) {
+				continue;
+			}
+
+			$duration       = (float) ( get_post_meta( $attach_id, '_mux_duration', true ) ?: 0 );
+			$thumbnail_url  = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=1280&height=720&fit_mode=smartcrop";
+			$upload_date    = get_the_date( 'c', $attach_id );
+			$title          = get_the_title( $attach_id );
+			$description    = $attachment->post_content ?: $attachment->post_excerpt ?: $title;
+			$content_url    = "https://stream.mux.com/{$playback_id}.m3u8";
+			$embed_url      = home_url( '/?attachment_id=' . $attach_id );
+
+			$schema = [
+				'@context'     => 'https://schema.org',
+				'@type'        => 'VideoObject',
+				'name'         => $title,
+				'description'  => wp_strip_all_tags( $description ),
+				'thumbnailUrl' => $thumbnail_url,
+				'uploadDate'   => $upload_date,
+				'contentUrl'   => $content_url,
+				'embedUrl'     => $embed_url,
+			];
+
+			if ( $duration > 0 ) {
+				// ISO 8601 duration.
+				$schema['duration'] = $this->seconds_to_iso8601_duration( $duration );
+			}
+
+			echo "<script type=\"application/ld+json\">\n";
+			// wp_json_encode escapes </script> and uses UNESCAPED_UNICODE flags.
+			echo wp_json_encode( $schema, JSON_UNESCAPED_SLASHES | JSON_PRETTY_PRINT );
+			echo "\n</script>\n";
+		}
+	}
+
+	/**
+	 * Recursively collect Mux attachment IDs from parsed block tree.
+	 *
+	 * @since  1.2.0
+	 * @param  array $blocks     Parsed block array from parse_blocks().
+	 * @param  array &$ids       Accumulator for found attachment IDs.
+	 */
+	private function collect_mux_block_ids( array $blocks, array &$ids ): void {
+		foreach ( $blocks as $block ) {
+			if ( $block['blockName'] === 'core/video' && ! empty( $block['attrs']['id'] ) ) {
+				$ids[] = (int) $block['attrs']['id'];
+			}
+			if ( ! empty( $block['innerBlocks'] ) ) {
+				$this->collect_mux_block_ids( $block['innerBlocks'], $ids );
+			}
+		}
+	}
+
+	/**
+	 * Convert a duration in seconds to an ISO 8601 duration string (PTxHxMxS).
+	 *
+	 * @since  1.2.0
+	 * @param  float $seconds
+	 * @return string
+	 */
+	private function seconds_to_iso8601_duration( float $seconds ): string {
+		$h = (int) floor( $seconds / 3600 );
+		$m = (int) floor( fmod( $seconds, 3600 ) / 60 );
+		$s = round( fmod( $seconds, 60 ), 2 );
+		$duration = 'PT';
+		if ( $h > 0 ) $duration .= $h . 'H';
+		if ( $m > 0 ) $duration .= $m . 'M';
+		if ( $s > 0 || ( $h === 0.0 && $m === 0.0 ) ) $duration .= $s . 'S';
+		return $duration;
+	}
+
 	private function get_player_options_attributes() {
 		$attributes = array();
 

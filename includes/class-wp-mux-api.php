@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * MUX API client for handling video operations.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.0.0
  *
  * @package    Wp_Mux
@@ -17,7 +19,7 @@
  *
  * @package    Wp_Mux
  * @subpackage Wp_Mux/includes
- * @author     Codi Lechasseur <codilechasseur@gmail.com>
+ * @author     Codi Lechasseur
  */
 class Wp_Mux_Api {
 
@@ -111,10 +113,10 @@ class Wp_Mux_Api {
 
 		if ( $response_code >= 400 ) {
 			$error_data = json_decode( $response_body, true );
-			
+
 			// Try to get the most specific error message
 			$error_message = __( 'Unknown API error', 'wp-mux' );
-			
+
 			if ( isset( $error_data['error']['message'] ) ) {
 				$error_message = $error_data['error']['message'];
 			} elseif ( isset( $error_data['error']['messages'] ) && is_array( $error_data['error']['messages'] ) ) {
@@ -122,9 +124,9 @@ class Wp_Mux_Api {
 			} elseif ( isset( $error_data['message'] ) ) {
 				$error_message = $error_data['message'];
 			}
-			
+
 			// Log detailed error for debugging
-			
+
 			return new WP_Error( 'api_error', $error_message, array( 'status' => $response_code, 'response' => $error_data ) );
 		}
 
@@ -235,6 +237,104 @@ class Wp_Mux_Api {
 		$data = wp_parse_args( $options, $default_options );
 
 		return $this->make_request( $endpoint, 'POST', $data );
+	}
+
+	/**
+	 * Upload a local file to Mux.
+	 *
+	 * Creates a direct upload, streams the file via cURL (avoiding loading the
+	 * entire file into memory), then polls for the resulting asset ID.
+	 *
+	 * @since    1.3.0
+	 *
+	 * @param string $filePath   Absolute path to the local video file.
+	 * @param string $mimeType   MIME type of the file (e.g. "video/mp4").
+	 * @param array  $options    Optional settings passed to create_direct_upload().
+	 *
+	 * @return array{upload_id: string, asset_id: string|null, playback_id: string|null}|WP_Error
+	 */
+	public function upload_local_file( string $filePath, string $mimeType, array $options = array() ) {
+		if ( ! file_exists( $filePath ) ) {
+			return new WP_Error( 'file_not_found', "Source file not found: {$filePath}" );
+		}
+
+		$upload = $this->create_direct_upload( $options );
+		if ( is_wp_error( $upload ) ) {
+			return $upload;
+		}
+
+		if ( empty( $upload['data']['url'] ) || empty( $upload['data']['id'] ) ) {
+			return new WP_Error( 'upload_create_failed', 'Failed to create Mux direct upload' );
+		}
+
+		$uploadUrl = $upload['data']['url'];
+		$uploadId  = $upload['data']['id'];
+
+		$httpCode = $this->stream_put_file( $uploadUrl, $filePath, $mimeType );
+		if ( $httpCode < 200 || $httpCode >= 300 ) {
+			return new WP_Error( 'upload_failed', "File upload to Mux failed with HTTP {$httpCode}" );
+		}
+
+		$assetId    = null;
+		$playbackId = null;
+
+		for ( $i = 0; $i < 10; $i++ ) {
+			sleep( 3 );
+			$status = $this->get_upload( $uploadId );
+			if ( ! is_wp_error( $status ) && ! empty( $status['data']['asset_id'] ) ) {
+				$assetId = $status['data']['asset_id'];
+				break;
+			}
+		}
+
+		if ( $assetId ) {
+			$details = $this->get_video( $assetId );
+			if ( ! is_wp_error( $details ) ) {
+				$playbackId = $details['data']['playback_ids'][0]['id'] ?? null;
+			}
+		}
+
+		return array(
+			'upload_id'   => $uploadId,
+			'asset_id'    => $assetId,
+			'playback_id' => $playbackId,
+		);
+	}
+
+	/**
+	 * Stream a local file to a URL using cURL PUT to avoid loading it into memory.
+	 *
+	 * @since    1.3.0
+	 *
+	 * @param string $url      Target URL.
+	 * @param string $filePath Absolute path to the file.
+	 * @param string $mimeType MIME type for the Content-Type header.
+	 *
+	 * @return int HTTP response code.
+	 */
+	private function stream_put_file( string $url, string $filePath, string $mimeType ): int {
+		$fileHandle = fopen( $filePath, 'rb' );
+		if ( ! $fileHandle ) {
+			return 0;
+		}
+
+		$ch = curl_init( $url );
+		curl_setopt_array( $ch, array(
+			CURLOPT_PUT            => true,
+			CURLOPT_INFILE         => $fileHandle,
+			CURLOPT_INFILESIZE     => filesize( $filePath ),
+			CURLOPT_HTTPHEADER     => array( "Content-Type: {$mimeType}" ),
+			CURLOPT_RETURNTRANSFER => true,
+			CURLOPT_FOLLOWLOCATION => true,
+			CURLOPT_TIMEOUT        => 600,
+		) );
+
+		curl_exec( $ch );
+		$httpCode = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		curl_close( $ch );
+		fclose( $fileHandle );
+
+		return $httpCode;
 	}
 
 	/**
@@ -761,17 +861,17 @@ class Wp_Mux_Api {
 	public function generate_captions( $asset_id, $language = 'en' ) {
 		// Get the audio track ID
 		$audio_track_id = $this->get_audio_track_id( $asset_id );
-		
+
 		if ( empty( $audio_track_id ) ) {
 			return new WP_Error(
 				'no_audio_track',
 				__( 'No audio track found for this video. Cannot generate captions.', 'wp-mux' )
 			);
 		}
-		
+
 		// Use the correct endpoint for generating subtitles
 		$endpoint = "/video/v1/assets/{$asset_id}/tracks/{$audio_track_id}/generate-subtitles";
-		
+
 		$data = array(
 			'generated_subtitles' => array(
 				array(
@@ -781,7 +881,7 @@ class Wp_Mux_Api {
 				),
 			),
 		);
-		
+
 		return $this->make_request( $endpoint, 'POST', $data );
 	}
 
@@ -820,17 +920,17 @@ class Wp_Mux_Api {
 	 */
 	public function update_playback_policy( $asset_id, $policy ) {
 		$endpoint = "/video/v1/assets/{$asset_id}";
-		
+
 		$data = array(
 			'playback_policy' => array( $policy ),
 		);
-		
+
 		$response = $this->make_request( $endpoint, 'PATCH', $data );
-		
+
 		if ( ! is_wp_error( $response ) ) {
 			delete_transient( "wp_mux_video_details_{$asset_id}" );
 		}
-		
+
 		return $response;
 	}
 
@@ -844,18 +944,62 @@ class Wp_Mux_Api {
 	 */
 	public function update_mp4_support( $asset_id, $support ) {
 		$endpoint = "/video/v1/assets/{$asset_id}";
-		
+
 		$data = array(
 			'mp4_support' => $support,
 		);
-		
+
 		$response = $this->make_request( $endpoint, 'PATCH', $data );
-		
+
 		if ( ! is_wp_error( $response ) ) {
 			delete_transient( "wp_mux_video_details_{$asset_id}" );
 		}
-		
+
 		return $response;
+	}
+
+	/**
+	 * Create a Mux asset from a remote URL.
+	 *
+	 * Mux will fetch and encode the file at the provided URL directly.
+	 * No local download needed.
+	 *
+	 * @since    1.2.0
+	 * @param    string    $url             Publicly reachable URL of the video file.
+	 * @param    array     $options         Optional settings: playback_policy, mp4_support, encoding_tier.
+	 * @return   array|WP_Error             Asset data array or WP_Error on failure.
+	 */
+	public function create_asset_from_url( string $url, array $options = array() ): array|WP_Error {
+		$playback_policy = $options['playback_policy'] ?? get_option( 'wp_mux_default_playback_policy', 'public' );
+		$mp4_support     = $options['mp4_support']     ?? get_option( 'wp_mux_default_mp4_support', 'none' );
+		$encoding_tier   = $options['encoding_tier']   ?? get_option( 'wp_mux_default_encoding_tier', 'baseline' );
+
+		return $this->make_request( '/video/v1/assets', 'POST', [
+			'input'           => [ [ 'url' => $url ] ],
+			'playback_policy' => [ $playback_policy ],
+			'mp4_support'     => $mp4_support,
+			'encoding_tier'   => $encoding_tier,
+		] );
+	}
+
+	/**
+	 * Add a text track (subtitles/captions) to an existing asset.
+	 *
+	 * @since    1.2.0
+	 * @param    string    $asset_id    Mux asset ID.
+	 * @param    string    $vtt_url     Publicly reachable URL of the VTT file.
+	 * @param    string    $language    BCP-47 language code (e.g. "en").
+	 * @param    string    $name        Human-readable track name.
+	 * @return   array|WP_Error         Track data or WP_Error on failure.
+	 */
+	public function add_caption_track( string $asset_id, string $vtt_url, string $language = 'en', string $name = 'Captions' ): array|WP_Error {
+		return $this->make_request( '/video/v1/assets/' . sanitize_text_field( $asset_id ) . '/tracks', 'POST', [
+			'type'          => 'text',
+			'text_type'     => 'subtitles',
+			'language_code' => $language,
+			'url'           => $vtt_url,
+			'name'          => $name,
+		] );
 	}
 
 	/**
@@ -866,15 +1010,15 @@ class Wp_Mux_Api {
 	 */
 	public function create_signing_key() {
 		$endpoint = '/system/v1/signing-keys';
-		
+
 		// Mux signing keys endpoint doesn't require data, but may need an empty JSON object
 		$response = $this->make_request( $endpoint, 'POST', null );
-		
+
 		// Additional error logging
 		if ( is_wp_error( $response ) ) {
 		} else {
 		}
-		
+
 		return $response;
 	}
 
@@ -928,7 +1072,7 @@ class Wp_Mux_Api {
 		if ( ! empty( $existing_key_id ) && ! empty( $existing_private_key ) ) {
 			// Verify the existing key is still valid
 			$key_check = $this->get_signing_key( $existing_key_id );
-			
+
 			if ( ! is_wp_error( $key_check ) ) {
 				return array(
 					'status' => 'existing',
@@ -971,7 +1115,7 @@ class Wp_Mux_Api {
 
 	/**
 	 * Check if the Mux account has signing keys capability.
-	 * 
+	 *
 	 * This tests whether the account can access the signing keys API.
 	 * Results are cached for 1 hour to avoid repeated API calls.
 	 *
@@ -1003,7 +1147,7 @@ class Wp_Mux_Api {
 
 	/**
 	 * Check if the Mux account has caption generation capability.
-	 * 
+	 *
 	 * Tests whether the account can generate auto-captions.
 	 * Results are cached for 1 hour to avoid repeated API calls.
 	 *
@@ -1024,7 +1168,7 @@ class Wp_Mux_Api {
 
 		// Get a sample video to test with
 		$videos = $this->get_videos( 1, 1 );
-		
+
 		if ( is_wp_error( $videos ) || empty( $videos['data'] ) ) {
 			// No videos to test with, assume capability exists
 			// This prevents blocking the feature when account is empty
@@ -1033,16 +1177,16 @@ class Wp_Mux_Api {
 		}
 
 		$test_asset_id = $videos['data'][0]['id'];
-		
+
 		// Get the asset to check for audio track
 		$video = $this->get_video( $test_asset_id );
-		
+
 		if ( is_wp_error( $video ) ) {
 			// Can't determine, assume capability exists
 			set_transient( 'wp_mux_has_caption_generation', 1, HOUR_IN_SECONDS );
 			return true;
 		}
-		
+
 		// Find audio track
 		$audio_track_id = null;
 		if ( isset( $video['data']['tracks'] ) && is_array( $video['data']['tracks'] ) ) {
@@ -1053,7 +1197,7 @@ class Wp_Mux_Api {
 				}
 			}
 		}
-		
+
 		// If no audio track, we can't definitively test, assume yes
 		if ( empty( $audio_track_id ) ) {
 			set_transient( 'wp_mux_has_caption_generation', 1, HOUR_IN_SECONDS );
@@ -1063,7 +1207,7 @@ class Wp_Mux_Api {
 		// Test the endpoint with a HEAD-like approach - check if endpoint exists
 		// We'll check the error code if we get one
 		$endpoint = "/video/v1/assets/{$test_asset_id}/tracks/{$audio_track_id}/generate-subtitles";
-		
+
 		// Make a test request - the API will fail but tell us if it's permissions or just bad data
 		$test_result = $this->make_request( $endpoint, 'POST', array(
 			'generated_subtitles' => array(
@@ -1078,13 +1222,13 @@ class Wp_Mux_Api {
 		if ( is_wp_error( $test_result ) ) {
 			$error_data = $test_result->get_error_data();
 			$status_code = isset( $error_data['status'] ) ? $error_data['status'] : 0;
-			
+
 			// 401/403 = authentication/permission issue
 			if ( in_array( $status_code, array( 401, 403 ) ) ) {
 				set_transient( 'wp_mux_has_caption_generation', 0, HOUR_IN_SECONDS );
 				return false;
 			}
-			
+
 			// Any other error (like 400, 422) means the endpoint exists but our test data was bad
 			// This is actually a good sign - the feature is available
 		}
@@ -1103,17 +1247,17 @@ class Wp_Mux_Api {
 	 */
 	public function has_audio_track( $asset_id ) {
 		$video = $this->get_video( $asset_id );
-		
+
 		if ( is_wp_error( $video ) || ! isset( $video['data']['tracks'] ) ) {
 			return false;
 		}
-		
+
 		foreach ( $video['data']['tracks'] as $track ) {
 			if ( isset( $track['type'] ) && $track['type'] === 'audio' ) {
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
 
@@ -1126,17 +1270,17 @@ class Wp_Mux_Api {
 	 */
 	public function get_audio_track_id( $asset_id ) {
 		$video = $this->get_video( $asset_id );
-		
+
 		if ( is_wp_error( $video ) || ! isset( $video['data']['tracks'] ) ) {
 			return false;
 		}
-		
+
 		foreach ( $video['data']['tracks'] as $track ) {
 			if ( isset( $track['type'] ) && $track['type'] === 'audio' ) {
 				return $track['id'];
 			}
 		}
-		
+
 		return false;
 	}
 }

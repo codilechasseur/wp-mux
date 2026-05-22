@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.1'
+          tools: composer:v2
+
+      - name: Install Composer dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction
+
+      - name: Build plugin zip
+        run: |
+          PLUGIN_SLUG="wp-mux"
+          VERSION="${GITHUB_REF_NAME#v}"
+          DEST="/tmp/${PLUGIN_SLUG}"
+
+          mkdir -p "${DEST}"
+
+          # Copy files, honouring .distignore exclusions
+          rsync -r \
+            --exclude-from=".distignore" \
+            --exclude=".git" \
+            . "${DEST}/"
+
+          cd /tmp
+          zip -r "${PLUGIN_SLUG}-${VERSION}.zip" "${PLUGIN_SLUG}/"
+
+          echo "ZIP_PATH=/tmp/${PLUGIN_SLUG}-${VERSION}.zip" >> "$GITHUB_ENV"
+          echo "ZIP_NAME=${PLUGIN_SLUG}-${VERSION}.zip"      >> "$GITHUB_ENV"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ZIP_PATH }}
+          name: "WP Mux ${{ github.ref_name }}"
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

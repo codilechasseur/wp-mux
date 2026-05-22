@@ -114,4 +114,34 @@
 		}
 	}, 2000);
 
+	// ---------------------------------------------------------------
+	// Clip end-time: mux-player has no native end-time attribute.
+	// We use data-end-time and pause via timeupdate.
+	// ---------------------------------------------------------------
+	function initVideoClipping() {
+		document.querySelectorAll('mux-player[data-end-time]').forEach(function(player) {
+			var endTime = parseFloat(player.getAttribute('data-end-time'));
+			if (!endTime || endTime <= 0) return;
+			// Avoid attaching multiple listeners.
+			if (player._muxEndTimeInit) return;
+			player._muxEndTimeInit = true;
+			player.addEventListener('timeupdate', function() {
+				if (player.currentTime >= endTime) {
+					player.pause();
+					// Clamp to exact end so scrubber lands correctly.
+					if (player.currentTime > endTime) {
+						player.currentTime = endTime;
+					}
+				}
+			});
+		});
+	}
+
+	$(document).ready(function() {
+		initVideoClipping();
+	});
+	$(window).on('load', function() {
+		setTimeout(initVideoClipping, 300);
+	});
+
 })( jQuery );

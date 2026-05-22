@@ -1,12 +1,14 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * The file that defines the core plugin class
  *
  * A class definition that includes attributes and functions used across both the
  * public-facing side of the site and the admin area.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.0.0
  *
  * @package    Wp_Mux
@@ -25,7 +27,7 @@
  * @since      1.0.0
  * @package    Wp_Mux
  * @subpackage Wp_Mux/includes
- * @author     Codi Lechasseur <codilechasseur@gmail.com>
+ * @author     Codi Lechasseur
  */
 class Wp_Mux {
 
@@ -147,6 +149,26 @@ class Wp_Mux {
 		$ajax_handler = new Wp_Mux_Admin_Ajax();
 		$ajax_handler->registerHooks();
 
+		/**
+		 * The class responsible for managing the video upload queue.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-utils.php';
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-queue-manager.php';
+		$queue_manager = new Wp_Mux_Queue_Manager();
+		$queue_manager->registerHooks();
+
+		/**
+		 * Webhook receiver — handles real-time Mux events.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-webhook.php';
+		new Wp_Mux_Webhook();
+
+		/**
+		 * REST API endpoints for headless use.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-rest-api.php';
+		new Wp_Mux_Rest_Api();
+
 		$this->loader = new Wp_Mux_Loader();
 
 	}
@@ -200,53 +222,11 @@ class Wp_Mux {
 		// Add analytics meta box to attachment edit page
 		$this->loader->add_action( 'add_meta_boxes_attachment', $plugin_admin, 'add_analytics_meta_box' );
 
-		// Post-upload video processing queue system
-		$this->loader->add_action( 'add_attachment', $plugin_admin, 'queue_video_for_mux_processing' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_process_queue', $plugin_admin, 'process_mux_queue' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_get_queue_status', $plugin_admin, 'get_queue_status' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_get_attachment_info', $plugin_admin, 'get_attachment_info' );
-		$this->loader->add_action( 'wp_mux_process_queue_event', $plugin_admin, 'process_mux_queue_cron' );
-
 		// Handle attachment deletion - delete from MUX when deleted from WordPress
 		$this->loader->add_action( 'delete_attachment', $plugin_admin, 'handle_attachment_deletion' );
 
-		// Add heartbeat to regularly process queue
-		$this->loader->add_filter( 'heartbeat_received', $plugin_admin, 'heartbeat_process_queue', 10, 2 );
-
-		// Debug: log all AJAX requests to see what action is actually used
-		$this->loader->add_action( 'wp_loaded', $plugin_admin, 'debug_all_ajax' );
-
 		// Hook into attachment preparation for AJAX responses (for existing MUX attachments)
 		$this->loader->add_filter( 'wp_prepare_attachment_for_js', $plugin_admin, 'prepare_mux_attachment_for_js', 10, 3 );
-
-		// Add AJAX handlers for admin functionality
-		$this->loader->add_action( 'wp_ajax_wp_mux_create_upload', $plugin_admin, 'ajax_create_upload' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_load_videos', $plugin_admin, 'ajax_load_videos' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_delete_video', $plugin_admin, 'ajax_delete_video' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_get_video_details', $plugin_admin, 'ajax_get_video_details' );
-
-		// Add AJAX handlers for theme functionality
-		$this->loader->add_action( 'wp_ajax_wp_mux_save_theme', $plugin_admin, 'ajax_save_theme' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_delete_theme', $plugin_admin, 'ajax_delete_theme' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_set_default_theme', $plugin_admin, 'ajax_set_default_theme' );
-
-		// Add AJAX handler for video analytics refresh
-		$this->loader->add_action( 'wp_ajax_wp_mux_refresh_video_analytics', $plugin_admin, 'ajax_refresh_video_analytics' );
-
-		// Add AJAX handlers for bulk migration
-		$this->loader->add_action( 'wp_ajax_wp_mux_scan_local_videos', $plugin_admin, 'ajax_scan_local_videos' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_migrate_single_video', $plugin_admin, 'ajax_migrate_single_video' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_get_migration_status', $plugin_admin, 'ajax_get_migration_status' );
-		$this->loader->add_action( 'wp_ajax_wp_mux_save_delete_option', $plugin_admin, 'ajax_save_delete_option' );
-
-		// Add AJAX handlers for migrate-back feature
-		$this->loader->add_action( 'wp_ajax_migrate_back_system_check', $plugin_admin, 'ajax_migrate_back_system_check' );
-		$this->loader->add_action( 'wp_ajax_migrate_back_scan', $plugin_admin, 'ajax_migrate_back_scan' );
-		$this->loader->add_action( 'wp_ajax_migrate_back_enable_mp4', $plugin_admin, 'ajax_migrate_back_enable_mp4' );
-		$this->loader->add_action( 'wp_ajax_migrate_back_scan_content', $plugin_admin, 'ajax_migrate_back_scan_content' );
-		$this->loader->add_action( 'wp_ajax_migrate_back_video', $plugin_admin, 'ajax_migrate_back_video' );
-		$this->loader->add_action( 'wp_ajax_migrate_back_update_content', $plugin_admin, 'ajax_migrate_back_update_content' );
-		$this->loader->add_action( 'wp_ajax_migrate_back_cleanup', $plugin_admin, 'ajax_migrate_back_cleanup' );
 
 		// Add Gutenberg/Block editor support for MUX videos
 		$this->loader->add_action( 'enqueue_block_editor_assets', $plugin_admin, 'enqueue_block_editor_assets' );
@@ -280,6 +260,27 @@ class Wp_Mux {
 		$this->loader->add_filter( 'wp_video_shortcode', $plugin_public, 'render_mux_video', 10, 3 );
 		$this->loader->add_filter( 'the_content', $plugin_public, 'process_content_videos', 20 );
 		$this->loader->add_filter( 'render_block', $plugin_public, 'process_video_blocks', 10, 2 );
+
+		// Video SEO: output VideoObject JSON-LD in <head> when a Mux video is on the page.
+		$this->loader->add_action( 'wp_head', $plugin_public, 'output_video_seo_schema', 5 );
+
+		// Serve transient-stored VTT files so Mux can re-ingest edited captions.
+		add_action( 'init', function() {
+			$action = isset( $_GET['wp_mux_action'] ) ? sanitize_key( $_GET['wp_mux_action'] ) : '';
+			if ( $action !== 'serve_vtt' ) {
+				return;
+			}
+			$key     = isset( $_GET['key'] ) ? sanitize_text_field( wp_unslash( $_GET['key'] ) ) : '';
+			$content = get_transient( 'wp_mux_vtt_' . $key );
+			if ( empty( $content ) ) {
+				wp_die( 'VTT not found or expired', 404 );
+			}
+			header( 'Content-Type: text/vtt; charset=UTF-8' );
+			header( 'Cache-Control: no-store' );
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+			echo $content;
+			exit;
+		} );
 
 	}
 

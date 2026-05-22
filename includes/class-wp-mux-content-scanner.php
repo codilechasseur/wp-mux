@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Scans and updates post content for Mux video references
  *

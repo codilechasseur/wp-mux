@@ -5,7 +5,7 @@
  *
  * This file is used to markup the admin-facing aspects of theme management.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.0.0
  *
  * @package    Wp_Mux

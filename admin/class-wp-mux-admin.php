@@ -1,9 +1,11 @@
 <?php
 
+declare(strict_types=1);
+
 /**
  * The admin-specific functionality of the plugin.
  *
- * @link       https://codilechasseur@gmail.com
+ * @link       https://wpmux.com
  * @since      1.0.0
  *
  * @package    Wp_Mux
@@ -18,7 +20,7 @@
  *
  * @package    Wp_Mux
  * @subpackage Wp_Mux/admin
- * @author     Codi Lechasseur <codilechasseur@gmail.com>
+ * @author     Codi Lechasseur
  */
 class Wp_Mux_Admin {
 
@@ -108,7 +110,7 @@ class Wp_Mux_Admin {
 				'wp-mux-migration' => __( 'Migrate Videos', 'wp-mux' ),
 			);
 			$page_name = isset( $page_names[ $api_required_page ] ) ? $page_names[ $api_required_page ] : __( 'that page', 'wp-mux' );
-			
+
 			echo '<div class="notice notice-warning is-dismissible">';
 			echo '<p><strong>' . esc_html__( 'MUX API Configuration Required', 'wp-mux' ) . '</strong></p>';
 			echo '<p>' . sprintf(
@@ -225,10 +227,10 @@ class Wp_Mux_Admin {
 	}
 
 	// Enqueue migration styles on migration page, settings page (for sidebar layout)
-	if ( $screen && ( 
-		$screen->id === 'mux-videos_page_wp-mux-migration' || 
-		$screen->id === 'mux-videos_page_wp-mux-settings' || 
-		$screen->id === 'toplevel_page_wp-mux-videos' 
+	if ( $screen && (
+		$screen->id === 'mux-videos_page_wp-mux-migration' ||
+		$screen->id === 'mux-videos_page_wp-mux-settings' ||
+		$screen->id === 'toplevel_page_wp-mux-videos'
 	) ) {
 		wp_enqueue_style( 'wp-mux-migration', plugin_dir_url( __FILE__ ) . 'css/wp-mux-migration.css', array(), $this->version );
 	}
@@ -370,7 +372,7 @@ class Wp_Mux_Admin {
 	}
 
 	// Enqueue migrate-back script on migration page (from-mux tab)
-	if ( ( $screen && $screen->id === 'mux-videos_page_wp-mux-migration' && isset( $_GET['tab'] ) && $_GET['tab'] === 'from-mux' ) || 
+	if ( ( $screen && $screen->id === 'mux-videos_page_wp-mux-migration' && isset( $_GET['tab'] ) && $_GET['tab'] === 'from-mux' ) ||
 	     ( isset( $_GET['page'] ) && $_GET['page'] === 'wp-mux-migration' && isset( $_GET['tab'] ) && $_GET['tab'] === 'from-mux' ) ) {
 		wp_enqueue_script( 'wp-mux-migrate-back', plugin_dir_url( __FILE__ ) . 'js/wp-mux-migrate-back.js', array( 'jquery' ), $this->version, true );
 
@@ -394,16 +396,27 @@ class Wp_Mux_Admin {
 
 		// Make themes available to block editor
 		wp_add_inline_script( 'wp-mux-block-editor', 'window.wpMuxThemes = ' . json_encode( $theme_options ) . ';', 'before' );
+
+		// Pass WordPress roles for the Access Restrictions checkboxes.
+		$roles        = wp_roles()->roles;
+		$role_options = array();
+		foreach ( $roles as $role_key => $role_data ) {
+			$role_options[] = array(
+				'value' => $role_key,
+				'label' => translate_user_role( $role_data['name'] ),
+			);
+		}
+		wp_add_inline_script( 'wp-mux-block-editor', 'window.wpMuxRoles = ' . wp_json_encode( $role_options ) . ';', 'before' );
 	}
 
 	// Enqueue attachment settings script on attachment edit page
 	if ( $screen && $screen->id === 'attachment' ) {
-		wp_enqueue_script( 
-			'wp-mux-attachment-settings', 
-			plugin_dir_url( __FILE__ ) . 'js/wp-mux-attachment-settings.js', 
-			array( 'jquery' ), 
-			$this->version, 
-			true 
+		wp_enqueue_script(
+			'wp-mux-attachment-settings',
+			plugin_dir_url( __FILE__ ) . 'js/wp-mux-attachment-settings.js',
+			array( 'jquery' ),
+			$this->version,
+			true
 		);
 	}
 
@@ -551,10 +564,10 @@ class Wp_Mux_Admin {
 					<h3 style="margin: 0;"><?php _e( 'Video Analytics', 'wp-mux' ); ?></h3>
 					<div style="display: flex; align-items: center; gap: 10px;">
 						<span class="mux-stats-updated" style="font-size: 12px; color: #646970;">
-							<?php 
+							<?php
 							$analytics = $this->get_video_analytics( $post->ID, false );
 							$formatted = $this->format_analytics_for_display( $analytics );
-							printf( __( 'Last updated: %s', 'wp-mux' ), esc_html( $formatted['last_updated'] ) ); 
+							printf( __( 'Last updated: %s', 'wp-mux' ), esc_html( $formatted['last_updated'] ) );
 							?>
 						</span>
 						<button type="button" class="button button-small mux-refresh-stats-edit-page" data-attachment-id="<?php echo esc_attr( $post->ID ); ?>" title="<?php _e( 'Refresh Analytics', 'wp-mux' ); ?>" style="min-width: auto; padding: 4px 8px; color: #646970; border-color: #dcdcde; display: inline-flex; align-items: center; justify-content: center;">
@@ -564,9 +577,9 @@ class Wp_Mux_Admin {
 				</div>
 				<?php $this->render_analytics_content( $post ); ?>
 			</div>
-			
+
 			<hr style="margin: 30px 0; border: none; border-top: 1px solid #dcdcde;">
-			
+
 			<!-- Settings Section -->
 			<div class="wp-mux-section">
 				<h3><?php _e( 'Video Settings', 'wp-mux' ); ?></h3>
@@ -663,29 +676,29 @@ class Wp_Mux_Admin {
 
 	private function render_settings_content( $post ) {
 		$asset_id = get_post_meta( $post->ID, '_mux_asset_id', true );
-		
+
 		// Get current settings
 		$playback_policy = get_post_meta( $post->ID, '_mux_playback_policy', true ) ?: 'public';
 		$mp4_support = get_post_meta( $post->ID, '_mux_mp4_support', true ) ?: 'none';
 		$encoding_tier = get_post_meta( $post->ID, '_mux_encoding_tier', true ) ?: 'baseline';
 		$has_captions = get_post_meta( $post->ID, '_mux_has_captions', true );
-		
+
 		// Check if caption generation is available
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
 		$api = new Wp_Mux_Api();
 		$captions_available = $api->has_caption_generation_capability();
-		
+
 		// Check if video has audio track
 		$has_audio = false;
 		if ( ! empty( $asset_id ) ) {
 			$has_audio = $api->has_audio_track( $asset_id );
 		}
-		
+
 		// Check if signing keys are available (needed for signed/protected playback)
 		$signing_keys_available = $api->has_signing_keys_capability();
-		
+
 		wp_nonce_field( 'wp_mux_save_settings', 'wp_mux_settings_nonce' );
-		
+
 		include plugin_dir_path( __FILE__ ) . 'partials/wp-mux-admin-attachment-settings.php';
 	}
 
@@ -697,7 +710,7 @@ class Wp_Mux_Admin {
 	 */
 	public function save_mux_attachment_settings( $attachment_id ) {
 		// Verify nonce
-		if ( ! isset( $_POST['wp_mux_settings_nonce'] ) || 
+		if ( ! isset( $_POST['wp_mux_settings_nonce'] ) ||
 			 ! wp_verify_nonce( $_POST['wp_mux_settings_nonce'], 'wp_mux_save_settings' ) ) {
 			return;
 		}
@@ -729,7 +742,7 @@ class Wp_Mux_Admin {
 
 			if ( $new_policy !== $old_policy && in_array( $new_policy, array( 'public', 'signed' ), true ) ) {
 				$response = $api->update_playback_policy( $asset_id, $new_policy );
-				
+
 				if ( ! is_wp_error( $response ) ) {
 					update_post_meta( $attachment_id, '_mux_playback_policy', $new_policy );
 					update_post_meta( $attachment_id, '_mux_requires_signed_url', $new_policy === 'signed' );
@@ -743,10 +756,10 @@ class Wp_Mux_Admin {
 			$new_support = sanitize_text_field( $_POST['mux_mp4_support'] );
 			$old_support = get_post_meta( $attachment_id, '_mux_mp4_support', true );
 
-			if ( $new_support !== $old_support && 
+			if ( $new_support !== $old_support &&
 				 in_array( $new_support, array( 'none', 'standard', 'audio-only' ), true ) ) {
 				$response = $api->update_mp4_support( $asset_id, $new_support );
-				
+
 				if ( ! is_wp_error( $response ) ) {
 					update_post_meta( $attachment_id, '_mux_mp4_support', $new_support );
 					$updated = true;
@@ -824,7 +837,9 @@ class Wp_Mux_Admin {
 		add_submenu_page(
 			'wp-mux-videos',
 			__( 'Migrate Local Videos', 'wp-mux' ),
-			__( 'Migrate Videos', 'wp-mux' ),
+			wp_mux_is_pro()
+				? __( 'Migrate Videos', 'wp-mux' )
+				: __( 'Migrate Videos ✨', 'wp-mux' ),
 			'manage_options',
 			'wp-mux-migration',
 			array( $this, 'display_migration_page' )
@@ -1155,6 +1170,33 @@ class Wp_Mux_Admin {
 			'wp-mux-settings',
 			'wp_mux_uninstall_settings'
 		);
+
+		// Register webhook secret setting.
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_webhook_secret',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => '',
+			)
+		);
+
+		// Add webhook settings section.
+		add_settings_section(
+			'wp_mux_webhook_settings',
+			__( 'Webhook Settings', 'wp-mux' ),
+			array( $this, 'webhook_settings_section_callback' ),
+			'wp-mux-settings'
+		);
+
+		add_settings_field(
+			'wp_mux_webhook_secret',
+			__( 'Webhook Signing Secret', 'wp-mux' ),
+			array( $this, 'webhook_secret_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_webhook_settings'
+		);
 	}
 
 	/**
@@ -1322,289 +1364,6 @@ class Wp_Mux_Admin {
 	}
 
 	/**
-	 * Handle AJAX request for creating direct upload.
-	 *
-	 * @since    1.0.0
-	 */
-	public function ajax_create_upload() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_upload_nonce' ) ) {
-			wp_die( __( 'Security check failed', 'wp-mux' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
-		$api = new Wp_Mux_Api();
-
-		$upload = $api->create_direct_upload();
-
-		if ( is_wp_error( $upload ) ) {
-			wp_send_json_error( $upload->get_error_message() );
-		}
-
-		wp_send_json_success( $upload );
-	}
-
-	/**
-	 * Handle AJAX request for loading videos.
-	 *
-	 * @since    1.0.0
-	 */
-	public function ajax_load_videos() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_videos_nonce' ) ) {
-			wp_die( __( 'Security check failed', 'wp-mux' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
-		$api = new Wp_Mux_Api();
-
-		$page = isset( $_POST['page'] ) ? absint( $_POST['page'] ) : 1;
-		$videos = $api->get_videos( 25, $page );
-
-		if ( is_wp_error( $videos ) ) {
-			wp_send_json_error( $videos->get_error_message() );
-		}
-
-		wp_send_json_success( $videos );
-	}
-
-	/**
-	 * Handle AJAX request for deleting a video.
-	 *
-	 * @since    1.0.0
-	 */
-	public function ajax_delete_video() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_videos_nonce' ) ) {
-			wp_die( __( 'Security check failed', 'wp-mux' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
-		}
-
-		$asset_id = sanitize_text_field( $_POST['asset_id'] );
-		if ( empty( $asset_id ) ) {
-			wp_send_json_error( __( 'Invalid asset ID', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
-		$api = new Wp_Mux_Api();
-
-		$result = $api->delete_video( $asset_id );
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( $result->get_error_message() );
-		}
-
-		// Clear the account stats cache so the overview updates immediately
-		delete_transient( 'wp_mux_account_stats' );
-
-		wp_send_json_success( __( 'Video deleted successfully', 'wp-mux' ) );
-	}
-
-	/**
-	 * Handle AJAX request for getting video details.
-	 *
-	 * @since    1.0.0
-	 */
-	public function ajax_get_video_details() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_videos_nonce' ) ) {
-			wp_die( __( 'Security check failed', 'wp-mux' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
-		}
-
-		$asset_id = sanitize_text_field( $_POST['asset_id'] );
-		if ( empty( $asset_id ) ) {
-			wp_send_json_error( __( 'Invalid asset ID', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
-		$api = new Wp_Mux_Api();
-
-		$video = $api->get_video( $asset_id );
-
-		if ( is_wp_error( $video ) ) {
-			wp_send_json_error( $video->get_error_message() );
-		}
-
-		wp_send_json_success( $video );
-	}
-
-	/**
-	 * Handle AJAX request for saving a theme.
-	 *
-	 * @since    1.0.0
-	 */
-	public function ajax_save_theme() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_themes_nonce' ) ) {
-			wp_die( __( 'Security check failed', 'wp-mux' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
-		$theme_manager = new Wp_Mux_Theme_Manager();
-
-		$theme_id = sanitize_text_field( $_POST['theme_id'] );
-		$name = sanitize_text_field( $_POST['name'] );
-		$description = sanitize_textarea_field( $_POST['description'] );
-		$controls = isset( $_POST['controls'] ) ? $_POST['controls'] : array();
-		$styles = isset( $_POST['styles'] ) ? $_POST['styles'] : array();
-
-		// Generate theme ID if creating new theme
-		if ( empty( $theme_id ) ) {
-			$theme_id = $theme_manager->generate_theme_id( $name );
-		}
-
-		$result = $theme_manager->save_theme( $theme_id, $name, $description, $controls, $styles );
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( $result->get_error_message() );
-		}
-
-		wp_send_json_success( array(
-			'theme_id' => $theme_id,
-			'message' => __( 'Theme saved successfully', 'wp-mux' ),
-		) );
-	}
-
-	/**
-	 * Handle AJAX request for deleting a theme.
-	 *
-	 * @since    1.0.0
-	 */
-	public function ajax_delete_theme() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_themes_nonce' ) ) {
-			wp_die( __( 'Security check failed', 'wp-mux' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
-		}
-
-		$theme_id = sanitize_text_field( $_POST['theme_id'] );
-		if ( empty( $theme_id ) ) {
-			wp_send_json_error( __( 'Invalid theme ID', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
-		$theme_manager = new Wp_Mux_Theme_Manager();
-
-		$result = $theme_manager->delete_theme( $theme_id );
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( $result->get_error_message() );
-		}
-
-		wp_send_json_success( __( 'Theme deleted successfully', 'wp-mux' ) );
-	}
-
-	/**
-	 * Handle AJAX request for setting default theme.
-	 *
-	 * @since    1.0.0
-	 */
-	public function ajax_set_default_theme() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'], 'wp_mux_themes_nonce' ) ) {
-			wp_die( __( 'Security check failed', 'wp-mux' ) );
-		}
-
-		// Check user permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_die( __( 'Insufficient permissions', 'wp-mux' ) );
-		}
-
-		$theme_id = sanitize_text_field( $_POST['theme_id'] );
-		if ( empty( $theme_id ) ) {
-			wp_send_json_error( __( 'Invalid theme ID', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
-		$theme_manager = new Wp_Mux_Theme_Manager();
-
-		$result = $theme_manager->set_default_theme( $theme_id );
-
-		if ( ! $result ) {
-			wp_send_json_error( __( 'Failed to set default theme', 'wp-mux' ) );
-		}
-
-		wp_send_json_success( __( 'Default theme updated successfully', 'wp-mux' ) );
-	}
-
-	/**
-	 * AJAX handler to refresh video analytics.
-	 *
-	 * @since    1.1.0
-	 */
-	public function ajax_refresh_video_analytics() {
-		// Verify nonce
-		check_ajax_referer( 'wp_mux_analytics_nonce', 'nonce' );
-
-		// Check user permissions
-		if ( ! current_user_can( 'upload_files' ) ) {
-			wp_send_json_error( array(
-				'message' => __( 'Insufficient permissions', 'wp-mux' ),
-			) );
-		}
-
-		$attachment_id = intval( $_POST['attachment_id'] ?? 0 );
-		if ( empty( $attachment_id ) ) {
-			wp_send_json_error( array(
-				'message' => __( 'Invalid attachment ID', 'wp-mux' ),
-			) );
-		}
-
-		// Verify this is a MUX video
-		$mux_asset_id = get_post_meta( $attachment_id, '_mux_asset_id', true );
-		if ( empty( $mux_asset_id ) ) {
-			wp_send_json_error( array(
-				'message' => __( 'This is not a MUX video', 'wp-mux' ),
-			) );
-		}
-
-		// Force refresh analytics
-		$analytics = $this->get_video_analytics( $attachment_id, true );
-
-		if ( empty( $analytics ) ) {
-			wp_send_json_error( array(
-				'message' => __( 'Failed to fetch analytics. The video may not have any views yet.', 'wp-mux' ),
-			) );
-		}
-
-		// Format for display
-		$formatted = $this->format_analytics_for_display( $analytics );
-
-		wp_send_json_success( array(
-			'message' => __( 'Analytics refreshed successfully', 'wp-mux' ),
-			'analytics' => $formatted,
-		) );
-	}
-
-	/**
 	 * API settings section callback.
 	 *
 	 * @since    1.0.0
@@ -1646,6 +1405,19 @@ class Wp_Mux_Admin {
 	 * @since    1.1.0
 	 */
 	public function override_video_upload_field_callback() {
+		if ( ! wp_mux_is_pro() ) {
+			echo '<p>';
+			echo '<span class="dashicons dashicons-lock" style="vertical-align:middle;"></span> ';
+			echo '<strong>' . esc_html__( 'WP Mux Pro', 'wp-mux' ) . '</strong> &mdash; ';
+			echo esc_html__( 'Automatically route all media library video uploads to Mux.', 'wp-mux' );
+			echo '</p>';
+			if ( function_exists( 'wp_mux_fs' ) && wp_mux_fs() !== null ) {
+				echo '<a href="' . esc_url( wp_mux_fs()->get_upgrade_url() ) . '" class="button button-primary" style="margin-top:6px;">';
+				echo esc_html__( 'Upgrade to Pro', 'wp-mux' );
+				echo '</a>';
+			}
+			return;
+		}
 		$checked = checked( 1, get_option( 'wp_mux_override_video_upload', 0 ), false );
 		echo '<input type="checkbox" id="wp_mux_override_video_upload" name="wp_mux_override_video_upload" value="1" ' . $checked . ' /> ';
 		echo '<label for="wp_mux_override_video_upload">' . esc_html__( 'If enabled, all video uploads in the media library will be sent to MUX instead of stored locally.', 'wp-mux' ) . '</label>';
@@ -1667,20 +1439,20 @@ class Wp_Mux_Admin {
 	 */
 	public function playback_policy_field_callback() {
 		$value = get_option( 'wp_mux_default_playback_policy', 'public' );
-		
+
 		// Check if account has signing keys capability
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
 		$api = new Wp_Mux_Api();
 		$has_capability = $api->has_signing_keys_capability();
-		
+
 		?>
-		<select name="wp_mux_default_playback_policy" 
+		<select name="wp_mux_default_playback_policy"
 		        id="wp_mux_default_playback_policy"
 		        data-has-capability="<?php echo $has_capability ? '1' : '0'; ?>">
 			<option value="public" <?php selected( $value, 'public' ); ?>>
 				<?php _e( 'Public (Anyone can view)', 'wp-mux' ); ?>
 			</option>
-			<option value="signed" 
+			<option value="signed"
 			        <?php selected( $value, 'signed' ); ?>
 			        <?php echo ! $has_capability ? 'disabled' : ''; ?>>
 				<?php _e( 'Signed URLs (Requires token)', 'wp-mux' ); ?>
@@ -1689,7 +1461,7 @@ class Wp_Mux_Admin {
 				<?php endif; ?>
 			</option>
 		</select>
-		
+
 		<?php if ( ! $has_capability ) : ?>
 			<p class="description" style="color: #d63638;">
 				<span class="dashicons dashicons-lock" style="font-size: 16px; vertical-align: middle;"></span>
@@ -1715,14 +1487,14 @@ class Wp_Mux_Admin {
 				<?php endif; ?>
 			</p>
 		<?php endif; ?>
-		
+
 		<script type="text/javascript">
 		jQuery(document).ready(function($) {
 			$('#wp_mux_default_playback_policy').on('change', function() {
 				var $select = $(this);
 				var newValue = $select.val();
 				var hasCapability = $select.data('has-capability');
-				
+
 				if (newValue === 'signed' && hasCapability) {
 					// Check if keys already exist
 					$.ajax({
@@ -1834,7 +1606,7 @@ class Wp_Mux_Admin {
 			<input type="checkbox" name="wp_mux_enable_auto_captions" value="1" <?php checked( $enabled ); ?> />
 			<?php _e( 'Automatically generate captions on upload', 'wp-mux' ); ?>
 		</label>
-		
+
 		<div style="margin-top: 10px;">
 			<label for="wp_mux_default_caption_language"><?php _e( 'Caption Language:', 'wp-mux' ); ?></label>
 			<select name="wp_mux_default_caption_language" id="wp_mux_default_caption_language">
@@ -1848,7 +1620,7 @@ class Wp_Mux_Admin {
 				<option value="zh" <?php selected( $language, 'zh' ); ?>><?php _e( 'Chinese', 'wp-mux' ); ?></option>
 			</select>
 		</div>
-		
+
 		<p class="description">
 			<?php _e( 'Requires Mux captions to be enabled on your account. May incur additional costs.', 'wp-mux' ); ?>
 		</p>
@@ -1868,8 +1640,8 @@ class Wp_Mux_Admin {
 			<div class="wp-mux-auto-configure-section" style="background: #f0f0f1; padding: 15px; margin-bottom: 15px; border-radius: 4px;">
 				<h4 style="margin-top: 0;"><?php _e( 'Quick Setup', 'wp-mux' ); ?></h4>
 				<p><?php _e( 'Let WP Mux automatically create and configure signing keys for you.', 'wp-mux' ); ?></p>
-				<button type="button" 
-						class="button button-secondary" 
+				<button type="button"
+						class="button button-secondary"
 						id="wp-mux-auto-configure-keys"
 						<?php echo $has_private_key ? 'disabled' : ''; ?>>
 					<span class="dashicons dashicons-admin-network" style="margin-top: 3px;"></span>
@@ -1879,8 +1651,8 @@ class Wp_Mux_Admin {
 					<p class="description" style="margin-top: 10px;">
 						<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span>
 						<?php _e( 'Signing keys are already configured.', 'wp-mux' ); ?>
-						<button type="button" 
-								class="button button-link" 
+						<button type="button"
+								class="button button-link"
 								id="wp-mux-reconfigure-keys"
 								style="color: #b32d2e;">
 							<?php _e( 'Reconfigure', 'wp-mux' ); ?>
@@ -1894,19 +1666,19 @@ class Wp_Mux_Admin {
 				<h4><?php _e( 'Manual Configuration', 'wp-mux' ); ?></h4>
 				<div>
 					<label for="wp_mux_signing_key_id"><?php _e( 'Signing Key ID:', 'wp-mux' ); ?></label>
-					<input type="text" 
-						   name="wp_mux_signing_key_id" 
-						   id="wp_mux_signing_key_id" 
-						   value="<?php echo esc_attr( $key_id ); ?>" 
-						   class="regular-text" 
+					<input type="text"
+						   name="wp_mux_signing_key_id"
+						   id="wp_mux_signing_key_id"
+						   value="<?php echo esc_attr( $key_id ); ?>"
+						   class="regular-text"
 						   readonly />
 				</div>
-				
+
 				<div style="margin-top: 10px;">
 					<label for="wp_mux_signing_key_private"><?php _e( 'Private Key (Base64):', 'wp-mux' ); ?></label>
-					<textarea name="wp_mux_signing_key_private" 
-							  id="wp_mux_signing_key_private" 
-							  rows="4" 
+					<textarea name="wp_mux_signing_key_private"
+							  id="wp_mux_signing_key_private"
+							  rows="4"
 							  class="large-text code"
 							  readonly
 							  placeholder="<?php echo $has_private_key ? esc_attr__( '••••••••', 'wp-mux' ) : ''; ?>"></textarea>
@@ -1918,7 +1690,7 @@ class Wp_Mux_Admin {
 				</div>
 			</div>
 		</div>
-		
+
 		<p class="description">
 			<?php _e( 'Signing keys are required for signed URLs and protected videos.', 'wp-mux' ); ?>
 			<br />
@@ -1932,10 +1704,10 @@ class Wp_Mux_Admin {
 			$('#wp-mux-auto-configure-keys').on('click', function() {
 				var $button = $(this);
 				var $status = $('#wp-mux-auto-configure-status');
-				
+
 				$button.prop('disabled', true).text('<?php _e( 'Configuring...', 'wp-mux' ); ?>');
 				$status.html('<p><?php _e( 'Creating signing keys in Mux...', 'wp-mux' ); ?></p>');
-				
+
 				$.ajax({
 					url: ajaxurl,
 					method: 'POST',
@@ -2031,7 +1803,7 @@ class Wp_Mux_Admin {
 		if ( empty( $value ) ) {
 			return get_option( 'wp_mux_signing_key_private', '' );
 		}
-		
+
 		return base64_encode( $value );
 	}
 
@@ -2044,22 +1816,22 @@ class Wp_Mux_Admin {
 	 */
 	public function sanitize_api_credentials( $value ) {
 		$sanitized = sanitize_text_field( $value );
-		
+
 		// Check if this is a new credential being saved (not empty)
 		$old_value = get_option( 'wp_mux_access_token', '' );
 		$secret_key = isset( $_POST['wp_mux_secret_key'] ) ? sanitize_text_field( $_POST['wp_mux_secret_key'] ) : '';
-		
+
 		// If credentials are being set for the first time or changed
 		if ( ! empty( $sanitized ) && ! empty( $secret_key ) ) {
 			// Check if signing keys don't exist yet
 			$has_keys = ! empty( get_option( 'wp_mux_signing_key_id', '' ) );
-			
+
 			if ( ! $has_keys ) {
 				// Schedule signing key creation on next page load
 				set_transient( 'wp_mux_needs_key_creation', true, HOUR_IN_SECONDS );
 			}
 		}
-		
+
 		return $sanitized;
 	}
 
@@ -2273,15 +2045,15 @@ class Wp_Mux_Admin {
 	 */
 	public function uninstall_settings_section_callback() {
 		$mux_video_count = $this->get_mux_video_count();
-		
+
 		echo '<p style="margin: 0 0 20px 0;">';
 		if ( $mux_video_count > 0 ) {
 			echo sprintf(
-				_n( 
-					'You have <strong>%d MUX video</strong> on your site. Choose what happens if you uninstall this plugin:', 
-					'You have <strong>%d MUX videos</strong> on your site. Choose what happens if you uninstall this plugin:', 
-					$mux_video_count, 
-					'wp-mux' 
+				_n(
+					'You have <strong>%d MUX video</strong> on your site. Choose what happens if you uninstall this plugin:',
+					'You have <strong>%d MUX videos</strong> on your site. Choose what happens if you uninstall this plugin:',
+					$mux_video_count,
+					'wp-mux'
 				),
 				$mux_video_count
 			);
@@ -2289,7 +2061,7 @@ class Wp_Mux_Admin {
 			_e( 'No MUX videos detected. Choose what happens if you uninstall this plugin:', 'wp-mux' );
 		}
 		echo '</p>';
-		
+
 		echo '<div style="background: #f0f6fc; border: 1px solid #0c5c9d; border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;">';
 		echo '<p style="margin: 0; color: #0c5c9d;"><strong>⚠️ ' . __( 'Important:', 'wp-mux' ) . '</strong> ';
 		_e( 'Videos stored on Mux.com are NEVER automatically deleted and will continue to incur storage costs. You must delete them manually from', 'wp-mux' );
@@ -2306,7 +2078,7 @@ class Wp_Mux_Admin {
 		$checked = checked( 1, get_option( 'wp_mux_delete_on_uninstall', 0 ), false );
 		$mux_video_count = $this->get_mux_video_count();
 		?>
-		
+
 		<div style="max-width: 800px;">
 			<!-- Option 1: Keep Everything (Default) -->
 			<div style="border: 2px solid #46b450; border-radius: 6px; padding: 20px; margin-bottom: 16px; background: #f6fef6;">
@@ -2324,7 +2096,7 @@ class Wp_Mux_Admin {
 				</ul>
 				<p style="margin: 0; color: #2e7d32;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Testing, troubleshooting, or taking a break from Mux', 'wp-mux' ); ?></p>
 			</div>
-			
+
 			<?php if ( $mux_video_count > 0 ) : ?>
 			<!-- Option 2: Migrate Videos Back -->
 			<div style="border: 2px solid #0073aa; border-radius: 6px; padding: 20px; margin-bottom: 16px; background: #f0f6fc;">
@@ -2335,7 +2107,7 @@ class Wp_Mux_Admin {
 				<p style="margin: 0 0 12px 0;"><?php _e( 'Before uninstalling, download your videos from Mux back to WordPress hosting.', 'wp-mux' ); ?></p>
 				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php _e( 'Steps:', 'wp-mux' ); ?></p>
 				<ol style="margin: 0 0 12px 0; padding-left: 24px;">
-					<li><?php 
+					<li><?php
 						echo sprintf(
 							__( 'Use the %sMigrate Back%s page to download videos', 'wp-mux' ),
 							'<a href="' . admin_url( 'admin.php?page=wp-mux-migrate-back' ) . '">',
@@ -2349,7 +2121,7 @@ class Wp_Mux_Admin {
 				<p style="margin: 0; color: #0073aa;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Permanently moving away from Mux hosting', 'wp-mux' ); ?></p>
 			</div>
 			<?php endif; ?>
-			
+
 			<!-- Option 3: Full Cleanup -->
 			<div style="border: 2px solid #dba617; border-radius: 6px; padding: 20px; background: #fffbf0;">
 				<h3 style="margin: 0 0 12px 0; color: #8a6d15; font-size: 16px;">
@@ -2366,7 +2138,7 @@ class Wp_Mux_Admin {
 				</ul>
 				<p style="margin: 0; color: #8a6d15;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Complete removal, testing, or starting fresh', 'wp-mux' ); ?></p>
 			</div>
-			
+
 			<!-- Checkbox Control -->
 			<div style="margin-top: 24px; padding: 16px; background: white; border: 1px solid #ddd; border-radius: 4px;">
 				<label style="display: flex; align-items: center; cursor: pointer;">
@@ -2389,18 +2161,52 @@ class Wp_Mux_Admin {
 	 */
 	private function get_mux_video_count() {
 		$count = wp_count_posts( 'attachment' );
-		
+
 		// Query to count only video/mux mime type
 		global $wpdb;
-		$mux_count = $wpdb->get_var( 
+		$mux_count = $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM $wpdb->posts WHERE post_type = %s AND post_mime_type = %s",
 				'attachment',
 				'video/mux'
 			)
 		);
-		
+
 		return (int) $mux_count;
+	}
+
+	/**
+	 * Webhook settings section description.
+	 *
+	 * @since 1.2.0
+	 */
+	public function webhook_settings_section_callback() {
+		$webhook_url = rest_url( 'wp-mux/v1/webhook' );
+		echo '<p>' . esc_html__( 'Configure Mux to send real-time events to this site, eliminating the need for polling.', 'wp-mux' ) . '</p>';
+		echo '<p>';
+		echo '<strong>' . esc_html__( 'Webhook URL:', 'wp-mux' ) . '</strong> ';
+		echo '<code style="background:#f0f0f1;padding:3px 6px;border-radius:3px;">' . esc_html( $webhook_url ) . '</code>';
+		echo ' <button type="button" class="button button-small" onclick="navigator.clipboard.writeText(\'' . esc_js( $webhook_url ) . '\').then(()=>this.textContent=\'Copied!\').catch(()=>{})">' . esc_html__( 'Copy', 'wp-mux' ) . '</button>';
+		echo '</p>';
+		echo '<p class="description">';
+		printf(
+			/* translators: %s: Mux dashboard URL */
+			esc_html__( 'Add this URL in %s under Webhooks, then paste the signing secret below.', 'wp-mux' ),
+			'<a href="https://dashboard.mux.com/settings/webhooks" target="_blank">dashboard.mux.com</a>'
+		);
+		echo '</p>';
+	}
+
+	/**
+	 * Webhook signing secret field.
+	 *
+	 * @since 1.2.0
+	 */
+	public function webhook_secret_field_callback() {
+		$secret = get_option( 'wp_mux_webhook_secret', '' );
+		echo '<input type="password" name="wp_mux_webhook_secret" id="wp_mux_webhook_secret" value="' . esc_attr( $secret ) . '" class="regular-text" autocomplete="off" />';
+		echo '<button type="button" class="button button-small" style="margin-left:8px;" onclick="var f=document.getElementById(\'wp_mux_webhook_secret\');f.type=f.type===\'password\'?\'text\':\'password\';">' . esc_html__( 'Show', 'wp-mux' ) . '</button>';
+		echo '<p class="description">' . esc_html__( 'Copy from the Mux dashboard after creating the webhook. Leave blank to skip signature verification (not recommended for production).', 'wp-mux' ) . '</p>';
 	}
 
 	/**
@@ -2412,7 +2218,7 @@ class Wp_Mux_Admin {
 	private function is_api_configured() {
 		$access_token = get_option( 'wp_mux_access_token', '' );
 		$secret_key = get_option( 'wp_mux_secret_key', '' );
-		
+
 		return ! empty( $access_token ) && ! empty( $secret_key );
 	}
 
@@ -2621,410 +2427,7 @@ class Wp_Mux_Admin {
 		}
 	}
 
-	/**
-	 * Handle video upload via AJAX to completely replace WordPress upload processing.
-	 *
-	 * @since 1.1.0
-	 */
-	public function handle_video_upload_ajax() {
-		$this->mux_debug_log( 'AJAX Handler called - handle_video_upload_ajax' );
 
-		// Check if override is enabled
-		$override_enabled = get_option( 'wp_mux_override_video_upload', '0' );
-		$this->mux_debug_log( 'Override setting in AJAX handler', [ 'enabled' => $override_enabled ] );
-
-		if ( $override_enabled !== '1' && $override_enabled !== 1 && $override_enabled !== true ) {
-			$this->mux_debug_log( 'Override not enabled in AJAX, letting WordPress handle normally' );
-			// Let WordPress handle normally
-			return;
-		}
-
-		// Check if this is a video upload
-		if ( empty( $_FILES['async-upload'] ) ) {
-			$this->mux_debug_log( 'No async-upload file found' );
-			return;
-		}
-
-		$file = $_FILES['async-upload'];
-		$this->mux_debug_log( 'File found in AJAX handler', $file );
-
-		// Check if it's a video file
-		if ( ! $this->is_video_file( $file ) ) {
-			$this->mux_debug_log( 'Not a video file, letting WordPress handle' );
-			return;
-		}
-
-		$this->mux_debug_log( 'Intercepting AJAX video upload', $file );
-
-		// Let WordPress handle the file upload first, then queue for MUX processing
-		// This is handled by queue_video_for_mux_processing hook on add_attachment
-		$this->mux_debug_log( 'Letting WordPress handle upload, will queue for MUX via add_attachment hook' );
-		return;
-
-		// Note: The following code is unreachable but kept for reference
-		if ( false ) {
-			$this->mux_debug_log( 'MUX upload failed (unreachable)', [ 'error' => 'Method removed' ] );
-			wp_send_json_error( array(
-				'message' => 'Method removed'
-			));
-		} else {
-			$this->mux_debug_log( 'MUX upload successful', [ 'attachment_id' => $result ] );
-			// Get attachment data for response
-			$attachment = get_post( $result );
-			if ( $attachment ) {
-				// Format response similar to WordPress media upload
-				$response = array(
-					'success' => true,
-					'data' => array(
-						'id' => $result,
-						'title' => $attachment->post_title,
-						'filename' => $attachment->post_name,
-						'url' => wp_get_attachment_url( $result ),
-						'type' => 'video',
-						'subtype' => 'mux',
-						'icon' => get_post_meta( $result, '_mux_thumbnail_url', true ),
-						'dateFormatted' => get_the_date( '', $result ),
-						'nonces' => array(
-							'update' => wp_create_nonce( 'update-post_' . $result ),
-							'delete' => wp_create_nonce( 'delete-post_' . $result ),
-							'edit' => wp_create_nonce( 'edit-post_' . $result )
-						)
-					)
-				);
-				$this->mux_debug_log( 'Sending JSON response', $response );
-				wp_send_json( $response );
-			} else {
-				$this->mux_debug_log( 'Failed to get attachment after MUX upload' );
-				wp_send_json_error( array(
-					'message' => 'Failed to create attachment'
-				));
-			}
-		}
-	}
-
-	/**
-	 * Queue video attachment for MUX processing after WordPress upload
-	 */
-	public function queue_video_for_mux_processing($attachment_id) {
-		$this->mux_debug_log('Begin queue_video_for_mux_processing', ['attachment_id' => $attachment_id]);
-
-		// Check if MUX override is enabled
-		$override_enabled = get_option('wp_mux_override_video_upload', '0');
-		if ($override_enabled !== '1' && $override_enabled !== 1 && $override_enabled !== true) {
-			return;
-		}
-
-		// Check if this is a video file
-		$file_path = get_attached_file($attachment_id);
-		$mime_type = get_post_mime_type($attachment_id);
-
-		if (!$this->is_video_file($mime_type)) {
-			return;
-		}
-
-		// Check if already queued or processed to prevent duplicates
-		$existing_status = get_post_meta($attachment_id, '_wp_mux_status', true);
-		if (!empty($existing_status) && in_array($existing_status, ['queued', 'processing', 'complete'])) {
-			$this->mux_debug_log('Video already queued or processed', [
-				'attachment_id' => $attachment_id,
-				'status' => $existing_status
-			]);
-			return;
-		}
-
-		// Check if attachment is already a MUX video
-		$post = get_post($attachment_id);
-		if ($post && $post->post_mime_type === 'video/mux') {
-			$this->mux_debug_log('Attachment is already a MUX video', ['attachment_id' => $attachment_id]);
-			return;
-		}
-
-		$this->mux_debug_log('Queueing video for MUX processing', [
-			'attachment_id' => $attachment_id,
-			'file_path' => $file_path,
-			'mime_type' => $mime_type
-		]);
-
-		// Add to processing queue
-		$queue = get_option('wp_mux_processing_queue', array());
-		$queue[] = array(
-			'attachment_id' => $attachment_id,
-			'file_path' => $file_path,
-			'mime_type' => $mime_type,
-			'status' => 'queued',
-			'queued_at' => current_time('mysql')
-		);
-		update_option('wp_mux_processing_queue', $queue);
-
-		// Set initial meta to show it's queued for MUX
-		update_post_meta($attachment_id, '_wp_mux_status', 'queued');
-		update_post_meta($attachment_id, '_wp_mux_queued_at', current_time('mysql'));
-		update_post_meta($attachment_id, '_mux_from_upload', '1'); // Mark as uploaded via WordPress
-		update_post_meta($attachment_id, '_mux_processing', '1'); // Mark as processing to prevent sync duplicates
-
-		// Schedule immediate processing
-		wp_schedule_single_event(time(), 'wp_mux_process_queue_event');
-
-		// Also try to process immediately via background request
-		$this->trigger_background_queue_processing();
-	}
-
-	/**
-	 * Trigger background queue processing via non-blocking request
-	 */
-	private function trigger_background_queue_processing() {
-		$url = admin_url('admin-ajax.php');
-		$args = array(
-			'timeout' => 0.01, // Non-blocking
-			'blocking' => false,
-			'sslverify' => false,
-			'body' => array(
-				'action' => 'wp_mux_process_queue',
-				'background' => '1'
-			)
-		);
-
-		wp_remote_post($url, $args);
-	}
-
-	/**
-	 * Process the MUX upload queue via AJAX or cron
-	 */
-	public function process_mux_queue() {
-		$this->mux_debug_log('Begin process_mux_queue');
-
-		$queue = get_option('wp_mux_processing_queue', array());
-
-		if (empty($queue)) {
-			$this->mux_debug_log('Queue is empty');
-			if (defined('DOING_AJAX') && DOING_AJAX) {
-				wp_send_json_error('Queue is empty');
-			}
-			return;
-		}
-
-		// Process first item in queue
-		$item = array_shift($queue);
-		update_option('wp_mux_processing_queue', $queue);
-
-		$attachment_id = $item['attachment_id'];
-		$file_path = $item['file_path'];
-
-		$this->mux_debug_log('Processing queue item', $item);
-
-		try {
-			// Update status to processing
-			update_post_meta($attachment_id, '_wp_mux_status', 'processing');
-			update_post_meta($attachment_id, '_wp_mux_processing_started', current_time('mysql'));
-
-			// If file path is empty, try to get it from attachment
-			if (empty($file_path)) {
-				$file_path = get_attached_file($attachment_id);
-				$this->mux_debug_log('File path was empty, retrieved from attachment', ['file_path' => $file_path]);
-			}
-
-			// Verify file still exists
-			if (empty($file_path) || !file_exists($file_path)) {
-				throw new Exception('Source file not found or path is empty: ' . $file_path);
-			}
-
-			// Initialize MUX API
-			require_once plugin_dir_path(dirname(__FILE__)) . 'includes/class-wp-mux-api.php';
-			$api = new Wp_Mux_Api();
-
-			if (!$api->is_configured()) {
-				throw new Exception('MUX API credentials are not configured');
-			}
-
-			// Create MUX direct upload
-			$upload = $api->create_direct_upload();
-			$this->mux_debug_log('create_direct_upload result', $upload);
-
-			if (is_wp_error($upload) || empty($upload['data']['url'])) {
-				$error_msg = is_wp_error($upload) ? $upload->get_error_message() : 'Failed to create MUX upload';
-				throw new Exception($error_msg);
-			}
-
-			$upload_url = $upload['data']['url'];
-			$upload_id = $upload['data']['id'];
-
-			// Upload file to MUX
-			$upload_result = wp_remote_request($upload_url, array(
-				'headers' => array(
-					'Content-Type' => $item['mime_type'],
-				),
-				'body' => file_get_contents($file_path),
-				'timeout' => 300, // 5 minutes for large files
-				'method' => 'PUT',
-			));
-
-			if (is_wp_error($upload_result)) {
-				throw new Exception('MUX upload error: ' . $upload_result->get_error_message());
-			}
-
-			$response_code = wp_remote_retrieve_response_code($upload_result);
-			if ($response_code < 200 || $response_code >= 300) {
-				throw new Exception('Failed to upload video to MUX. Response code: ' . $response_code);
-			}
-
-			// Wait a moment for MUX to process the upload, then get asset ID
-			sleep(2);
-			$upload_status = $api->get_upload($upload_id);
-			$asset_id = null;
-
-			if (!is_wp_error($upload_status) && !empty($upload_status['data']['asset_id'])) {
-				$asset_id = $upload_status['data']['asset_id'];
-
-				// Get additional asset details including playback ID
-				$asset_details = $api->get_video($asset_id);
-				if (!is_wp_error($asset_details) && !empty($asset_details['data'])) {
-					$playback_id = $asset_details['data']['playback_ids'][0]['id'] ?? '';
-					if ($playback_id) {
-						update_post_meta($attachment_id, '_mux_playback_id', $playback_id);
-					}
-				}
-			}
-
-			// Update attachment with MUX data
-			update_post_meta($attachment_id, '_mux_upload_id', $upload_id);
-			if ($asset_id) {
-				update_post_meta($attachment_id, '_mux_asset_id', $asset_id);
-			}
-			update_post_meta($attachment_id, '_wp_mux_status', 'complete');
-			update_post_meta($attachment_id, '_wp_mux_completed_at', current_time('mysql'));
-
-			// Keep the processing flag until we have the asset details
-			// This prevents the media sync from creating a duplicate
-
-			// Update attachment to use MUX mime type
-			wp_update_post(array(
-				'ID' => $attachment_id,
-				'post_mime_type' => 'video/mux'
-			));
-
-			// Delete local file if upload successful (optional - you may want to keep it)
-			// if (file_exists($file_path)) {
-			//     unlink($file_path);
-			// }
-
-			$this->mux_debug_log('MUX processing complete', [
-				'attachment_id' => $attachment_id,
-				'mux_upload_id' => $upload_id
-			]);
-
-			if (defined('DOING_AJAX') && DOING_AJAX) {
-				wp_send_json_success(array(
-					'message' => 'Video uploaded to MUX successfully',
-					'attachment_id' => $attachment_id,
-					'mux_upload_id' => $upload_id
-				));
-			}
-
-		} catch (Exception $e) {
-			$this->mux_debug_log('MUX processing failed', [
-				'attachment_id' => $attachment_id,
-				'error' => $e->getMessage()
-			]);
-
-			// Update status to failed
-			update_post_meta($attachment_id, '_wp_mux_status', 'failed');
-			update_post_meta($attachment_id, '_wp_mux_error', $e->getMessage());
-			update_post_meta($attachment_id, '_wp_mux_failed_at', current_time('mysql'));
-
-			if (defined('DOING_AJAX') && DOING_AJAX) {
-				wp_send_json_error(array(
-					'message' => 'MUX upload failed: ' . $e->getMessage(),
-					'attachment_id' => $attachment_id
-				));
-			}
-		}
-	}
-
-	/**
-	 * Get MUX queue status for an attachment via AJAX
-	 */
-	public function get_queue_status() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'wp_mux_queue_status_nonce' ) ) {
-			wp_send_json_error( 'Invalid nonce' );
-		}
-
-		if ( ! isset( $_POST['attachment_id'] ) ) {
-			wp_send_json_error( 'No attachment ID provided' );
-		}
-
-		$attachment_id = intval( $_POST['attachment_id'] );
-		$status = get_post_meta( $attachment_id, '_wp_mux_status', true );
-		$error = get_post_meta( $attachment_id, '_wp_mux_error', true );
-
-		if ( empty( $status ) ) {
-			wp_send_json_error( 'No MUX status found' );
-		}
-
-		wp_send_json_success( array(
-			'status' => $status,
-			'error' => $error,
-			'attachment_id' => $attachment_id
-		) );
-	}
-
-	/**
-	 * Get MUX attachment info including thumbnail URL via AJAX
-	 */
-	public function get_attachment_info() {
-		// Verify nonce
-		if ( ! wp_verify_nonce( $_POST['nonce'] ?? '', 'wp_mux_queue_status_nonce' ) ) {
-			wp_send_json_error( 'Invalid nonce' );
-		}
-
-		if ( ! isset( $_POST['attachment_id'] ) ) {
-			wp_send_json_error( 'No attachment ID provided' );
-		}
-
-		$attachment_id = intval( $_POST['attachment_id'] );
-		$asset_id = get_post_meta( $attachment_id, '_mux_asset_id', true );
-		$playback_id = get_post_meta( $attachment_id, '_mux_playback_id', true );
-
-		if ( empty( $asset_id ) && empty( $playback_id ) ) {
-			wp_send_json_error( 'No MUX asset info found' );
-		}
-
-		$thumbnail_url = '';
-		if ( ! empty( $playback_id ) ) {
-			$thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=300&height=300&fit_mode=smartcrop";
-		}
-
-		wp_send_json_success( array(
-			'attachment_id' => $attachment_id,
-			'asset_id' => $asset_id,
-			'playback_id' => $playback_id,
-			'thumbnail_url' => $thumbnail_url
-		) );
-	}
-
-	/**
-	 * Process MUX queue via cron event
-	 */
-	public function process_mux_queue_cron() {
-		$this->process_mux_queue();
-	}
-
-	/**
-	 * Handle heartbeat to regularly process queue
-	 */
-	public function heartbeat_process_queue($response, $data) {
-		// Only process if there are items in queue and we're on media library page
-		$queue = get_option('wp_mux_processing_queue', array());
-		if (!empty($queue)) {
-			// Trigger background processing
-			$this->trigger_background_queue_processing();
-
-			// Return queue status for any admin pages
-			$response['wp_mux_queue_size'] = count($queue);
-		}
-
-		return $response;
-	}
 
 	/**
 	 * Prepare MUX attachment data for JavaScript (AJAX responses).
@@ -3299,276 +2702,6 @@ class Wp_Mux_Admin {
 	}
 
 	/**
-	 * Debug function to log all AJAX requests
-	 */
-	public function debug_all_ajax() {
-		// Debug logging disabled for production
-	}
-
-	/**
-	 * AJAX handler to scan for local videos that can be migrated.
-	 *
-	 * @since    1.2.0
-	 */
-	public function ajax_scan_local_videos() {
-		// Verify nonce
-		check_ajax_referer( 'wp_mux_migration_nonce', 'nonce' );
-
-		// Check permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions', 'wp-mux' ) ) );
-		}
-
-		// Query for local video attachments that haven't been migrated
-		$args = array(
-			'post_type'      => 'attachment',
-			'post_status'    => 'inherit',
-			'posts_per_page' => -1,
-			'post_mime_type' => array( 'video/mp4', 'video/mpeg', 'video/quicktime', 'video/avi', 'video/webm', 'video/ogg', 'video/x-msvideo', 'video/wmv', 'video/mkv', 'video/x-matroska' ),
-			'meta_query'     => array(
-				'relation' => 'OR',
-				array(
-					'key'     => '_mux_asset_id',
-					'compare' => 'NOT EXISTS',
-				),
-				array(
-					'key'     => '_mux_asset_id',
-					'value'   => '',
-					'compare' => '=',
-				),
-			),
-			'orderby'        => 'date',
-			'order'          => 'ASC',
-		);
-
-		$attachments = get_posts( $args );
-		$videos = array();
-		$total_size = 0;
-
-		foreach ( $attachments as $attachment ) {
-			$file_path = get_attached_file( $attachment->ID );
-			$file_size = file_exists( $file_path ) ? filesize( $file_path ) : 0;
-			$total_size += $file_size;
-
-			$videos[] = array(
-				'id'          => $attachment->ID,
-				'title'       => $attachment->post_title,
-				'filename'    => basename( $file_path ),
-				'size'        => $file_size,
-				'size_formatted' => size_format( $file_size ),
-				'date'        => $attachment->post_date,
-				'date_formatted' => get_the_date( '', $attachment->ID ),
-				'mime_type'   => $attachment->post_mime_type,
-				'url'         => wp_get_attachment_url( $attachment->ID ),
-			);
-		}
-
-		// Clear the cache now that we've scanned
-		delete_transient( 'wp_mux_has_local_videos' );
-
-		wp_send_json_success( array(
-			'videos'     => $videos,
-			'total'      => count( $videos ),
-			'total_size' => $total_size,
-			'total_size_formatted' => size_format( $total_size ),
-		) );
-	}
-
-	/**
-	 * AJAX handler to migrate a single video to MUX.
-	 *
-	 * @since    1.2.0
-	 */
-	public function ajax_migrate_single_video() {
-		// Verify nonce
-		check_ajax_referer( 'wp_mux_migration_nonce', 'nonce' );
-
-		// Check permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions', 'wp-mux' ) ) );
-		}
-
-		$attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
-
-		if ( ! $attachment_id ) {
-			wp_send_json_error( array( 'message' => __( 'Invalid attachment ID', 'wp-mux' ) ) );
-		}
-
-		// Get attachment info
-		$attachment = get_post( $attachment_id );
-		if ( ! $attachment || $attachment->post_type !== 'attachment' ) {
-			wp_send_json_error( array( 'message' => __( 'Attachment not found', 'wp-mux' ) ) );
-		}
-
-		$file_path = get_attached_file( $attachment_id );
-		if ( ! file_exists( $file_path ) ) {
-			wp_send_json_error( array( 'message' => __( 'Video file not found', 'wp-mux' ) ) );
-		}
-
-		// Store original post date for later restoration
-		$original_date = $attachment->post_date;
-		$original_date_gmt = $attachment->post_date_gmt;
-
-		try {
-			// Initialize MUX API
-			require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-api.php';
-			$api = new Wp_Mux_Api();
-
-			if ( ! $api->is_configured() ) {
-				throw new Exception( __( 'MUX API credentials are not configured', 'wp-mux' ) );
-			}
-
-			// Create MUX direct upload
-			$upload = $api->create_direct_upload();
-
-			if ( is_wp_error( $upload ) || empty( $upload['data']['url'] ) ) {
-				$error_msg = is_wp_error( $upload ) ? $upload->get_error_message() : __( 'Failed to create MUX upload', 'wp-mux' );
-				throw new Exception( $error_msg );
-			}
-
-			$upload_url = $upload['data']['url'];
-			$upload_id = $upload['data']['id'];
-
-			// Upload file to MUX
-			$upload_result = wp_remote_request( $upload_url, array(
-				'headers' => array(
-					'Content-Type' => get_post_mime_type( $attachment_id ),
-				),
-				'body'    => file_get_contents( $file_path ),
-				'timeout' => 300, // 5 minutes for large files
-				'method'  => 'PUT',
-			) );
-
-			if ( is_wp_error( $upload_result ) ) {
-				throw new Exception( __( 'MUX upload error: ', 'wp-mux' ) . $upload_result->get_error_message() );
-			}
-
-			$response_code = wp_remote_retrieve_response_code( $upload_result );
-			if ( $response_code < 200 || $response_code >= 300 ) {
-				throw new Exception( sprintf( __( 'Failed to upload video to MUX. Response code: %d', 'wp-mux' ), $response_code ) );
-			}
-
-			// Wait for MUX to process the upload
-			sleep( 2 );
-			$upload_status = $api->get_upload( $upload_id );
-			$asset_id = null;
-			$playback_id = null;
-
-			if ( ! is_wp_error( $upload_status ) && ! empty( $upload_status['data']['asset_id'] ) ) {
-				$asset_id = $upload_status['data']['asset_id'];
-
-				// Get additional asset details including playback ID
-				$asset_details = $api->get_video( $asset_id );
-				if ( ! is_wp_error( $asset_details ) && ! empty( $asset_details['data'] ) ) {
-					if ( ! empty( $asset_details['data']['playback_ids'][0]['id'] ) ) {
-						$playback_id = $asset_details['data']['playback_ids'][0]['id'];
-						update_post_meta( $attachment_id, '_mux_playback_id', $playback_id );
-
-						// Generate and store thumbnail URL
-						$thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360&fit_mode=smartcrop";
-						update_post_meta( $attachment_id, '_mux_thumbnail_url', $thumbnail_url );
-					}
-				}
-			}
-
-			// Update attachment with MUX data
-			update_post_meta( $attachment_id, '_mux_upload_id', $upload_id );
-			if ( $asset_id ) {
-				update_post_meta( $attachment_id, '_mux_asset_id', $asset_id );
-			}
-			update_post_meta( $attachment_id, '_wp_mux_status', 'complete' );
-			update_post_meta( $attachment_id, '_wp_mux_completed_at', current_time( 'mysql' ) );
-			update_post_meta( $attachment_id, '_mux_migrated', '1' );
-
-			// Update attachment to use MUX mime type
-			wp_update_post( array(
-				'ID'             => $attachment_id,
-				'post_mime_type' => 'video/mux',
-			) );
-
-			// Restore original dates
-			wp_update_post( array(
-				'ID'            => $attachment_id,
-				'post_date'     => $original_date,
-				'post_date_gmt' => $original_date_gmt,
-			) );
-
-			// Delete local file if setting is enabled
-			$delete_after_migration = get_option( 'wp_mux_delete_local_after_migration', '0' );
-			$file_deleted = false;
-			if ( $delete_after_migration === '1' ) {
-				if ( @unlink( $file_path ) ) {
-					$file_deleted = true;
-					// Also try to delete the file's directory if it's empty
-					$upload_dir = dirname( $file_path );
-					@rmdir( $upload_dir );
-				}
-			}
-
-			wp_send_json_success( array(
-				'message'      => __( 'Video migrated successfully', 'wp-mux' ),
-				'attachment_id' => $attachment_id,
-				'mux_asset_id' => $asset_id,
-				'mux_playback_id' => $playback_id,
-				'file_deleted' => $file_deleted,
-			) );
-
-		} catch ( Exception $e ) {
-			// Update status to failed
-			update_post_meta( $attachment_id, '_wp_mux_status', 'failed' );
-			update_post_meta( $attachment_id, '_wp_mux_error', $e->getMessage() );
-
-			wp_send_json_error( array(
-				'message'       => $e->getMessage(),
-				'attachment_id' => $attachment_id,
-			) );
-		}
-	}
-
-	/**
-	 * AJAX handler to get migration status.
-	 *
-	 * @since    1.2.0
-	 */
-	public function ajax_get_migration_status() {
-		// Verify nonce
-		check_ajax_referer( 'wp_mux_migration_nonce', 'nonce' );
-
-		// Check permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions', 'wp-mux' ) ) );
-		}
-
-		// Return any ongoing migration status
-		// This could be expanded to track progress in the database
-		wp_send_json_success( array(
-			'status' => 'ready',
-		) );
-	}
-
-	/**
-	 * AJAX handler to save delete local files option.
-	 *
-	 * @since    1.2.0
-	 */
-	public function ajax_save_delete_option() {
-		// Verify nonce
-		check_ajax_referer( 'wp_mux_migration_nonce', 'nonce' );
-
-		// Check permissions
-		if ( ! current_user_can( 'manage_options' ) ) {
-			wp_send_json_error( array( 'message' => __( 'Insufficient permissions', 'wp-mux' ) ) );
-		}
-
-		$delete_local = isset( $_POST['delete_local'] ) ? sanitize_text_field( $_POST['delete_local'] ) : '0';
-		update_option( 'wp_mux_delete_local_after_migration', $delete_local );
-
-		wp_send_json_success( array(
-			'message' => __( 'Option saved', 'wp-mux' ),
-		) );
-	}
-
-	/**
 	 * Delete MUX asset when WordPress attachment is deleted.
 	 *
 	 * This hook is called when an attachment is deleted from WordPress.
@@ -3623,147 +2756,6 @@ class Wp_Mux_Admin {
 			// Clear the account stats cache so the overview updates immediately
 			delete_transient( 'wp_mux_account_stats' );
 		}
-	}
-
-	/**
-	 * AJAX handler: Migrate-back system check
-	 *
-	 * @since    1.3.0
-	 */
-	public function ajax_migrate_back_system_check() {
-		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
-		$migrator = new Wp_Mux_Migrate_Back();
-		$result = $migrator->validate_system();
-
-		wp_send_json_success( $result );
-	}
-
-	/**
-	 * AJAX handler: Scan Mux videos for migration
-	 *
-	 * @since    1.3.0
-	 */
-	public function ajax_migrate_back_scan() {
-		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
-		$migrator = new Wp_Mux_Migrate_Back();
-		$result = $migrator->scan_mux_videos();
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( $result->get_error_message() );
-		}
-
-		wp_send_json_success( $result );
-	}
-
-	/**
-	 * AJAX handler: Enable MP4 support for a video
-	 *
-	 * @since    1.3.0
-	 */
-	public function ajax_migrate_back_enable_mp4() {
-		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
-
-		$asset_id = isset( $_POST['asset_id'] ) ? sanitize_text_field( $_POST['asset_id'] ) : '';
-		if ( empty( $asset_id ) ) {
-			wp_send_json_error( __( 'Missing asset ID', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
-		$migrator = new Wp_Mux_Migrate_Back();
-		$result = $migrator->enable_mp4_support( $asset_id );
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( $result->get_error_message() );
-		}
-
-		wp_send_json_success();
-	}
-
-	/**
-	 * AJAX handler: Scan content for video references
-	 *
-	 * @since    1.3.0
-	 */
-	public function ajax_migrate_back_scan_content() {
-		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-content-scanner.php';
-		$scanner = new Wp_Mux_Content_Scanner();
-		$result = $scanner->scan_content_references();
-
-		wp_send_json_success( $result );
-	}
-
-	/**
-	 * AJAX handler: Migrate a single video back to local
-	 *
-	 * @since    1.3.0
-	 */
-	public function ajax_migrate_back_video() {
-		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
-
-		$attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
-		if ( ! $attachment_id ) {
-			wp_send_json_error( __( 'Missing attachment ID', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
-		$migrator = new Wp_Mux_Migrate_Back();
-		$result = $migrator->migrate_video_to_local( $attachment_id );
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( $result->get_error_message() );
-		}
-
-		wp_send_json_success( $result );
-	}
-
-	/**
-	 * AJAX handler: Update content references
-	 *
-	 * @since    1.3.0
-	 */
-	public function ajax_migrate_back_update_content() {
-		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
-
-		$post_ids = isset( $_POST['post_ids'] ) ? array_map( 'intval', $_POST['post_ids'] ) : array();
-		if ( empty( $post_ids ) ) {
-			wp_send_json_error( __( 'No posts specified', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-content-scanner.php';
-		$scanner = new Wp_Mux_Content_Scanner();
-		$result = $scanner->batch_update_content( $post_ids, true );
-
-		wp_send_json_success( $result );
-	}
-
-	/**
-	 * AJAX handler: Cleanup Mux video
-	 *
-	 * @since    1.3.0
-	 */
-	public function ajax_migrate_back_cleanup() {
-		check_ajax_referer( 'wp_mux_migrate_back', 'nonce' );
-
-		$attachment_id = isset( $_POST['attachment_id'] ) ? intval( $_POST['attachment_id'] ) : 0;
-		if ( ! $attachment_id ) {
-			wp_send_json_error( __( 'Missing attachment ID', 'wp-mux' ) );
-		}
-
-		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-migrate-back.php';
-		$migrator = new Wp_Mux_Migrate_Back();
-		$result = $migrator->cleanup_mux_video( $attachment_id );
-
-		if ( is_wp_error( $result ) ) {
-			wp_send_json_error( $result->get_error_message() );
-		}
-
-		wp_send_json_success();
 	}
 
 }

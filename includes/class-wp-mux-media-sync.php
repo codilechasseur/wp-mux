@@ -1,4 +1,6 @@
 <?php
+
+declare(strict_types=1);
 /**
  * Handles syncing MUX assets into the WordPress Media Library as virtual attachments.
  *

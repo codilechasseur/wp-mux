@@ -62,6 +62,22 @@
                         type: 'boolean',
                         default: false
                     };
+                    settings.attributes.mux_clip_start = {
+                        type: 'number',
+                        default: 0
+                    };
+                    settings.attributes.mux_clip_end = {
+                        type: 'number',
+                        default: 0
+                    };
+                    settings.attributes.mux_token_expiry = {
+                        type: 'number',
+                        default: 0
+                    };
+                    settings.attributes.mux_required_roles = {
+                        type: 'string',
+                        default: ''
+                    };
 
                     // Store original edit function
                     const originalEdit = settings.edit;
@@ -670,8 +686,113 @@
                                             help: 'Visual theme for the video player'
                                         }
                                     )
+                                ),
+                                // Video clipping controls
+                                isMuxVideo ? wp.element.createElement(
+                                    'div',
+                                    { style: { marginTop: '20px', borderTop: '1px solid #dcdcde', paddingTop: '16px' } },
+                                    wp.element.createElement('p', {
+                                        style: { margin: '0 0 12px 0', fontWeight: '600', fontSize: '13px' }
+                                    }, 'Clip video'),
+                                    wp.element.createElement(
+                                        RangeControl,
+                                        {
+                                            label: 'Start time (seconds)',
+                                            value: props.attributes.mux_clip_start || 0,
+                                            onChange: function(value) {
+                                                props.setAttributes({ mux_clip_start: value });
+                                            },
+                                            min: 0,
+                                            max: videoDuration ? Math.max(0, videoDuration - 1) : 3600,
+                                            step: 0.5,
+                                            help: props.attributes.mux_clip_start > 0
+                                                ? 'Playback starts at ' + props.attributes.mux_clip_start + 's'
+                                                : 'Set to > 0 to skip the beginning'
+                                        }
+                                    ),
+                                    wp.element.createElement(
+                                        RangeControl,
+                                        {
+                                            label: 'End time (seconds)',
+                                            value: props.attributes.mux_clip_end || 0,
+                                            onChange: function(value) {
+                                                props.setAttributes({ mux_clip_end: value });
+                                            },
+                                            min: 0,
+                                            max: videoDuration || 3600,
+                                            step: 0.5,
+                                            help: props.attributes.mux_clip_end > 0
+                                                ? 'Playback stops at ' + props.attributes.mux_clip_end + 's'
+                                                : 'Set to > 0 to stop before the end'
+                                        }
+                                    )
+                                ) : null
+                            ),
+
+                            // ---- Token expiry override (Feature #4) ----
+                            // Separate top-level panel — avoids nested accordion.
+                            isMuxVideo ? wp.element.createElement(
+                                PanelBody,
+                                { title: 'Signed URL Expiry', initialOpen: false },
+                                wp.element.createElement(
+                                    wp.components.TextControl,
+                                    {
+                                        label: 'Token expiry (seconds)',
+                                        type: 'number',
+                                        value: props.attributes.mux_token_expiry || 0,
+                                        onChange: function(value) {
+                                            props.setAttributes({ mux_token_expiry: parseInt(value, 10) || 0 });
+                                        },
+                                        help: 'Override the global signed URL expiry for this video. Set to 0 to use the global default. Only applies when playback policy is signed.',
+                                        min: 0,
+                                        step: 60
+                                    }
                                 )
-                            )
+                            ) : null,
+
+                            // ---- Access restrictions (Feature #5) ----
+                            // Separate top-level panel with role checkboxes.
+                            isMuxVideo ? (function() {
+                                var defaultRoles = [
+                                    { value: 'administrator', label: 'Administrator' },
+                                    { value: 'editor',        label: 'Editor' },
+                                    { value: 'author',        label: 'Author' },
+                                    { value: 'contributor',   label: 'Contributor' },
+                                    { value: 'subscriber',    label: 'Subscriber' }
+                                ];
+                                var roles = window.wpMuxRoles || defaultRoles;
+                                var checkboxes = roles.map(function(role) {
+                                    var selected = (props.attributes.mux_required_roles || '')
+                                        .split(',').map(function(r) { return r.trim(); }).filter(Boolean);
+                                    return wp.element.createElement(
+                                        wp.components.CheckboxControl,
+                                        {
+                                            key: role.value,
+                                            label: role.label,
+                                            checked: selected.indexOf(role.value) !== -1,
+                                            onChange: function(checked) {
+                                                var current = (props.attributes.mux_required_roles || '')
+                                                    .split(',').map(function(r) { return r.trim(); }).filter(Boolean);
+                                                if (checked) {
+                                                    if (current.indexOf(role.value) === -1) current.push(role.value);
+                                                } else {
+                                                    current = current.filter(function(r) { return r !== role.value; });
+                                                }
+                                                props.setAttributes({ mux_required_roles: current.join(',') });
+                                            }
+                                        }
+                                    );
+                                });
+                                return wp.element.createElement.apply(wp.element, [
+                                    PanelBody,
+                                    { title: 'Access Restrictions', initialOpen: false },
+                                    wp.element.createElement(
+                                        'p',
+                                        { style: { fontSize: '11px', color: '#757575', margin: '0 0 8px 0' } },
+                                        'Restrict to users with specific roles. Leave all unchecked to allow everyone.'
+                                    )
+                                ].concat(checkboxes));
+                            })() : null
                         );
 
                         return wp.element.createElement(
