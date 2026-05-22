@@ -63,41 +63,19 @@ class Wp_Mux_Public {
 	 */
 	public function enqueue_styles() {
 
-		/**
-		 * This function is provided for demonstration purposes only.
-		 *
-		 * An instance of this class should be passed to the run() method
-		 * defined in Wp_Mux_Loader as all of the hooks are defined
-		 * in that particular class.
-		 *
-		 * The Wp_Mux_Loader will then create the relationship
-		 * between the defined hooks and the functions defined in this
-		 * class.
-		 */
-
 		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wp-mux-public.css', array(), $this->version, 'all' );
 
 		// Add theme CSS for MUX players
 		$this->enqueue_theme_styles();
 
-	}	/**
+	}
+
+	/**
 	 * Register the JavaScript for the public-facing side of the site.
 	 *
 	 * @since    1.0.0
 	 */
 	public function enqueue_scripts() {
-
-		/**
-		 * This function is provided for demonstration purposes only.
-		 *
-		 * An instance of this class should be passed to the run() function
-		 * defined in Wp_Mux_Loader as all of the hooks are defined
-		 * in that particular class.
-		 *
-		 * The Wp_Mux_Loader will then create the relationship
-		 * between the defined hooks and the functions defined in this
-		 * class.
-		 */
 
 		// Enqueue MUX player element for video playback
 		wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, true );
@@ -121,8 +99,6 @@ class Wp_Mux_Public {
 		if ( ! is_string( $url ) || empty( $url ) ) {
 			return $html;
 		}
-
-		// Debug logging
 
 		// Check if this is a MUX stream URL (both .m3u8 and .mp4, or has mux=1 parameter)
 		if ( strpos( $url, 'stream.mux.com' ) !== false &&
@@ -152,7 +128,7 @@ class Wp_Mux_Public {
 				$poster = $this->generate_mux_thumbnail_url( $playback_id, $thumbnail_options );
 			}
 
-			$controls = isset( $attr['controls'] ) ? 'controls' : 'controls';
+			$controls = 'controls';
 			$width = isset( $attr['width'] ) ? $attr['width'] : '';
 			$height = isset( $attr['height'] ) ? $attr['height'] : '';
 
@@ -338,12 +314,12 @@ class Wp_Mux_Public {
 					$block_expiry  = isset( $block['attrs']['mux_token_expiry'] ) ? (int) $block['attrs']['mux_token_expiry'] : 0;
 					$expiry        = ( $block_expiry > 0 ) ? $block_expiry : $global_expiry;
 
-					$jwt = Wp_Mux_Utils::generateMuxJwt( $playback_id, 'video', $expiry );
+					$jwt = Wp_Mux_Utils::generate_mux_jwt( $playback_id, 'video', $expiry );
 					if ( ! empty( $jwt ) ) {
 						$mux_player_tag .= ' playback-token="' . esc_attr( $jwt ) . '"';
 						// Also sign the thumbnail and storyboard tokens.
-						$thumb_jwt  = Wp_Mux_Utils::generateMuxJwt( $playback_id, 'thumbnail', $expiry );
-						$story_jwt  = Wp_Mux_Utils::generateMuxJwt( $playback_id, 'storyboard', $expiry );
+						$thumb_jwt  = Wp_Mux_Utils::generate_mux_jwt( $playback_id, 'thumbnail', $expiry );
+						$story_jwt  = Wp_Mux_Utils::generate_mux_jwt( $playback_id, 'storyboard', $expiry );
 						if ( ! empty( $thumb_jwt ) ) {
 							$mux_player_tag .= ' thumbnail-token="' . esc_attr( $thumb_jwt ) . '"';
 						}

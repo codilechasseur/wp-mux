@@ -204,36 +204,24 @@ class Wp_Mux_Admin {
 	 */
 	public function enqueue_styles() {
 
-		/**
-		 * This function is provided for demonstration purposes only.
-		 *
-		 * An instance of this class should be passed to the run() function
-		 * defined in Wp_Mux_Loader as all of the hooks are defined
-		 * in that particular class.
-		 *
-		 * The Wp_Mux_Loader will then create the relationship
-		 * between the defined hooks and the functions defined in this
-		 * class.
-		 */
+		wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wp-mux-admin.css', array(), $this->version, 'all' );
+		// Add custom styles for MUX badge in media library
+		wp_enqueue_style( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-badge.css', array(), $this->version );
 
-	wp_enqueue_style( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'css/wp-mux-admin.css', array(), $this->version, 'all' );
-	// Add custom styles for MUX badge in media library
-	wp_enqueue_style( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-badge.css', array(), $this->version );
+		// Enqueue theme management styles on themes page
+		$screen = get_current_screen();
+		if ( $screen && 'mux-videos_page_wp-mux-themes' === $screen->id ) {
+			wp_enqueue_style( 'wp-mux-themes', plugin_dir_url( __FILE__ ) . 'css/wp-mux-themes.css', array(), $this->version );
+		}
 
-	// Enqueue theme management styles on themes page
-	$screen = get_current_screen();
-	if ( $screen && $screen->id === 'mux-videos_page_wp-mux-themes' ) {
-		wp_enqueue_style( 'wp-mux-themes', plugin_dir_url( __FILE__ ) . 'css/wp-mux-themes.css', array(), $this->version );
-	}
-
-	// Enqueue migration styles on migration page, settings page (for sidebar layout)
-	if ( $screen && (
-		$screen->id === 'mux-videos_page_wp-mux-migration' ||
-		$screen->id === 'mux-videos_page_wp-mux-settings' ||
-		$screen->id === 'toplevel_page_wp-mux-videos'
-	) ) {
-		wp_enqueue_style( 'wp-mux-migration', plugin_dir_url( __FILE__ ) . 'css/wp-mux-migration.css', array(), $this->version );
-	}
+		// Enqueue migration styles on migration page, settings page (for sidebar layout)
+		if ( $screen && (
+			'mux-videos_page_wp-mux-migration' === $screen->id ||
+			'mux-videos_page_wp-mux-settings' === $screen->id ||
+			'toplevel_page_wp-mux-videos' === $screen->id
+		) ) {
+			wp_enqueue_style( 'wp-mux-migration', plugin_dir_url( __FILE__ ) . 'css/wp-mux-migration.css', array(), $this->version );
+		}
 
 	}
 
@@ -244,181 +232,171 @@ class Wp_Mux_Admin {
 	 */
 	public function enqueue_scripts() {
 
-		/**
-		 * This function is provided for demonstration purposes only.
-		 *
-		 * An instance of this class should be passed to the run() function
-		 * defined in Wp_Mux_Loader as all of the hooks are defined
-		 * in that particular class.
-		 *
-		 * The Wp_Mux_Loader will then create the relationship
-		 * between the defined hooks and the functions defined in this
-		 * class.
-		 */
+		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-admin.js', array( 'jquery' ), $this->version, false );
 
-	wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-admin.js', array( 'jquery' ), $this->version, false );
-
-	// Load theme manager for theme data
-	require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
-	$theme_manager = new Wp_Mux_Theme_Manager();
-	$themes = $theme_manager->get_themes();
-	$theme_options = array();
-	foreach ( $themes as $theme_id => $theme ) {
-		$theme_options[] = array(
-			'id' => $theme_id,
-			'name' => $theme['name'],
-		);
-	}
-
-	// Localize script with necessary data
-	$api = new Wp_Mux_Api();
-	wp_localize_script( $this->plugin_name, 'wpMuxData', array(
-		'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-		'nonce' => wp_create_nonce( 'wp_mux_admin_nonce' ),
-		'uploadNonce' => wp_create_nonce( 'wp_mux_upload_nonce' ),
-		'videosNonce' => wp_create_nonce( 'wp_mux_videos_nonce' ),
-		'themesNonce' => wp_create_nonce( 'wp_mux_themes_nonce' ),
-		'isConfigured' => $api->is_configured(),
-		'themes' => $theme_options,
-		'strings' => array(
-			'uploadError' => __( 'Upload failed. Please try again.', 'wp-mux' ),
-			'deleteConfirm' => __( 'Are you sure you want to delete this video?', 'wp-mux' ),
-			'deleteThemeConfirm' => __( 'Are you sure you want to delete this theme?', 'wp-mux' ),
-			'themeSaved' => __( 'Theme saved successfully', 'wp-mux' ),
-			'themeDeleted' => __( 'Theme deleted successfully', 'wp-mux' ),
-			'defaultThemeSet' => __( 'Default theme updated', 'wp-mux' ),
-		),
-	) );
-
-	// Only enqueue mux-player once with consistent URL
-	if ( ! wp_script_is( 'mux-player', 'enqueued' ) ) {
-		wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, true );
-	}
-
-	// Re-enable media badge script with better targeting
-	$screen = get_current_screen();
-	if ( $screen && (
-		$screen->id === 'upload' ||
-		$screen->id === 'media' ||
-		strpos( $screen->base, 'media' ) !== false ||
-		strpos( $screen->id, 'page_wp-mux' ) !== false
-	) ) {
-		wp_enqueue_script( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-badge.js', array( 'media-views' ), $this->version, true );
-
-		// Enqueue media override script for better upload handling
-		wp_enqueue_script( 'wp-mux-media-override', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-override.js', array( 'media-views', 'plupload' ), $this->version, true );
-	}
-
-	// Enqueue media library refresh script more broadly (just jQuery dependency)
-	if ( $screen && (
-		$screen->id === 'upload' ||
-		$screen->id === 'media' ||
-		$screen->base === 'media' ||
-		$screen->base === 'upload' ||
-		strpos( $screen->base, 'media' ) !== false
-	) ) {
-		wp_enqueue_script( 'wp-mux-media-library', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-library.js', array( 'jquery' ), $this->version, true );
-		wp_enqueue_style( 'wp-mux-media-status', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-status.css', array(), $this->version );
-
-		// Enqueue media stats script and styles
-		wp_enqueue_script( 'wp-mux-media-stats', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-stats.js', array( 'jquery', 'media-views' ), $this->version, true );
-		wp_enqueue_style( 'wp-mux-media-stats', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-stats.css', array(), $this->version );
-
-		// Provide data to the media stats script
-		wp_localize_script( 'wp-mux-media-stats', 'wpMuxAnalytics', array(
-			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce' => wp_create_nonce( 'wp_mux_analytics_nonce' ),
-			'strings' => array(
-				'refreshing' => __( 'Refreshing...', 'wp-mux' ),
-				'refreshed' => __( 'Stats refreshed!', 'wp-mux' ),
-				'error' => __( 'Failed to refresh stats', 'wp-mux' )
-			)
-		) );
-
-		// Provide data to the media library script
-		wp_localize_script( 'wp-mux-media-library', 'wpMuxMedia', array(
-			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce' => wp_create_nonce( 'wp_mux_queue_status_nonce' ),
-			'strings' => array(
-				'queued' => __( 'Queued for MUX', 'wp-mux' ),
-				'processing' => __( 'Processing...', 'wp-mux' ),
-				'complete' => __( 'Ready', 'wp-mux' ),
-				'failed' => __( 'Failed', 'wp-mux' )
-			)
-		) );
-	}
-
-	// Enqueue theme management script on themes page
-	if ( $screen && $screen->id === 'mux-videos_page_wp-mux-themes' ) {
-		wp_enqueue_script( 'wp-mux-themes', plugin_dir_url( __FILE__ ) . 'js/wp-mux-themes.js', array( 'jquery' ), $this->version, true );
-	}
-
-	// Enqueue migration script on migration page
-	if ( $screen && $screen->id === 'mux-videos_page_wp-mux-migration' ) {
-		wp_enqueue_script( 'wp-mux-migration', plugin_dir_url( __FILE__ ) . 'js/wp-mux-migration.js', array( 'jquery' ), $this->version, true );
-
-		// Localize script with necessary data
-		wp_localize_script( 'wp-mux-migration', 'wpMuxMigration', array(
-			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce' => wp_create_nonce( 'wp_mux_migration_nonce' ),
-			'strings' => array(
-				'noVideosFound' => __( 'No local videos found that need migration.', 'wp-mux' ),
-				'pending' => __( 'Pending', 'wp-mux' ),
-				'processing' => __( 'Processing...', 'wp-mux' ),
-				'success' => __( 'Success', 'wp-mux' ),
-				'failed' => __( 'Failed', 'wp-mux' ),
-			),
-		) );
-	}
-
-	// Enqueue migrate-back script on migration page (from-mux tab)
-	if ( ( $screen && $screen->id === 'mux-videos_page_wp-mux-migration' && isset( $_GET['tab'] ) && $_GET['tab'] === 'from-mux' ) ||
-	     ( isset( $_GET['page'] ) && $_GET['page'] === 'wp-mux-migration' && isset( $_GET['tab'] ) && $_GET['tab'] === 'from-mux' ) ) {
-		wp_enqueue_script( 'wp-mux-migrate-back', plugin_dir_url( __FILE__ ) . 'js/wp-mux-migrate-back.js', array( 'jquery' ), $this->version, true );
-
-		// Localize script with necessary data
-		wp_localize_script( 'wp-mux-migrate-back', 'wpMuxMigrateBack', array(
-			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-			'nonce' => wp_create_nonce( 'wp_mux_migrate_back' ),
-			'strings' => array(
-				'noVideosFound' => __( 'No Mux videos found.', 'wp-mux' ),
-				'pending' => __( 'Pending', 'wp-mux' ),
-				'processing' => __( 'Processing...', 'wp-mux' ),
-				'success' => __( 'Success', 'wp-mux' ),
-				'failed' => __( 'Failed', 'wp-mux' ),
-			),
-		) );
-	}
-
-	// Enqueue block editor script for Gutenberg
-	if ( $screen && ( $screen->is_block_editor() || $screen->id === 'post' || $screen->id === 'page' ) ) {
-		wp_enqueue_script( 'wp-mux-block-editor', plugin_dir_url( __FILE__ ) . 'js/wp-mux-block-editor.js', array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-data' ), $this->version, true );
-
-		// Make themes available to block editor
-		wp_add_inline_script( 'wp-mux-block-editor', 'window.wpMuxThemes = ' . json_encode( $theme_options ) . ';', 'before' );
-
-		// Pass WordPress roles for the Access Restrictions checkboxes.
-		$roles        = wp_roles()->roles;
-		$role_options = array();
-		foreach ( $roles as $role_key => $role_data ) {
-			$role_options[] = array(
-				'value' => $role_key,
-				'label' => translate_user_role( $role_data['name'] ),
+		// Load theme manager for theme data
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
+		$theme_manager = new Wp_Mux_Theme_Manager();
+		$themes        = $theme_manager->get_themes();
+		$theme_options = array();
+		foreach ( $themes as $theme_id => $theme ) {
+			$theme_options[] = array(
+				'id'   => $theme_id,
+				'name' => $theme['name'],
 			);
 		}
-		wp_add_inline_script( 'wp-mux-block-editor', 'window.wpMuxRoles = ' . wp_json_encode( $role_options ) . ';', 'before' );
-	}
 
-	// Enqueue attachment settings script on attachment edit page
-	if ( $screen && $screen->id === 'attachment' ) {
-		wp_enqueue_script(
-			'wp-mux-attachment-settings',
-			plugin_dir_url( __FILE__ ) . 'js/wp-mux-attachment-settings.js',
-			array( 'jquery' ),
-			$this->version,
-			true
-		);
-	}
+		// Localize script with necessary data
+		$api = new Wp_Mux_Api();
+		wp_localize_script( $this->plugin_name, 'wpMuxData', array(
+			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'nonce' => wp_create_nonce( 'wp_mux_admin_nonce' ),
+			'uploadNonce' => wp_create_nonce( 'wp_mux_upload_nonce' ),
+			'videosNonce' => wp_create_nonce( 'wp_mux_videos_nonce' ),
+			'themesNonce' => wp_create_nonce( 'wp_mux_themes_nonce' ),
+			'isConfigured' => $api->is_configured(),
+			'themes' => $theme_options,
+			'strings' => array(
+				'uploadError' => __( 'Upload failed. Please try again.', 'wp-mux' ),
+				'deleteConfirm' => __( 'Are you sure you want to delete this video?', 'wp-mux' ),
+				'deleteThemeConfirm' => __( 'Are you sure you want to delete this theme?', 'wp-mux' ),
+				'themeSaved' => __( 'Theme saved successfully', 'wp-mux' ),
+				'themeDeleted' => __( 'Theme deleted successfully', 'wp-mux' ),
+				'defaultThemeSet' => __( 'Default theme updated', 'wp-mux' ),
+			),
+		) );
+
+		// Only enqueue mux-player once with consistent URL
+		if ( ! wp_script_is( 'mux-player', 'enqueued' ) ) {
+			wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, true );
+		}
+
+		// Re-enable media badge script with better targeting
+		$screen = get_current_screen();
+		if ( $screen && (
+			$screen->id === 'upload' ||
+			$screen->id === 'media' ||
+			strpos( $screen->base, 'media' ) !== false ||
+			strpos( $screen->id, 'page_wp-mux' ) !== false
+		) ) {
+			wp_enqueue_script( 'wp-mux-media-badge', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-badge.js', array( 'media-views' ), $this->version, true );
+
+			// Enqueue media override script for better upload handling
+			wp_enqueue_script( 'wp-mux-media-override', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-override.js', array( 'media-views', 'plupload' ), $this->version, true );
+		}
+
+		// Enqueue media library refresh script more broadly (just jQuery dependency)
+		if ( $screen && (
+			$screen->id === 'upload' ||
+			$screen->id === 'media' ||
+			$screen->base === 'media' ||
+			$screen->base === 'upload' ||
+			strpos( $screen->base, 'media' ) !== false
+		) ) {
+			wp_enqueue_script( 'wp-mux-media-library', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-library.js', array( 'jquery' ), $this->version, true );
+			wp_enqueue_style( 'wp-mux-media-status', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-status.css', array(), $this->version );
+
+			// Enqueue media stats script and styles
+			wp_enqueue_script( 'wp-mux-media-stats', plugin_dir_url( __FILE__ ) . 'js/wp-mux-media-stats.js', array( 'jquery', 'media-views' ), $this->version, true );
+			wp_enqueue_style( 'wp-mux-media-stats', plugin_dir_url( __FILE__ ) . 'css/wp-mux-media-stats.css', array(), $this->version );
+
+			// Provide data to the media stats script
+			wp_localize_script( 'wp-mux-media-stats', 'wpMuxAnalytics', array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce' => wp_create_nonce( 'wp_mux_analytics_nonce' ),
+				'strings' => array(
+					'refreshing' => __( 'Refreshing...', 'wp-mux' ),
+					'refreshed' => __( 'Stats refreshed!', 'wp-mux' ),
+					'error' => __( 'Failed to refresh stats', 'wp-mux' )
+				)
+			) );
+
+			// Provide data to the media library script
+			wp_localize_script( 'wp-mux-media-library', 'wpMuxMedia', array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce' => wp_create_nonce( 'wp_mux_queue_status_nonce' ),
+				'strings' => array(
+					'queued' => __( 'Queued for MUX', 'wp-mux' ),
+					'processing' => __( 'Processing...', 'wp-mux' ),
+					'complete' => __( 'Ready', 'wp-mux' ),
+					'failed' => __( 'Failed', 'wp-mux' )
+				)
+			) );
+		}
+
+		// Enqueue theme management script on themes page
+		if ( $screen && $screen->id === 'mux-videos_page_wp-mux-themes' ) {
+			wp_enqueue_script( 'wp-mux-themes', plugin_dir_url( __FILE__ ) . 'js/wp-mux-themes.js', array( 'jquery' ), $this->version, true );
+		}
+
+		// Enqueue migration script on migration page
+		if ( $screen && $screen->id === 'mux-videos_page_wp-mux-migration' ) {
+			wp_enqueue_script( 'wp-mux-migration', plugin_dir_url( __FILE__ ) . 'js/wp-mux-migration.js', array( 'jquery' ), $this->version, true );
+
+			// Localize script with necessary data
+			wp_localize_script( 'wp-mux-migration', 'wpMuxMigration', array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce' => wp_create_nonce( 'wp_mux_migration_nonce' ),
+				'strings' => array(
+					'noVideosFound' => __( 'No local videos found that need migration.', 'wp-mux' ),
+					'pending' => __( 'Pending', 'wp-mux' ),
+					'processing' => __( 'Processing...', 'wp-mux' ),
+					'success' => __( 'Success', 'wp-mux' ),
+					'failed' => __( 'Failed', 'wp-mux' ),
+				),
+			) );
+		}
+
+		// Enqueue migrate-back script on migration page (from-mux tab)
+		$current_tab  = isset( $_GET['tab'] ) ? sanitize_key( wp_unslash( $_GET['tab'] ) ) : '';
+		$current_page = isset( $_GET['page'] ) ? sanitize_key( wp_unslash( $_GET['page'] ) ) : '';
+		if ( ( $screen && 'mux-videos_page_wp-mux-migration' === $screen->id && 'from-mux' === $current_tab ) ||
+		     ( 'wp-mux-migration' === $current_page && 'from-mux' === $current_tab ) ) {
+			wp_enqueue_script( 'wp-mux-migrate-back', plugin_dir_url( __FILE__ ) . 'js/wp-mux-migrate-back.js', array( 'jquery' ), $this->version, true );
+
+			// Localize script with necessary data
+			wp_localize_script( 'wp-mux-migrate-back', 'wpMuxMigrateBack', array(
+				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+				'nonce' => wp_create_nonce( 'wp_mux_migrate_back' ),
+				'strings' => array(
+					'noVideosFound' => __( 'No Mux videos found.', 'wp-mux' ),
+					'pending' => __( 'Pending', 'wp-mux' ),
+					'processing' => __( 'Processing...', 'wp-mux' ),
+					'success' => __( 'Success', 'wp-mux' ),
+					'failed' => __( 'Failed', 'wp-mux' ),
+				),
+			) );
+		}
+
+		// Enqueue block editor script for Gutenberg
+		if ( $screen && ( $screen->is_block_editor() || $screen->id === 'post' || $screen->id === 'page' ) ) {
+			wp_enqueue_script( 'wp-mux-block-editor', plugin_dir_url( __FILE__ ) . 'js/wp-mux-block-editor.js', array( 'wp-blocks', 'wp-element', 'wp-editor', 'wp-components', 'wp-data' ), $this->version, true );
+
+			// Make themes available to block editor
+			wp_add_inline_script( 'wp-mux-block-editor', 'window.wpMuxThemes = ' . wp_json_encode( $theme_options ) . ';', 'before' );
+
+			// Pass WordPress roles for the Access Restrictions checkboxes.
+			$roles        = wp_roles()->roles;
+			$role_options = array();
+			foreach ( $roles as $role_key => $role_data ) {
+				$role_options[] = array(
+					'value' => $role_key,
+					'label' => translate_user_role( $role_data['name'] ),
+				);
+			}
+			wp_add_inline_script( 'wp-mux-block-editor', 'window.wpMuxRoles = ' . wp_json_encode( $role_options ) . ';', 'before' );
+		}
+
+		// Enqueue attachment settings script on attachment edit page
+		if ( $screen && $screen->id === 'attachment' ) {
+			wp_enqueue_script(
+				'wp-mux-attachment-settings',
+				plugin_dir_url( __FILE__ ) . 'js/wp-mux-attachment-settings.js',
+				array( 'jquery' ),
+				$this->version,
+				true
+			);
+		}
 
 	}
 
@@ -561,7 +539,7 @@ class Wp_Mux_Admin {
 			<!-- Analytics Section -->
 			<div class="wp-mux-section">
 				<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
-					<h3 style="margin: 0;"><?php _e( 'Video Analytics', 'wp-mux' ); ?></h3>
+					<h3 style="margin: 0;"><?php esc_html_e( 'Video Analytics', 'wp-mux' ); ?></h3>
 					<div style="display: flex; align-items: center; gap: 10px;">
 						<span class="mux-stats-updated" style="font-size: 12px; color: #646970;">
 							<?php
@@ -570,7 +548,7 @@ class Wp_Mux_Admin {
 							printf( __( 'Last updated: %s', 'wp-mux' ), esc_html( $formatted['last_updated'] ) );
 							?>
 						</span>
-						<button type="button" class="button button-small mux-refresh-stats-edit-page" data-attachment-id="<?php echo esc_attr( $post->ID ); ?>" title="<?php _e( 'Refresh Analytics', 'wp-mux' ); ?>" style="min-width: auto; padding: 4px 8px; color: #646970; border-color: #dcdcde; display: inline-flex; align-items: center; justify-content: center;">
+						<button type="button" class="button button-small mux-refresh-stats-edit-page" data-attachment-id="<?php echo esc_attr( $post->ID ); ?>" title="<?php esc_html_e( 'Refresh Analytics', 'wp-mux' ); ?>" style="min-width: auto; padding: 4px 8px; color: #646970; border-color: #dcdcde; display: inline-flex; align-items: center; justify-content: center;">
 							<span class="dashicons dashicons-update" style="font-size: 16px; width: 16px; height: 16px; line-height: 1;"></span>
 						</button>
 					</div>
@@ -582,7 +560,7 @@ class Wp_Mux_Admin {
 
 			<!-- Settings Section -->
 			<div class="wp-mux-section">
-				<h3><?php _e( 'Video Settings', 'wp-mux' ); ?></h3>
+				<h3><?php esc_html_e( 'Video Settings', 'wp-mux' ); ?></h3>
 				<?php $this->render_settings_content( $post ); ?>
 			</div>
 		</div>
@@ -607,28 +585,28 @@ class Wp_Mux_Admin {
 			<div class="mux-stats-grid">
 				<div class="mux-stat-card">
 					<div class="mux-stat-value"><?php echo esc_html( $formatted['total_views'] ); ?></div>
-					<div class="mux-stat-label"><?php _e( 'Total Views', 'wp-mux' ); ?></div>
+					<div class="mux-stat-label"><?php esc_html_e( 'Total Views', 'wp-mux' ); ?></div>
 				</div>
 
 				<div class="mux-stat-card">
 					<div class="mux-stat-value"><?php echo esc_html( $formatted['unique_viewers'] ); ?></div>
-					<div class="mux-stat-label"><?php _e( 'Unique Viewers', 'wp-mux' ); ?></div>
+					<div class="mux-stat-label"><?php esc_html_e( 'Unique Viewers', 'wp-mux' ); ?></div>
 				</div>
 
 				<div class="mux-stat-card">
 					<div class="mux-stat-value"><?php echo esc_html( $formatted['total_watch_time'] ); ?></div>
-					<div class="mux-stat-label"><?php _e( 'Total Watch Time', 'wp-mux' ); ?></div>
+					<div class="mux-stat-label"><?php esc_html_e( 'Total Watch Time', 'wp-mux' ); ?></div>
 				</div>
 
 				<div class="mux-stat-card">
 					<div class="mux-stat-value"><?php echo esc_html( $formatted['average_view_duration'] ); ?></div>
-					<div class="mux-stat-label"><?php _e( 'Avg. View Duration', 'wp-mux' ); ?></div>
+					<div class="mux-stat-label"><?php esc_html_e( 'Avg. View Duration', 'wp-mux' ); ?></div>
 				</div>
 
 				<?php if ( $formatted['video_quality_score'] !== 'N/A' ) : ?>
 				<div class="mux-stat-card">
 					<div class="mux-stat-value"><?php echo esc_html( $formatted['video_quality_score'] ); ?></div>
-					<div class="mux-stat-label"><?php _e( 'Quality Score', 'wp-mux' ); ?></div>
+					<div class="mux-stat-label"><?php esc_html_e( 'Quality Score', 'wp-mux' ); ?></div>
 				</div>
 				<?php endif; ?>
 			</div>
@@ -659,12 +637,12 @@ class Wp_Mux_Admin {
 							// Reload the page to show updated stats
 							location.reload();
 						} else {
-							alert(response.data.message || '<?php _e( 'Failed to refresh stats', 'wp-mux' ); ?>');
+							alert(response.data.message || '<?php echo esc_js( __( 'Failed to refresh stats', 'wp-mux' ) ); ?>');
 							$button.prop('disabled', false).removeClass('mux-stats-loading');
 						}
 					},
 					error: function(xhr, status, error) {
-						alert('<?php _e( 'Failed to refresh stats', 'wp-mux' ); ?>');
+						alert('<?php echo esc_js( __( 'Failed to refresh stats', 'wp-mux' ) ); ?>');
 						$button.prop('disabled', false).removeClass('mux-stats-loading');
 					}
 				});
@@ -711,7 +689,7 @@ class Wp_Mux_Admin {
 	public function save_mux_attachment_settings( $attachment_id ) {
 		// Verify nonce
 		if ( ! isset( $_POST['wp_mux_settings_nonce'] ) ||
-			 ! wp_verify_nonce( $_POST['wp_mux_settings_nonce'], 'wp_mux_save_settings' ) ) {
+			 ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_mux_settings_nonce'] ) ), 'wp_mux_save_settings' ) ) {
 			return;
 		}
 
@@ -737,7 +715,7 @@ class Wp_Mux_Admin {
 
 		// Update playback policy if changed
 		if ( isset( $_POST['mux_playback_policy'] ) ) {
-			$new_policy = sanitize_text_field( $_POST['mux_playback_policy'] );
+			$new_policy = sanitize_text_field( wp_unslash( $_POST['mux_playback_policy'] ) );
 			$old_policy = get_post_meta( $attachment_id, '_mux_playback_policy', true );
 
 			if ( $new_policy !== $old_policy && in_array( $new_policy, array( 'public', 'signed' ), true ) ) {
@@ -753,7 +731,7 @@ class Wp_Mux_Admin {
 
 		// Update MP4 support if changed
 		if ( isset( $_POST['mux_mp4_support'] ) ) {
-			$new_support = sanitize_text_field( $_POST['mux_mp4_support'] );
+			$new_support = sanitize_text_field( wp_unslash( $_POST['mux_mp4_support'] ) );
 			$old_support = get_post_meta( $attachment_id, '_mux_mp4_support', true );
 
 			if ( $new_support !== $old_support &&
@@ -1295,24 +1273,24 @@ class Wp_Mux_Admin {
 	 */
 	public function handle_theme_form_submissions() {
 		// Only process on our themes page
-		if ( ! isset( $_GET['page'] ) || $_GET['page'] !== 'wp-mux-themes' ) {
+		if ( ! isset( $_GET['page'] ) || sanitize_key( wp_unslash( $_GET['page'] ) ) !== 'wp-mux-themes' ) {
 			return;
 		}
 
-		if ( ! isset( $_POST['action'] ) || ! wp_verify_nonce( $_POST['wp_mux_themes_nonce'], 'wp_mux_themes_action' ) ) {
+		if ( ! isset( $_POST['action'] ) || ! wp_verify_nonce( sanitize_text_field( wp_unslash( $_POST['wp_mux_themes_nonce'] ?? '' ) ), 'wp_mux_themes_action' ) ) {
 			return;
 		}
 
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';
 		$theme_manager = new Wp_Mux_Theme_Manager();
 
-		switch ( $_POST['action'] ) {
+		switch ( sanitize_key( wp_unslash( $_POST['action'] ) ) ) {
 			case 'save_theme':
-				$theme_id = sanitize_text_field( $_POST['theme_id'] );
-				$name = sanitize_text_field( $_POST['theme_name'] );
-				$description = sanitize_textarea_field( $_POST['theme_description'] );
-				$controls = isset( $_POST['controls'] ) ? $_POST['controls'] : array();
-				$styles = isset( $_POST['styles'] ) ? $_POST['styles'] : array();
+				$theme_id    = sanitize_text_field( wp_unslash( $_POST['theme_id'] ?? '' ) );
+				$name        = sanitize_text_field( wp_unslash( $_POST['theme_name'] ?? '' ) );
+				$description = sanitize_textarea_field( wp_unslash( $_POST['theme_description'] ?? '' ) );
+				$controls    = isset( $_POST['controls'] ) ? wp_unslash( (array) $_POST['controls'] ) : array();
+				$styles      = isset( $_POST['styles'] ) ? wp_unslash( (array) $_POST['styles'] ) : array();
 
 				if ( empty( $theme_id ) ) {
 					$theme_id = $theme_manager->generate_theme_id( $name );
@@ -1332,7 +1310,7 @@ class Wp_Mux_Admin {
 				break;
 
 			case 'delete_theme':
-				$theme_id = sanitize_text_field( $_POST['theme_id'] );
+				$theme_id = sanitize_text_field( wp_unslash( $_POST['theme_id'] ?? '' ) );
 				$result = $theme_manager->delete_theme( $theme_id );
 
 				if ( is_wp_error( $result ) ) {
@@ -1450,14 +1428,14 @@ class Wp_Mux_Admin {
 		        id="wp_mux_default_playback_policy"
 		        data-has-capability="<?php echo $has_capability ? '1' : '0'; ?>">
 			<option value="public" <?php selected( $value, 'public' ); ?>>
-				<?php _e( 'Public (Anyone can view)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Public (Anyone can view)', 'wp-mux' ); ?>
 			</option>
 			<option value="signed"
 			        <?php selected( $value, 'signed' ); ?>
 			        <?php echo ! $has_capability ? 'disabled' : ''; ?>>
-				<?php _e( 'Signed URLs (Requires token)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Signed URLs (Requires token)', 'wp-mux' ); ?>
 				<?php if ( ! $has_capability ) : ?>
-					<?php _e( ' - Upgrade Required', 'wp-mux' ); ?>
+					<?php esc_html_e( ' - Upgrade Required', 'wp-mux' ); ?>
 				<?php endif; ?>
 			</option>
 		</select>
@@ -1465,25 +1443,25 @@ class Wp_Mux_Admin {
 		<?php if ( ! $has_capability ) : ?>
 			<p class="description" style="color: #d63638;">
 				<span class="dashicons dashicons-lock" style="font-size: 16px; vertical-align: middle;"></span>
-				<strong><?php _e( 'Private Videos Unavailable', 'wp-mux' ); ?></strong><br>
-				<?php _e( 'Your Mux account does not have access to signed URLs. This feature requires:', 'wp-mux' ); ?>
+				<strong><?php esc_html_e( 'Private Videos Unavailable', 'wp-mux' ); ?></strong><br>
+				<?php esc_html_e( 'Your Mux account does not have access to signed URLs. This feature requires:', 'wp-mux' ); ?>
 				<ul style="list-style: disc; margin-left: 25px; margin-top: 5px; padding-left: 0;">
-					<li><?php _e( 'A paid Mux plan, OR', 'wp-mux' ); ?></li>
-					<li><?php _e( 'Signing keys API access enabled for your account', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'A paid Mux plan, OR', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Signing keys API access enabled for your account', 'wp-mux' ); ?></li>
 				</ul>
-				<a href="https://mux.com/pricing" target="_blank"><?php _e( 'View Mux Pricing', 'wp-mux' ); ?> ↗</a>
+				<a href="https://mux.com/pricing" target="_blank"><?php esc_html_e( 'View Mux Pricing', 'wp-mux' ); ?> ↗</a>
 			</p>
 		<?php else : ?>
 			<p class="description">
-				<?php _e( 'Public videos can be played by anyone. Signed URLs automatically create secure tokens for each viewer.', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Public videos can be played by anyone. Signed URLs automatically create secure tokens for each viewer.', 'wp-mux' ); ?>
 				<br>
 				<?php if ( $value === 'signed' ) : ?>
 					<span style="color: #00a32a;">
 						<span class="dashicons dashicons-yes-alt" style="font-size: 16px; vertical-align: middle;"></span>
-						<?php _e( 'Signing keys are configured and ready.', 'wp-mux' ); ?>
+						<?php esc_html_e( 'Signing keys are configured and ready.', 'wp-mux' ); ?>
 					</span>
 				<?php else : ?>
-					<?php _e( 'Switching to "Signed URLs" will automatically configure signing keys for you.', 'wp-mux' ); ?>
+					<?php esc_html_e( 'Switching to "Signed URLs" will automatically configure signing keys for you.', 'wp-mux' ); ?>
 				<?php endif; ?>
 			</p>
 		<?php endif; ?>
@@ -1507,7 +1485,7 @@ class Wp_Mux_Admin {
 						success: function(response) {
 							if (!response.success || !response.data.has_keys) {
 								// Need to create keys
-								if (confirm('<?php _e( 'Switching to signed URLs will automatically create and configure signing keys. Continue?', 'wp-mux' ); ?>')) {
+								if (confirm('<?php esc_html_e( 'Switching to signed URLs will automatically create and configure signing keys. Continue?', 'wp-mux' ); ?>')) {
 									// Auto-configure keys
 									$.ajax({
 										url: ajaxurl,
@@ -1518,14 +1496,14 @@ class Wp_Mux_Admin {
 										},
 										success: function(keyResponse) {
 											if (keyResponse.success) {
-												alert('<?php _e( 'Signing keys configured successfully!', 'wp-mux' ); ?>');
+												alert('<?php esc_html_e( 'Signing keys configured successfully!', 'wp-mux' ); ?>');
 											} else {
-												alert('<?php _e( 'Failed to configure signing keys. Please try again.', 'wp-mux' ); ?>');
+												alert('<?php esc_html_e( 'Failed to configure signing keys. Please try again.', 'wp-mux' ); ?>');
 												$select.val('public').trigger('change');
 											}
 										},
 										error: function() {
-											alert('<?php _e( 'Network error. Please try again.', 'wp-mux' ); ?>');
+											alert('<?php esc_html_e( 'Network error. Please try again.', 'wp-mux' ); ?>');
 											$select.val('public').trigger('change');
 										}
 									});
@@ -1553,17 +1531,17 @@ class Wp_Mux_Admin {
 		?>
 		<select name="wp_mux_default_mp4_support" id="wp_mux_default_mp4_support">
 			<option value="none" <?php selected( $value, 'none' ); ?>>
-				<?php _e( 'None (Lowest cost)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'None (Lowest cost)', 'wp-mux' ); ?>
 			</option>
 			<option value="standard" <?php selected( $value, 'standard' ); ?>>
-				<?php _e( 'Standard (Enable downloadable MP4)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Standard (Enable downloadable MP4)', 'wp-mux' ); ?>
 			</option>
 			<option value="audio-only" <?php selected( $value, 'audio-only' ); ?>>
-				<?php _e( 'Audio Only', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Audio Only', 'wp-mux' ); ?>
 			</option>
 		</select>
 		<p class="description">
-			<?php _e( 'MP4 support allows downloading videos but increases storage costs.', 'wp-mux' ); ?>
+			<?php esc_html_e( 'MP4 support allows downloading videos but increases storage costs.', 'wp-mux' ); ?>
 		</p>
 		<?php
 	}
@@ -1578,17 +1556,17 @@ class Wp_Mux_Admin {
 		?>
 		<select name="wp_mux_default_encoding_tier" id="wp_mux_default_encoding_tier">
 			<option value="baseline" <?php selected( $value, 'baseline' ); ?>>
-				<?php _e( 'Baseline (Standard quality)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Baseline (Standard quality)', 'wp-mux' ); ?>
 			</option>
 			<option value="smart" <?php selected( $value, 'smart' ); ?>>
-				<?php _e( 'Smart (Optimized encoding)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Smart (Optimized encoding)', 'wp-mux' ); ?>
 			</option>
 			<option value="plus" <?php selected( $value, 'plus' ); ?>>
-				<?php _e( 'Plus (Premium quality)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Plus (Premium quality)', 'wp-mux' ); ?>
 			</option>
 		</select>
 		<p class="description">
-			<?php _e( 'Higher tiers provide better quality but increase processing costs. Cannot be changed after upload.', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Higher tiers provide better quality but increase processing costs. Cannot be changed after upload.', 'wp-mux' ); ?>
 		</p>
 		<?php
 	}
@@ -1604,25 +1582,25 @@ class Wp_Mux_Admin {
 		?>
 		<label>
 			<input type="checkbox" name="wp_mux_enable_auto_captions" value="1" <?php checked( $enabled ); ?> />
-			<?php _e( 'Automatically generate captions on upload', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Automatically generate captions on upload', 'wp-mux' ); ?>
 		</label>
 
 		<div style="margin-top: 10px;">
-			<label for="wp_mux_default_caption_language"><?php _e( 'Caption Language:', 'wp-mux' ); ?></label>
+			<label for="wp_mux_default_caption_language"><?php esc_html_e( 'Caption Language:', 'wp-mux' ); ?></label>
 			<select name="wp_mux_default_caption_language" id="wp_mux_default_caption_language">
-				<option value="en" <?php selected( $language, 'en' ); ?>><?php _e( 'English', 'wp-mux' ); ?></option>
-				<option value="es" <?php selected( $language, 'es' ); ?>><?php _e( 'Spanish', 'wp-mux' ); ?></option>
-				<option value="fr" <?php selected( $language, 'fr' ); ?>><?php _e( 'French', 'wp-mux' ); ?></option>
-				<option value="de" <?php selected( $language, 'de' ); ?>><?php _e( 'German', 'wp-mux' ); ?></option>
-				<option value="it" <?php selected( $language, 'it' ); ?>><?php _e( 'Italian', 'wp-mux' ); ?></option>
-				<option value="pt" <?php selected( $language, 'pt' ); ?>><?php _e( 'Portuguese', 'wp-mux' ); ?></option>
-				<option value="ja" <?php selected( $language, 'ja' ); ?>><?php _e( 'Japanese', 'wp-mux' ); ?></option>
-				<option value="zh" <?php selected( $language, 'zh' ); ?>><?php _e( 'Chinese', 'wp-mux' ); ?></option>
+				<option value="en" <?php selected( $language, 'en' ); ?>><?php esc_html_e( 'English', 'wp-mux' ); ?></option>
+				<option value="es" <?php selected( $language, 'es' ); ?>><?php esc_html_e( 'Spanish', 'wp-mux' ); ?></option>
+				<option value="fr" <?php selected( $language, 'fr' ); ?>><?php esc_html_e( 'French', 'wp-mux' ); ?></option>
+				<option value="de" <?php selected( $language, 'de' ); ?>><?php esc_html_e( 'German', 'wp-mux' ); ?></option>
+				<option value="it" <?php selected( $language, 'it' ); ?>><?php esc_html_e( 'Italian', 'wp-mux' ); ?></option>
+				<option value="pt" <?php selected( $language, 'pt' ); ?>><?php esc_html_e( 'Portuguese', 'wp-mux' ); ?></option>
+				<option value="ja" <?php selected( $language, 'ja' ); ?>><?php esc_html_e( 'Japanese', 'wp-mux' ); ?></option>
+				<option value="zh" <?php selected( $language, 'zh' ); ?>><?php esc_html_e( 'Chinese', 'wp-mux' ); ?></option>
 			</select>
 		</div>
 
 		<p class="description">
-			<?php _e( 'Requires Mux captions to be enabled on your account. May incur additional costs.', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Requires Mux captions to be enabled on your account. May incur additional costs.', 'wp-mux' ); ?>
 		</p>
 		<?php
 	}
@@ -1638,24 +1616,24 @@ class Wp_Mux_Admin {
 		?>
 		<div class="wp-mux-signing-keys-container">
 			<div class="wp-mux-auto-configure-section" style="background: #f0f0f1; padding: 15px; margin-bottom: 15px; border-radius: 4px;">
-				<h4 style="margin-top: 0;"><?php _e( 'Quick Setup', 'wp-mux' ); ?></h4>
-				<p><?php _e( 'Let WP Mux automatically create and configure signing keys for you.', 'wp-mux' ); ?></p>
+				<h4 style="margin-top: 0;"><?php esc_html_e( 'Quick Setup', 'wp-mux' ); ?></h4>
+				<p><?php esc_html_e( 'Let WP Mux automatically create and configure signing keys for you.', 'wp-mux' ); ?></p>
 				<button type="button"
 						class="button button-secondary"
 						id="wp-mux-auto-configure-keys"
 						<?php echo $has_private_key ? 'disabled' : ''; ?>>
 					<span class="dashicons dashicons-admin-network" style="margin-top: 3px;"></span>
-					<?php _e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>
+					<?php esc_html_e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>
 				</button>
 				<?php if ( $has_private_key ) : ?>
 					<p class="description" style="margin-top: 10px;">
 						<span class="dashicons dashicons-yes-alt" style="color: #46b450;"></span>
-						<?php _e( 'Signing keys are already configured.', 'wp-mux' ); ?>
+						<?php esc_html_e( 'Signing keys are already configured.', 'wp-mux' ); ?>
 						<button type="button"
 								class="button button-link"
 								id="wp-mux-reconfigure-keys"
 								style="color: #b32d2e;">
-							<?php _e( 'Reconfigure', 'wp-mux' ); ?>
+							<?php esc_html_e( 'Reconfigure', 'wp-mux' ); ?>
 						</button>
 					</p>
 				<?php endif; ?>
@@ -1663,9 +1641,9 @@ class Wp_Mux_Admin {
 			</div>
 
 			<div class="wp-mux-manual-keys-section">
-				<h4><?php _e( 'Manual Configuration', 'wp-mux' ); ?></h4>
+				<h4><?php esc_html_e( 'Manual Configuration', 'wp-mux' ); ?></h4>
 				<div>
-					<label for="wp_mux_signing_key_id"><?php _e( 'Signing Key ID:', 'wp-mux' ); ?></label>
+					<label for="wp_mux_signing_key_id"><?php esc_html_e( 'Signing Key ID:', 'wp-mux' ); ?></label>
 					<input type="text"
 						   name="wp_mux_signing_key_id"
 						   id="wp_mux_signing_key_id"
@@ -1675,7 +1653,7 @@ class Wp_Mux_Admin {
 				</div>
 
 				<div style="margin-top: 10px;">
-					<label for="wp_mux_signing_key_private"><?php _e( 'Private Key (Base64):', 'wp-mux' ); ?></label>
+					<label for="wp_mux_signing_key_private"><?php esc_html_e( 'Private Key (Base64):', 'wp-mux' ); ?></label>
 					<textarea name="wp_mux_signing_key_private"
 							  id="wp_mux_signing_key_private"
 							  rows="4"
@@ -1684,7 +1662,7 @@ class Wp_Mux_Admin {
 							  placeholder="<?php echo $has_private_key ? esc_attr__( '••••••••', 'wp-mux' ) : ''; ?>"></textarea>
 					<?php if ( $has_private_key ) : ?>
 						<p class="description">
-							<?php _e( 'Keys are configured and stored securely.', 'wp-mux' ); ?>
+							<?php esc_html_e( 'Keys are configured and stored securely.', 'wp-mux' ); ?>
 						</p>
 					<?php endif; ?>
 				</div>
@@ -1692,10 +1670,10 @@ class Wp_Mux_Admin {
 		</div>
 
 		<p class="description">
-			<?php _e( 'Signing keys are required for signed URLs and protected videos.', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Signing keys are required for signed URLs and protected videos.', 'wp-mux' ); ?>
 			<br />
 			<a href="https://docs.mux.com/guides/secure-video-playback" target="_blank">
-				<?php _e( 'Learn more about securing video playback', 'wp-mux' ); ?> ↗
+				<?php esc_html_e( 'Learn more about securing video playback', 'wp-mux' ); ?> ↗
 			</a>
 		</p>
 
@@ -1705,8 +1683,8 @@ class Wp_Mux_Admin {
 				var $button = $(this);
 				var $status = $('#wp-mux-auto-configure-status');
 
-				$button.prop('disabled', true).text('<?php _e( 'Configuring...', 'wp-mux' ); ?>');
-				$status.html('<p><?php _e( 'Creating signing keys in Mux...', 'wp-mux' ); ?></p>');
+				$button.prop('disabled', true).text('<?php esc_html_e( 'Configuring...', 'wp-mux' ); ?>');
+				$status.html('<p><?php esc_html_e( 'Creating signing keys in Mux...', 'wp-mux' ); ?></p>');
 
 				$.ajax({
 					url: ajaxurl,
@@ -1725,20 +1703,20 @@ class Wp_Mux_Admin {
 								location.reload();
 							}, 1500);
 						} else {
-							$status.html('<div class="notice notice-error inline"><p>' + (response.data.message || '<?php _e( 'Failed to configure keys', 'wp-mux' ); ?>') + '</p></div>');
-							$button.prop('disabled', false).text('<?php _e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>');
+							$status.html('<div class="notice notice-error inline"><p>' + (response.data.message || '<?php esc_html_e( 'Failed to configure keys', 'wp-mux' ); ?>') + '</p></div>');
+							$button.prop('disabled', false).text('<?php esc_html_e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>');
 						}
 					},
 					error: function() {
-						$status.html('<div class="notice notice-error inline"><p><?php _e( 'Network error. Please try again.', 'wp-mux' ); ?></p></div>');
-						$button.prop('disabled', false).text('<?php _e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>');
+						$status.html('<div class="notice notice-error inline"><p><?php esc_html_e( 'Network error. Please try again.', 'wp-mux' ); ?></p></div>');
+						$button.prop('disabled', false).text('<?php esc_html_e( 'Auto-Configure Signing Keys', 'wp-mux' ); ?>');
 					}
 				});
 			});
 
 			$('#wp-mux-reconfigure-keys').on('click', function(e) {
 				e.preventDefault();
-				if (confirm('<?php _e( 'This will create new signing keys. Old keys will still exist in Mux but can be deleted manually. Continue?', 'wp-mux' ); ?>')) {
+				if (confirm('<?php esc_html_e( 'This will create new signing keys. Old keys will still exist in Mux but can be deleted manually. Continue?', 'wp-mux' ); ?>')) {
 					$('#wp-mux-auto-configure-keys').prop('disabled', false).trigger('click');
 				}
 			});
@@ -1926,17 +1904,17 @@ class Wp_Mux_Admin {
 		?>
 		<select name="wp_mux_player_prefer_playback" id="wp_mux_player_prefer_playback">
 			<option value="auto" <?php selected( $value, 'auto' ); ?>>
-				<?php _e( 'Auto (Recommended)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Auto (Recommended)', 'wp-mux' ); ?>
 			</option>
 			<option value="native" <?php selected( $value, 'native' ); ?>>
-				<?php _e( 'Native (Browser built-in)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Native (Browser built-in)', 'wp-mux' ); ?>
 			</option>
 			<option value="mse" <?php selected( $value, 'mse' ); ?>>
-				<?php _e( 'MSE (HLS.js library)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'MSE (HLS.js library)', 'wp-mux' ); ?>
 			</option>
 		</select>
 		<p class="description">
-			<?php _e( 'Controls which playback engine to use. "Native" may resolve Safari playback issues. "MSE" uses HLS.js on all browsers.', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Controls which playback engine to use. "Native" may resolve Safari playback issues. "MSE" uses HLS.js on all browsers.', 'wp-mux' ); ?>
 		</p>
 		<?php
 	}
@@ -1951,7 +1929,7 @@ class Wp_Mux_Admin {
 		?>
 		<select name="wp_mux_player_max_resolution" id="wp_mux_player_max_resolution">
 			<option value="" <?php selected( $value, '' ); ?>>
-				<?php _e( 'No limit', 'wp-mux' ); ?>
+				<?php esc_html_e( 'No limit', 'wp-mux' ); ?>
 			</option>
 			<option value="270p" <?php selected( $value, '270p' ); ?>>270p</option>
 			<option value="360p" <?php selected( $value, '360p' ); ?>>360p</option>
@@ -1963,7 +1941,7 @@ class Wp_Mux_Admin {
 			<option value="2160p" <?php selected( $value, '2160p' ); ?>>2160p (4K)</option>
 		</select>
 		<p class="description">
-			<?php _e( 'Limits the maximum video quality. Useful for bandwidth management or fixing playback issues (e.g., Safari).', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Limits the maximum video quality. Useful for bandwidth management or fixing playback issues (e.g., Safari).', 'wp-mux' ); ?>
 		</p>
 		<?php
 	}
@@ -1978,7 +1956,7 @@ class Wp_Mux_Admin {
 		?>
 		<select name="wp_mux_player_min_resolution" id="wp_mux_player_min_resolution">
 			<option value="" <?php selected( $value, '' ); ?>>
-				<?php _e( 'No limit', 'wp-mux' ); ?>
+				<?php esc_html_e( 'No limit', 'wp-mux' ); ?>
 			</option>
 			<option value="270p" <?php selected( $value, '270p' ); ?>>270p</option>
 			<option value="360p" <?php selected( $value, '360p' ); ?>>360p</option>
@@ -1990,7 +1968,7 @@ class Wp_Mux_Admin {
 			<option value="2160p" <?php selected( $value, '2160p' ); ?>>2160p (4K)</option>
 		</select>
 		<p class="description">
-			<?php _e( 'Ensures videos never drop below this quality level. Leave blank for automatic quality selection.', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Ensures videos never drop below this quality level. Leave blank for automatic quality selection.', 'wp-mux' ); ?>
 		</p>
 		<?php
 	}
@@ -2005,17 +1983,17 @@ class Wp_Mux_Admin {
 		?>
 		<select name="wp_mux_player_preload" id="wp_mux_player_preload">
 			<option value="none" <?php selected( $value, 'none' ); ?>>
-				<?php _e( 'None (Lowest bandwidth)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'None (Lowest bandwidth)', 'wp-mux' ); ?>
 			</option>
 			<option value="metadata" <?php selected( $value, 'metadata' ); ?>>
-				<?php _e( 'Metadata only (Recommended)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Metadata only (Recommended)', 'wp-mux' ); ?>
 			</option>
 			<option value="auto" <?php selected( $value, 'auto' ); ?>>
-				<?php _e( 'Auto (Preload as much as possible)', 'wp-mux' ); ?>
+				<?php esc_html_e( 'Auto (Preload as much as possible)', 'wp-mux' ); ?>
 			</option>
 		</select>
 		<p class="description">
-			<?php _e( 'Controls how much video data is loaded before playback starts. "Metadata" loads duration and dimensions only.', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Controls how much video data is loaded before playback starts. "Metadata" loads duration and dimensions only.', 'wp-mux' ); ?>
 		</p>
 		<?php
 	}
@@ -2030,10 +2008,10 @@ class Wp_Mux_Admin {
 		?>
 		<label>
 			<input type="checkbox" name="wp_mux_player_debug" value="1" <?php echo $checked; ?> />
-			<?php _e( 'Enable debug logging in browser console', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Enable debug logging in browser console', 'wp-mux' ); ?>
 		</label>
 		<p class="description">
-			<?php _e( 'Useful for troubleshooting playback issues. Outputs HLS.js and Mux Data debug messages.', 'wp-mux' ); ?>
+			<?php esc_html_e( 'Useful for troubleshooting playback issues. Outputs HLS.js and Mux Data debug messages.', 'wp-mux' ); ?>
 		</p>
 		<?php
 	}
@@ -2058,13 +2036,13 @@ class Wp_Mux_Admin {
 				$mux_video_count
 			);
 		} else {
-			_e( 'No MUX videos detected. Choose what happens if you uninstall this plugin:', 'wp-mux' );
+			esc_html_e( 'No MUX videos detected. Choose what happens if you uninstall this plugin:', 'wp-mux' );
 		}
 		echo '</p>';
 
 		echo '<div style="background: #f0f6fc; border: 1px solid #0c5c9d; border-radius: 4px; padding: 12px 16px; margin-bottom: 20px;">';
 		echo '<p style="margin: 0; color: #0c5c9d;"><strong>⚠️ ' . __( 'Important:', 'wp-mux' ) . '</strong> ';
-		_e( 'Videos stored on Mux.com are NEVER automatically deleted and will continue to incur storage costs. You must delete them manually from', 'wp-mux' );
+		esc_html_e( 'Videos stored on Mux.com are NEVER automatically deleted and will continue to incur storage costs. You must delete them manually from', 'wp-mux' );
 		echo ' <a href="https://dashboard.mux.com" target="_blank">dashboard.mux.com</a>.</p>';
 		echo '</div>';
 	}
@@ -2084,17 +2062,17 @@ class Wp_Mux_Admin {
 			<div style="border: 2px solid #46b450; border-radius: 6px; padding: 20px; margin-bottom: 16px; background: #f6fef6;">
 				<h3 style="margin: 0 0 12px 0; color: #2e7d32; font-size: 16px;">
 					<span style="background: #46b450; color: white; border-radius: 50%; width: 28px; height: 28px; display: inline-block; text-align: center; line-height: 28px; margin-right: 8px;">1</span>
-					<?php _e( 'Keep Everything (Recommended)', 'wp-mux' ); ?>
+					<?php esc_html_e( 'Keep Everything (Recommended)', 'wp-mux' ); ?>
 				</h3>
-				<p style="margin: 0 0 12px 0;"><?php _e( 'Leave the checkbox below <strong>unchecked</strong> when you uninstall.', 'wp-mux' ); ?></p>
-				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php _e( 'What happens:', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 12px 0;"><?php esc_html_e( 'Leave the checkbox below <strong>unchecked</strong> when you uninstall.', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php esc_html_e( 'What happens:', 'wp-mux' ); ?></p>
 				<ul style="margin: 0 0 12px 0; padding-left: 24px; list-style-type: disc;">
-					<li><?php _e( 'Temporary data cleared (caches, queues)', 'wp-mux' ); ?></li>
-					<li><?php _e( 'All videos, settings, and themes preserved', 'wp-mux' ); ?></li>
-					<li><?php _e( 'Can reinstall anytime without data loss', 'wp-mux' ); ?></li>
-					<li><?php _e( 'Video blocks in content: Will stop working but can be reactivated by reinstalling', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Temporary data cleared (caches, queues)', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'All videos, settings, and themes preserved', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Can reinstall anytime without data loss', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Video blocks in content: Will stop working but can be reactivated by reinstalling', 'wp-mux' ); ?></li>
 				</ul>
-				<p style="margin: 0; color: #2e7d32;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Testing, troubleshooting, or taking a break from Mux', 'wp-mux' ); ?></p>
+				<p style="margin: 0; color: #2e7d32;"><strong><?php esc_html_e( 'Best for:', 'wp-mux' ); ?></strong> <?php esc_html_e( 'Testing, troubleshooting, or taking a break from Mux', 'wp-mux' ); ?></p>
 			</div>
 
 			<?php if ( $mux_video_count > 0 ) : ?>
@@ -2102,10 +2080,10 @@ class Wp_Mux_Admin {
 			<div style="border: 2px solid #0073aa; border-radius: 6px; padding: 20px; margin-bottom: 16px; background: #f0f6fc;">
 				<h3 style="margin: 0 0 12px 0; color: #0073aa; font-size: 16px;">
 					<span style="background: #0073aa; color: white; border-radius: 50%; width: 28px; height: 28px; display: inline-block; text-align: center; line-height: 28px; margin-right: 8px;">2</span>
-					<?php _e( 'Migrate Videos Back to WordPress', 'wp-mux' ); ?>
+					<?php esc_html_e( 'Migrate Videos Back to WordPress', 'wp-mux' ); ?>
 				</h3>
-				<p style="margin: 0 0 12px 0;"><?php _e( 'Before uninstalling, download your videos from Mux back to WordPress hosting.', 'wp-mux' ); ?></p>
-				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php _e( 'Steps:', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 12px 0;"><?php esc_html_e( 'Before uninstalling, download your videos from Mux back to WordPress hosting.', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php esc_html_e( 'Steps:', 'wp-mux' ); ?></p>
 				<ol style="margin: 0 0 12px 0; padding-left: 24px;">
 					<li><?php
 						echo sprintf(
@@ -2114,11 +2092,11 @@ class Wp_Mux_Admin {
 							'</a>'
 						);
 					?></li>
-					<li><?php _e( 'Migration will update video blocks in your content to use WordPress-hosted videos', 'wp-mux' ); ?></li>
-					<li><?php _e( 'Optionally delete videos from Mux.com to stop billing', 'wp-mux' ); ?></li>
-					<li><?php _e( 'Then uninstall the plugin (Option 1 or 3)', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Migration will update video blocks in your content to use WordPress-hosted videos', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Optionally delete videos from Mux.com to stop billing', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Then uninstall the plugin (Option 1 or 3)', 'wp-mux' ); ?></li>
 				</ol>
-				<p style="margin: 0; color: #0073aa;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Permanently moving away from Mux hosting', 'wp-mux' ); ?></p>
+				<p style="margin: 0; color: #0073aa;"><strong><?php esc_html_e( 'Best for:', 'wp-mux' ); ?></strong> <?php esc_html_e( 'Permanently moving away from Mux hosting', 'wp-mux' ); ?></p>
 			</div>
 			<?php endif; ?>
 
@@ -2126,27 +2104,27 @@ class Wp_Mux_Admin {
 			<div style="border: 2px solid #dba617; border-radius: 6px; padding: 20px; background: #fffbf0;">
 				<h3 style="margin: 0 0 12px 0; color: #8a6d15; font-size: 16px;">
 					<span style="background: #dba617; color: white; border-radius: 50%; width: 28px; height: 28px; display: inline-block; text-align: center; line-height: 28px; margin-right: 8px;"><?php echo $mux_video_count > 0 ? '3' : '2'; ?></span>
-					<?php _e( 'Full Cleanup', 'wp-mux' ); ?>
+					<?php esc_html_e( 'Full Cleanup', 'wp-mux' ); ?>
 				</h3>
-				<p style="margin: 0 0 12px 0;"><?php _e( '<strong>Check the box below</strong> before uninstalling to remove all plugin data.', 'wp-mux' ); ?></p>
-				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php _e( 'What happens:', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 12px 0;"><?php esc_html_e( '<strong>Check the box below</strong> before uninstalling to remove all plugin data.', 'wp-mux' ); ?></p>
+				<p style="margin: 0 0 8px 0; font-weight: 600;"><?php esc_html_e( 'What happens:', 'wp-mux' ); ?></p>
 				<ul style="margin: 0 0 12px 0; padding-left: 24px; list-style-type: disc;">
-					<li><?php _e( 'All settings, themes, and credentials deleted', 'wp-mux' ); ?></li>
-					<li><?php _e( 'All video attachments and metadata removed', 'wp-mux' ); ?></li>
-					<li><?php _e( 'Videos on Mux.com remain untouched', 'wp-mux' ); ?></li>
-					<li><?php _e( 'Video blocks in content: Will show as broken/missing until manually removed or replaced with new videos', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'All settings, themes, and credentials deleted', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'All video attachments and metadata removed', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Videos on Mux.com remain untouched', 'wp-mux' ); ?></li>
+					<li><?php esc_html_e( 'Video blocks in content: Will show as broken/missing until manually removed or replaced with new videos', 'wp-mux' ); ?></li>
 				</ul>
-				<p style="margin: 0; color: #8a6d15;"><strong><?php _e( 'Best for:', 'wp-mux' ); ?></strong> <?php _e( 'Complete removal, testing, or starting fresh', 'wp-mux' ); ?></p>
+				<p style="margin: 0; color: #8a6d15;"><strong><?php esc_html_e( 'Best for:', 'wp-mux' ); ?></strong> <?php esc_html_e( 'Complete removal, testing, or starting fresh', 'wp-mux' ); ?></p>
 			</div>
 
 			<!-- Checkbox Control -->
 			<div style="margin-top: 24px; padding: 16px; background: white; border: 1px solid #ddd; border-radius: 4px;">
 				<label style="display: flex; align-items: center; cursor: pointer;">
 					<input type="checkbox" name="wp_mux_delete_on_uninstall" value="1" <?php echo $checked; ?> id="wp_mux_delete_on_uninstall" style="margin: 0 8px 0 0;" />
-					<span style="font-size: 14px; font-weight: 600;"><?php _e( 'Enable Full Cleanup (Option ' . ( $mux_video_count > 0 ? '3' : '2' ) . ') - Delete all plugin data when uninstalling', 'wp-mux' ); ?></span>
+					<span style="font-size: 14px; font-weight: 600;"><?php esc_html_e( 'Enable Full Cleanup (Option ' . ( $mux_video_count > 0 ? '3' : '2' ) . ') - Delete all plugin data when uninstalling', 'wp-mux' ); ?></span>
 				</label>
 				<p style="margin: 12px 0 0 28px; color: #666; font-size: 13px;">
-					<?php _e( 'Leave unchecked for Option 1 (Keep Everything). Check this box only if you want Option ' . ( $mux_video_count > 0 ? '3' : '2' ) . ' (Full Cleanup).', 'wp-mux' ); ?>
+					<?php esc_html_e( 'Leave unchecked for Option 1 (Keep Everything). Check this box only if you want Option ' . ( $mux_video_count > 0 ? '3' : '2' ) . ' (Full Cleanup).', 'wp-mux' ); ?>
 				</p>
 			</div>
 		</div>

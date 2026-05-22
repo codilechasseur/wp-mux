@@ -147,7 +147,7 @@ class Wp_Mux {
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-admin-ajax.php';
 		$ajax_handler = new Wp_Mux_Admin_Ajax();
-		$ajax_handler->registerHooks();
+		$ajax_handler->register_hooks();
 
 		/**
 		 * The class responsible for managing the video upload queue.
@@ -155,7 +155,7 @@ class Wp_Mux {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-utils.php';
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-queue-manager.php';
 		$queue_manager = new Wp_Mux_Queue_Manager();
-		$queue_manager->registerHooks();
+		$queue_manager->register_hooks();
 
 		/**
 		 * Webhook receiver — handles real-time Mux events.

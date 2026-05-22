@@ -80,7 +80,7 @@ class Wp_Mux_Media_Sync {
                         $playback_policy = $asset['data']['playback_policy'][0] ?? 'public';
                         $mp4_support = $asset['data']['mp4_support'] ?? 'none';
                         $encoding_tier = $asset['data']['encoding_tier'] ?? 'baseline';
-                        
+
                         update_post_meta( $attach_id, '_mux_playback_policy', $playback_policy );
                         update_post_meta( $attach_id, '_mux_mp4_support', $mp4_support );
                         update_post_meta( $attach_id, '_mux_encoding_tier', $encoding_tier );
@@ -97,7 +97,7 @@ class Wp_Mux_Media_Sync {
                         if ( get_option( 'wp_mux_enable_auto_captions', false ) ) {
                             $language = get_option( 'wp_mux_default_caption_language', 'en' );
                             $caption_response = $api->generate_captions( $asset_id, $language );
-                            
+
                             if ( ! is_wp_error( $caption_response ) && isset( $caption_response['data']['id'] ) ) {
                                 update_post_meta( $attach_id, '_mux_has_captions', true );
                                 update_post_meta( $attach_id, '_mux_caption_track_ids', array( $caption_response['data']['id'] ) );
@@ -191,7 +191,7 @@ class Wp_Mux_Media_Sync {
         // Generate a friendly title for the imported video
         $video_title = 'MUX Video';
         if ( ! empty( $asset['created_at'] ) ) {
-            $created_date = date( 'Y-m-d H:i', strtotime( $asset['created_at'] ) );
+            $created_date = gmdate( 'Y-m-d H:i', strtotime( $asset['created_at'] ) );
             $video_title = 'MUX Video - ' . $created_date;
         }
 

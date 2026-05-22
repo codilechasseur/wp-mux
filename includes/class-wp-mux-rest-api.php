@@ -256,7 +256,7 @@ class Wp_Mux_Rest_Api {
 		}
 
 		$exp  = time() + $expiry;
-		$payload = base64_encode( json_encode( [
+		$payload = base64_encode( wp_json_encode( [
 			'sub' => $playback_id,
 			'aud' => $type,
 			'exp' => $exp,
@@ -264,7 +264,7 @@ class Wp_Mux_Rest_Api {
 		] ) );
 
 		// JWT: header.payload.signature (RS256).
-		$header    = base64_encode( json_encode( [ 'alg' => 'RS256', 'typ' => 'JWT' ] ) );
+		$header    = base64_encode( wp_json_encode( [ 'alg' => 'RS256', 'typ' => 'JWT' ] ) );
 		$unsigned  = $this->base64url_encode( $header ) . '.' . $this->base64url_encode( $payload );
 		$pem       = base64_decode( $private_key );
 

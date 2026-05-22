@@ -253,9 +253,9 @@ class Wp_Mux_Api {
 	 *
 	 * @return array{upload_id: string, asset_id: string|null, playback_id: string|null}|WP_Error
 	 */
-	public function upload_local_file( string $filePath, string $mimeType, array $options = array() ) {
-		if ( ! file_exists( $filePath ) ) {
-			return new WP_Error( 'file_not_found', "Source file not found: {$filePath}" );
+	public function upload_local_file( string $file_path, string $mime_type, array $options = array() ) {
+		if ( ! file_exists( $file_path ) ) {
+			return new WP_Error( 'file_not_found', "Source file not found: {$file_path}" );
 		}
 
 		$upload = $this->create_direct_upload( $options );
@@ -267,37 +267,37 @@ class Wp_Mux_Api {
 			return new WP_Error( 'upload_create_failed', 'Failed to create Mux direct upload' );
 		}
 
-		$uploadUrl = $upload['data']['url'];
-		$uploadId  = $upload['data']['id'];
+		$upload_url = $upload['data']['url'];
+		$upload_id  = $upload['data']['id'];
 
-		$httpCode = $this->stream_put_file( $uploadUrl, $filePath, $mimeType );
-		if ( $httpCode < 200 || $httpCode >= 300 ) {
-			return new WP_Error( 'upload_failed', "File upload to Mux failed with HTTP {$httpCode}" );
+		$http_code = $this->stream_put_file( $upload_url, $file_path, $mime_type );
+		if ( $http_code < 200 || $http_code >= 300 ) {
+			return new WP_Error( 'upload_failed', "File upload to Mux failed with HTTP {$http_code}" );
 		}
 
-		$assetId    = null;
-		$playbackId = null;
+		$asset_id    = null;
+		$playback_id = null;
 
 		for ( $i = 0; $i < 10; $i++ ) {
 			sleep( 3 );
-			$status = $this->get_upload( $uploadId );
+			$status = $this->get_upload( $upload_id );
 			if ( ! is_wp_error( $status ) && ! empty( $status['data']['asset_id'] ) ) {
-				$assetId = $status['data']['asset_id'];
+				$asset_id = $status['data']['asset_id'];
 				break;
 			}
 		}
 
-		if ( $assetId ) {
-			$details = $this->get_video( $assetId );
+		if ( $asset_id ) {
+			$details = $this->get_video( $asset_id );
 			if ( ! is_wp_error( $details ) ) {
-				$playbackId = $details['data']['playback_ids'][0]['id'] ?? null;
+				$playback_id = $details['data']['playback_ids'][0]['id'] ?? null;
 			}
 		}
 
 		return array(
-			'upload_id'   => $uploadId,
-			'asset_id'    => $assetId,
-			'playback_id' => $playbackId,
+			'upload_id'   => $upload_id,
+			'asset_id'    => $asset_id,
+			'playback_id' => $playback_id,
 		);
 	}
 
@@ -312,29 +312,29 @@ class Wp_Mux_Api {
 	 *
 	 * @return int HTTP response code.
 	 */
-	private function stream_put_file( string $url, string $filePath, string $mimeType ): int {
-		$fileHandle = fopen( $filePath, 'rb' );
-		if ( ! $fileHandle ) {
+	private function stream_put_file( string $url, string $file_path, string $mime_type ): int {
+		$file_handle = fopen( $file_path, 'rb' );
+		if ( ! $file_handle ) {
 			return 0;
 		}
 
 		$ch = curl_init( $url );
 		curl_setopt_array( $ch, array(
 			CURLOPT_PUT            => true,
-			CURLOPT_INFILE         => $fileHandle,
-			CURLOPT_INFILESIZE     => filesize( $filePath ),
-			CURLOPT_HTTPHEADER     => array( "Content-Type: {$mimeType}" ),
+			CURLOPT_INFILE         => $file_handle,
+			CURLOPT_INFILESIZE     => filesize( $file_path ),
+			CURLOPT_HTTPHEADER     => array( "Content-Type: {$mime_type}" ),
 			CURLOPT_RETURNTRANSFER => true,
 			CURLOPT_FOLLOWLOCATION => true,
 			CURLOPT_TIMEOUT        => 600,
 		) );
 
 		curl_exec( $ch );
-		$httpCode = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
+		$http_code = (int) curl_getinfo( $ch, CURLINFO_HTTP_CODE );
 		curl_close( $ch );
-		fclose( $fileHandle );
+		fclose( $file_handle );
 
-		return $httpCode;
+		return $http_code;
 	}
 
 	/**
@@ -405,9 +405,10 @@ class Wp_Mux_Api {
 	 * @return   string           Formatted file size.
 	 */
 	public static function format_file_size( $bytes ) {
-		$units = array( 'B', 'KB', 'MB', 'GB', 'TB' );
+		$units      = array( 'B', 'KB', 'MB', 'GB', 'TB' );
+		$unit_count = count( $units );
 
-		for ( $i = 0; $bytes > 1024 && $i < count( $units ) - 1; $i++ ) {
+		for ( $i = 0; $bytes > 1024 && $i < $unit_count - 1; $i++ ) {
 			$bytes /= 1024;
 		}
 

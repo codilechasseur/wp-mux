@@ -80,16 +80,14 @@ if ( ! function_exists( 'wp_mux_fs' ) ) {
  */
 function wp_mux_is_pro(): bool {
 	$fs = wp_mux_fs();
-	if ( $fs === null ) {
+	if ( null === $fs ) {
 		return false;
 	}
 	return $fs->can_use_premium_code();
 }
 
 /**
- * Currently plugin version.
- * Start at version 1.0.0 and use SemVer - https://semver.org
- * Rename this for your plugin and update it as you release new versions.
+ * Plugin version.
  */
 define( 'WP_MUX_VERSION', '1.1.1' );
 
