@@ -34,3 +34,67 @@ mux-player.wp-mux-no-controls::part(bottom-play-button) {
 	opacity: 0 !important;
 	pointer-events: none !important;
 }
+
+/*
+ * Background videos (wp_mux_player( $id, [ 'background' => true ] ),
+ * [video background="on"]). Zero specificity (:where), so a theme's own
+ * classes — passed as class / pause_button_class — always win.
+ */
+:where(.wp-mux-background) {
+	position: relative;
+	overflow: hidden;
+	aspect-ratio: 16 / 9;
+}
+
+:where(.wp-mux-background__poster, .wp-mux-background__media) {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+}
+
+:where(mux-player.wp-mux-background__media) {
+	--media-object-fit: cover;
+	--controls: none;
+	--loading-indicator: none;
+	--dialog: none;
+}
+
+:where(.wp-mux-background__toggle) {
+	position: absolute;
+	top: 1rem;
+	right: 1rem;
+	z-index: 2;
+	display: grid;
+	place-items: center;
+	width: 2.5rem;
+	height: 2.5rem;
+	padding: 0;
+	border: 0;
+	border-radius: 50%;
+	background: rgb(0 0 0 / 0.6);
+	color: #fff;
+	cursor: pointer;
+}
+
+:where(.wp-mux-background__toggle:hover) {
+	background: #000;
+}
+
+:where(.wp-mux-background__toggle:focus-visible) {
+	outline: 3px solid currentColor;
+	outline-offset: 3px;
+}
+
+:where(.wp-mux-background__icon) {
+	width: 1.25rem;
+	height: 1.25rem;
+}
+
+/* Hidden until the controller runs (it does nothing without JS). */
+.wp-mux-background__toggle[hidden],
+.wp-mux-background[data-paused] .wp-mux-background__icon--pause,
+.wp-mux-background:not([data-paused]) .wp-mux-background__icon--play {
+	display: none !important;
+}

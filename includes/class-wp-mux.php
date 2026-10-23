@@ -131,6 +131,11 @@ class Wp_Mux {
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'public/class-wp-mux-public.php';
 
 		/**
+		 * Template functions for themes: wp_mux_player() and friends.
+		 */
+		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/functions.php';
+
+		/**
 		 * The class responsible for managing MUX player themes.
 		 */
 		require_once plugin_dir_path( dirname( __FILE__ ) ) . 'includes/class-wp-mux-theme-manager.php';

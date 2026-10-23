@@ -131,6 +131,8 @@
 							} else if (node.querySelector && node.querySelector('video[src*="stream.mux.com"]')) {
 								shouldConvert = true;
 							}
+
+							initBackgroundVideos(node);
 						}
 					});
 				}
@@ -150,13 +152,86 @@
 		});
 	}
 
-	// Fallback for older browsers - check periodically
-	setInterval(function() {
-		const videos = document.querySelectorAll('video[src*="stream.mux.com"]');
-		if (videos.length > 0) {
-			convertMuxVideos();
+
+	// ---------------------------------------------------------------
+	// Background videos (wp_mux_player( $id, [ 'background' => true ] ),
+	// [video background="on"]): muted loops that play only while on
+	// screen, start paused for reduced motion, and have a pause button.
+	// The wrapper gets [data-paused] while paused.
+	// ---------------------------------------------------------------
+	const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+	function initBackgroundVideos(root) {
+		if (!root.querySelectorAll) {
+			return;
 		}
-	}, 2000);
+
+		const wrappers = Array.from(root.querySelectorAll('[data-wp-mux-background]'));
+		if (root.matches && root.matches('[data-wp-mux-background]')) {
+			wrappers.push(root);
+		}
+
+		wrappers.forEach(function(wrapper) {
+			if (wrapper._wpMuxBackground) {
+				return;
+			}
+
+			const media = wrapper.querySelector('.wp-mux-background__media');
+			if (!media) {
+				return;
+			}
+
+			const button = wrapper.querySelector('.wp-mux-background__toggle');
+			const state = { paused: reduceMotion.matches, visible: false };
+			wrapper._wpMuxBackground = state;
+
+			function sync() {
+				wrapper.toggleAttribute('data-paused', state.paused);
+
+				if (button) {
+					button.setAttribute('aria-label', button.getAttribute(state.paused ? 'data-label-play' : 'data-label-pause'));
+				}
+
+				// mux-player has no play() until its script has loaded.
+				if (state.visible && !state.paused) {
+					const playing = media.play && media.play();
+					if (playing && playing.catch) {
+						playing.catch(function() {});
+					}
+				} else if (media.pause) {
+					media.pause();
+				}
+			}
+
+			if ('IntersectionObserver' in window) {
+				new IntersectionObserver(function(entries) {
+					state.visible = entries[0].isIntersecting;
+					sync();
+				}, { rootMargin: '200px 0px' }).observe(wrapper);
+			} else {
+				state.visible = true;
+			}
+
+			if (button) {
+				button.hidden = false;
+				button.addEventListener('click', function() {
+					state.paused = !state.paused;
+					sync();
+				});
+			}
+
+			if (media.localName === 'mux-player' && window.customElements) {
+				ensureMuxPlayer();
+				customElements.whenDefined('mux-player').then(sync);
+			}
+
+			sync();
+		});
+	}
+
+	$(document).ready(function() {
+		initBackgroundVideos(document);
+	});
 
 	// ---------------------------------------------------------------
 	// Clip end-time: mux-player has no native end-time attribute.

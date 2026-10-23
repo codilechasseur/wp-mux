@@ -129,9 +129,10 @@ class Wp_Mux_Public {
 	 * wp_get_attachment_url() returns for Mux attachments) fails that check, so
 	 * core would otherwise print a plain link and no later filter would see it.
 	 *
-	 * Supported attributes: src (or mp4 / m4v / webm / ogv), poster, loop,
-	 * autoplay, muted, preload, width, height, class, style, and controls
-	 * (default on; "off" for a background video without player chrome).
+	 * Attributes: src (or mp4 / m4v / webm / ogv), and those of render_player():
+	 * poster, loop, autoplay, muted, controls, preload, width, height, class,
+	 * style, fit, background, pause_button, pause_button_class. Booleans take
+	 * "on" / "1" / "true" and "off" / "0" / "false" / "no".
 	 *
 	 * @since    1.2.1
 	 * @param    string  $output  Empty, or another plugin's override.
@@ -157,58 +158,194 @@ class Wp_Mux_Public {
 			return $output;
 		}
 
-		// Shortcode booleans: "on" / "1" / "true" (as core's loop and autoplay),
-		// and "off" / "0" / "false" / "no" / "" for off.
-		$flag = static function ( $key, $default = false ) use ( $attr ) {
-			if ( ! isset( $attr[ $key ] ) ) {
-				return $default;
+		$args = $attr;
+		foreach ( array( 'loop', 'autoplay', 'muted', 'controls', 'background', 'pause_button' ) as $key ) {
+			if ( isset( $attr[ $key ] ) ) {
+				$args[ $key ] = ! in_array( strtolower( trim( (string) $attr[ $key ] ) ), array( '', '0', 'false', 'off', 'no' ), true );
 			}
+		}
 
-			return ! in_array( strtolower( trim( (string) $attr[ $key ] ) ), array( '', '0', 'false', 'off', 'no' ), true );
-		};
+		return $this->render_player( array( 'playback_id' => $playback_id ), $args );
+	}
 
-		$controls = $flag( 'controls', true );
-		$autoplay = $flag( 'autoplay' );
-		$preload  = isset( $attr['preload'] ) ? sanitize_key( $attr['preload'] ) : '';
+	/**
+	 * Render a video: <mux-player> for a video on Mux, <video> for a local file.
+	 * Behind wp_mux_player() and the [video] shortcode.
+	 *
+	 * @since    1.3.0
+	 * @param    array  $source  ['playback_id' => …] (Mux) or ['src' => …, 'type' => …]
+	 *                           (local file), plus optional 'attachment_id'.
+	 * @param    array  $args    {
+	 *     @type bool       $controls           Player controls. Default true.
+	 *     @type bool       $autoplay           Default false.
+	 *     @type bool       $muted              Default false.
+	 *     @type bool       $loop               Default false.
+	 *     @type string     $preload            auto | metadata | none. Default: the Player Options setting.
+	 *     @type int|string $poster             Image attachment ID or URL. Default: Mux's thumbnail.
+	 *     @type string     $fit                cover | contain: how the video fills its box. Default: contain
+	 *                                          (cover for background videos).
+	 *     @type string     $class              Classes (on the wrapper for background videos).
+	 *     @type string     $style              Inline style (likewise).
+	 *     @type string|int $width, $height     Size (px when numeric).
+	 *     @type bool       $background         A background video: muted, looping, no controls,
+	 *                                          playing only while on screen and starting paused
+	 *                                          for reduced motion, with a pause button (WCAG
+	 *                                          2.2.2) and the poster shown until it plays.
+	 *                                          Wrapped in .wp-mux-background. Default false.
+	 *     @type bool       $pause_button       Background videos: the pause button. Default true.
+	 *     @type string     $pause_button_class Background videos: extra classes for the button.
+	 * }
+	 * @return   string
+	 */
+	public function render_player( array $source, array $args = array() ) {
+		$args = wp_parse_args( $args, array(
+			'controls'           => true,
+			'autoplay'           => false,
+			'muted'              => false,
+			'loop'               => false,
+			'preload'            => '',
+			'poster'             => '',
+			'fit'                => '',
+			'class'              => '',
+			'style'              => '',
+			'width'              => '',
+			'height'             => '',
+			'background'         => false,
+			'pause_button'       => true,
+			'pause_button_class' => '',
+		) );
 
-		$style = isset( $attr['style'] ) ? (string) $attr['style'] : '';
+		$background = (bool) $args['background'];
+		$mux        = ! empty( $source['playback_id'] );
+
+		if ( $background ) {
+			// Started and stopped by the background controller (wp-mux-public.js).
+			$args = array_merge( $args, array( 'controls' => false, 'autoplay' => false, 'muted' => true, 'loop' => true ) );
+		}
+
+		$fit     = in_array( $args['fit'], array( 'cover', 'contain' ), true ) ? $args['fit'] : ( $background ? 'cover' : '' );
+		$preload = sanitize_key( (string) $args['preload'] );
+
+		// Poster: an image attachment ID or a URL; Mux's thumbnail otherwise.
+		$poster_id  = is_numeric( $args['poster'] ) ? (int) $args['poster'] : 0;
+		$poster_url = $poster_id ? (string) wp_get_attachment_image_url( $poster_id, 'full' ) : ( is_numeric( $args['poster'] ) ? '' : (string) $args['poster'] );
+		if ( '' === $poster_url && $mux ) {
+			$poster_url = $background
+				? $this->generate_mux_thumbnail_url( $source['playback_id'], array( 'width' => 1920, 'height' => 1080 ) )
+				: $this->generate_mux_thumbnail_url( $source['playback_id'] );
+		}
+
+		$style = (string) $args['style'];
 		foreach ( array( 'width', 'height' ) as $dimension ) {
-			if ( ! empty( $attr[ $dimension ] ) ) {
-				$style .= ( $style ? '; ' : '' ) . $dimension . ': ' . $attr[ $dimension ] . ( is_numeric( $attr[ $dimension ] ) ? 'px' : '' );
+			if ( '' !== (string) $args[ $dimension ] ) {
+				$style .= ( $style ? '; ' : '' ) . $dimension . ': ' . $args[ $dimension ] . ( is_numeric( $args[ $dimension ] ) ? 'px' : '' );
 			}
 		}
 
-		$poster = ! empty( $attr['poster'] ) ? (string) $attr['poster'] : $this->generate_mux_thumbnail_url( $playback_id );
-
-		$attributes = array(
-			'playback-id' => $playback_id,
-			'stream-type' => 'on-demand',
-			'poster'      => $poster,
-			'class'       => isset( $attr['class'] ) ? (string) $attr['class'] : '',
-			'style'       => $style,
-			'preload'     => $preload,
-		) + Wp_Mux_Utils::signed_player_tokens( $playback_id );
-
-		$html = '<mux-player';
-		foreach ( array_filter( $attributes, 'strlen' ) as $name => $value ) {
-			$html .= sprintf( ' %s="%s"', $name, esc_attr( $value ) );
+		// A background video's class and style go on its wrapper.
+		$media_class = $background ? 'wp-mux-background__media' : (string) $args['class'];
+		$media_style = $background ? '' : $style;
+		if ( $fit ) {
+			$media_style .= ( $media_style ? '; ' : '' ) . ( $mux ? '--media-object-fit: ' : 'object-fit: ' ) . $fit;
 		}
-		foreach ( array( 'controls' => $controls, 'autoplay' => $autoplay, 'muted' => $flag( 'muted' ), 'loop' => $flag( 'loop' ), 'playsinline' => $autoplay ) as $name => $on ) {
+
+		$flags = array(
+			'controls'    => (bool) $args['controls'],
+			'autoplay'    => (bool) $args['autoplay'],
+			'muted'       => (bool) $args['muted'],
+			'loop'        => (bool) $args['loop'],
+			'playsinline' => $args['autoplay'] || $background,
+		);
+
+		if ( $mux ) {
+			$attributes = array(
+				'playback-id' => $source['playback_id'],
+				'stream-type' => 'on-demand',
+				'poster'      => $poster_url,
+				'class'       => $media_class,
+				'style'       => $media_style,
+				'preload'     => $preload,
+			) + Wp_Mux_Utils::signed_player_tokens( $source['playback_id'], (int) ( $source['attachment_id'] ?? 0 ) );
+
+			$options = $this->get_player_options_attributes();
+			if ( $preload ) {
+				// An explicit preload wins over the Player Options setting.
+				$options = preg_replace( '/\s*preload="[^"]*"/', '', $options );
+			}
+
+			$media = '<mux-player' . self::html_attributes( $attributes, $flags ) . ( $background ? ' nohotkeys aria-hidden="true"' : '' ) . $options . '></mux-player>';
+			$media = $this->apply_theme_to_player( $media, null, ! $flags['controls'] );
+
+			self::enqueue_player();
+		} else {
+			$attributes = array(
+				'class'   => $media_class,
+				'style'   => $media_style,
+				'poster'  => $poster_url,
+				'preload' => $preload ? $preload : ( $background ? 'metadata' : '' ),
+			);
+
+			$media = sprintf(
+				'<video%s%s><source src="%s" type="%s"></video>',
+				self::html_attributes( $attributes, $flags ),
+				$background ? ' aria-hidden="true"' : '',
+				esc_url( $source['src'] ),
+				esc_attr( $source['type'] ?? '' )
+			);
+		}
+
+		if ( ! $background ) {
+			return $media;
+		}
+
+		$poster = '';
+		if ( $poster_id ) {
+			$poster = wp_get_attachment_image( $poster_id, 'full', false, array( 'class' => 'wp-mux-background__poster', 'alt' => '', 'aria-hidden' => 'true' ) );
+		} elseif ( $poster_url ) {
+			$poster = sprintf( '<img class="wp-mux-background__poster" src="%s" alt="" aria-hidden="true" loading="lazy" decoding="async">', esc_url( $poster_url ) );
+		}
+
+		$button = '';
+		if ( $args['pause_button'] ) {
+			$button = sprintf(
+				'<button type="button" class="%s" aria-label="%s" data-label-pause="%s" data-label-play="%s" hidden>%s%s</button>',
+				esc_attr( trim( 'wp-mux-background__toggle ' . $args['pause_button_class'] ) ),
+				esc_attr__( 'Pause video', 'wp-mux' ),
+				esc_attr__( 'Pause video', 'wp-mux' ),
+				esc_attr__( 'Play video', 'wp-mux' ),
+				'<svg class="wp-mux-background__icon wp-mux-background__icon--pause" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M7 5h3.5v14H7zm6.5 0H17v14h-3.5z"/></svg>',
+				'<svg class="wp-mux-background__icon wp-mux-background__icon--play" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M8 5.14v13.72L19 12z"/></svg>'
+			);
+		}
+
+		return sprintf(
+			'<div%s data-wp-mux-background>%s%s%s</div>',
+			self::html_attributes( array( 'class' => trim( 'wp-mux-background ' . $args['class'] ), 'style' => $style ) ),
+			$poster,
+			$media,
+			$button
+		);
+	}
+
+	/**
+	 * name="value" pairs (skipping empty values) followed by boolean flags.
+	 *
+	 * @since    1.3.0
+	 */
+	private static function html_attributes( array $attributes, array $flags = array() ): string {
+		$html = '';
+		foreach ( $attributes as $name => $value ) {
+			if ( '' !== (string) $value ) {
+				$html .= sprintf( ' %s="%s"', $name, esc_attr( (string) $value ) );
+			}
+		}
+		foreach ( $flags as $name => $on ) {
 			if ( $on ) {
 				$html .= ' ' . $name;
 			}
 		}
 
-		// Global Player Options; an explicit preload attribute wins over the setting.
-		$options = $this->get_player_options_attributes();
-		if ( $preload ) {
-			$options = preg_replace( '/\s*preload="[^"]*"/', '', $options );
-		}
-		$html .= $options . '></mux-player>';
-
-		self::enqueue_player();
-
-		return $this->apply_theme_to_player( $html, null, ! $controls );
+		return $html;
 	}
 
 	/**
@@ -231,40 +368,34 @@ class Wp_Mux_Public {
 	 */
 	public function process_content_videos( $content ) {
 
-		// Look for video elements with MUX URLs (both .m3u8 and .mp4)
-		$pattern = '/<video[^>]*src=["\']([^"\']*stream\.mux\.com[^"\']*\.(m3u8|mp4)[^"\']*)["\']/i';
+		if ( false === strpos( $content, 'stream.mux.com' ) ) {
+			return $content;
+		}
 
-		if ( preg_match_all( $pattern, $content, $matches, PREG_SET_ORDER ) ) {
+		// Each <video …src="…stream.mux.com/{id}.m3u8|.mp4…"> … </video> element,
+		// replaced on its own (other videos in the content are left alone).
+		$pattern = '/<video\b([^>]*?)\ssrc=(["\'])([^"\']*stream\.mux\.com[^"\']*\.(?:m3u8|mp4)[^"\']*)\2([^>]*)>(.*?)<\/video>/is';
 
-			foreach ( $matches as $match ) {
-				$full_match = $match[0];
-				$url = $match[1];
+		return preg_replace_callback(
+			$pattern,
+			function ( $match ) {
+				$playback_id = $this->playback_id_from_url( $match[3] );
 
+				if ( '' === $playback_id ) {
+					return $match[0];
+				}
 
-				// Extract playback ID
-				$path = parse_url( $url, PHP_URL_PATH );
-				$playback_id = basename( $path, '.m3u8' );
-				$playback_id = basename( $playback_id, '.mp4' );
-
-				// Generate thumbnail URL
-				$thumbnail_url = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
-
-				// Replace the video element with mux-player
-				$mux_video = '<mux-player playback-id="' . esc_attr( $playback_id ) . '" controls stream-type="on-demand" poster="' . esc_attr( $thumbnail_url ) . '"' . $this->get_player_options_attributes() . '>';
-				$replacement = str_replace( '<video', $mux_video, $full_match );
-				$replacement = str_replace( 'src="' . $url . '"', '', $replacement );
-
-				$content = str_replace( $full_match, $replacement, $content );
+				// Keep the element's other attributes (class, style, …).
+				$attributes = $match[1] . $match[4];
+				$controls   = preg_match( '/\scontrols\b/i', $attributes ) ? '' : ' controls';
+				$thumbnail  = "https://image.mux.com/{$playback_id}/thumbnail.jpg?width=640&height=360";
 
 				self::enqueue_player();
 
-				// Also replace closing video tags with mux-player
-				$content = str_replace( '</video>', '</mux-player>', $content );
-
-			}
-		}
-
-		return $content;
+				return '<mux-player playback-id="' . esc_attr( $playback_id ) . '"' . $controls . ' stream-type="on-demand" poster="' . esc_attr( $thumbnail ) . '"' . $this->get_player_options_attributes() . $attributes . '>' . $match[5] . '</mux-player>';
+			},
+			$content
+		);
 	}
 
 	/**
