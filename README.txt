@@ -4,7 +4,7 @@ Tags: video, mux, streaming, media, video hosting, hls, video player
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -164,6 +164,11 @@ Mux has 99.9% uptime. In the rare case of an outage, videos will display a loadi
 6. Bulk video migration interface
 
 == Changelog ==
+= 1.2.1 =
+* Fix: Mux videos in [video] shortcodes and wp_video_shortcode() now render the Mux Player instead of a plain link, honouring loop, muted, autoplay, preload, poster, class and style; new controls="off" for background video
+* Fix: PHP warning (an exception on Acorn sites) for every Mux video in the media modal
+* Mux Player is pinned to a fixed release (filter: wp_mux_player_script_url) and only loaded on pages with a player
+* Composer installs no longer include development files
 
 = 1.2.0 =
 * All features are now free: removed Freemius licensing, bulk migration and upload routing are no longer gated
