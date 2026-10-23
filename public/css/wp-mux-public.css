@@ -54,6 +54,22 @@ mux-player.wp-mux-no-controls::part(bottom-play-button) {
 	object-fit: cover;
 }
 
+/* Hidden until its first frame plays, then faded in over the poster. */
+:where(.wp-mux-background__media) {
+	opacity: 0;
+	transition: opacity var(--wp-mux-fade-duration, 0.8s) ease;
+}
+
+:where(.wp-mux-background[data-wp-mux-playing] .wp-mux-background__media) {
+	opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:where(.wp-mux-background__media) {
+		transition: none;
+	}
+}
+
 :where(mux-player.wp-mux-background__media) {
 	--media-object-fit: cover;
 	--controls: none;

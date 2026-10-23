@@ -16,7 +16,7 @@
  * Plugin Name:       WP Mux
  * Plugin URI:        https://wpmux.com
  * Description:       Provides a media library integration for the MUX video hosting platform.
- * Version:           1.3.1
+ * Version:           1.3.2
  * Author:            Codi Lechasseur
  * Author URI:        https://wpmux.com
  * License:           GPL-2.0+
@@ -33,7 +33,7 @@ if ( ! defined( 'WPINC' ) ) {
 /**
  * Plugin version.
  */
-define( 'WP_MUX_VERSION', '1.3.1' );
+define( 'WP_MUX_VERSION', '1.3.2' );
 
 /**
  * The Mux Player release the plugin loads (pinned, so a new release can't

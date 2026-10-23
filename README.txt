@@ -4,7 +4,7 @@ Tags: video, mux, streaming, media, video hosting, hls, video player
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.1
+Stable tag: 1.3.2
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -114,7 +114,7 @@ Arguments:
 * `poster`: an image attachment ID (shown responsively) or a URL; Mux's thumbnail by default
 * `fit`: `cover` or `contain`, how the video fills its box
 * `class`, `style`, `width`, `height`
-* `background`: a muted, looping video without controls that plays only while it's on screen, starts paused for visitors who prefer reduced motion, and has a pause button. The poster shows until it plays. It's wrapped in `.wp-mux-background` (which gets `[data-paused]` while paused), and `class` and `style` go on that wrapper.
+* `background`: a muted, looping video without controls that plays only while it's on screen, starts paused for visitors who prefer reduced motion, and has a pause button. The poster shows until it plays. Once the first frame plays, the video fades in over the poster; set the fade's length with the `--wp-mux-fade-duration` CSS variable (default `0.8s`). It's wrapped in `.wp-mux-background` (which gets `[data-paused]` while paused and `[data-wp-mux-playing]` once it has started), and `class` and `style` go on that wrapper.
 * `pause_button`: set to false to leave the pause button out. Only do this if you provide your own way to pause, because moving video needs one (WCAG 2.2.2).
 * `pause_button_class`: extra classes for the pause button, for example your theme's button classes
 
@@ -200,6 +200,9 @@ Mux has 99.9% uptime. In the rare case of an outage, videos will display a loadi
 6. Bulk video migration interface
 
 == Changelog ==
+= 1.3.2 =
+* Background videos fade in over their poster once the first frame plays, without flashing black while the player loads. Set the fade's length with `--wp-mux-fade-duration`; reduced motion skips the fade
+* Background videos no longer download their poster twice, and an eagerly preloaded one (a hero) loads its poster with high priority
 = 1.3.1 =
 * Fix: Critical error after saving API keys on accounts with existing videos (Mux timestamps crashed the media library sync)
 

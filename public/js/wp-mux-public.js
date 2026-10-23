@@ -212,6 +212,16 @@
 				state.visible = true;
 			}
 
+			// Fade the video in over its poster once its first frame plays
+			// (mux-player re-dispatches the media events of its <video>).
+			function markPlaying() {
+				if (!wrapper.hasAttribute('data-wp-mux-playing') && (media.currentTime > 0 || !media.paused)) {
+					wrapper.setAttribute('data-wp-mux-playing', '');
+				}
+			}
+			media.addEventListener('playing', markPlaying);
+			media.addEventListener('timeupdate', markPlaying);
+
 			if (button) {
 				button.hidden = false;
 				button.addEventListener('click', function() {

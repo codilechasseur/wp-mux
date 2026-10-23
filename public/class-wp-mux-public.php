@@ -190,7 +190,8 @@ class Wp_Mux_Public {
 	 *     @type bool       $background         A background video: muted, looping, no controls,
 	 *                                          playing only while on screen and starting paused
 	 *                                          for reduced motion, with a pause button (WCAG
-	 *                                          2.2.2) and the poster shown until it plays.
+	 *                                          2.2.2) and the poster shown until it plays, when
+	 *                                          the video fades in (--wp-mux-fade-duration).
 	 *                                          Wrapped in .wp-mux-background. Default false.
 	 *     @type bool       $pause_button       Background videos: the pause button. Default true.
 	 *     @type string     $pause_button_class Background videos: extra classes for the button.
@@ -261,7 +262,8 @@ class Wp_Mux_Public {
 			$attributes = array(
 				'playback-id' => $source['playback_id'],
 				'stream-type' => 'on-demand',
-				'poster'      => $poster_url,
+				// A background video fades in over its poster image (below) once it plays.
+				'poster'      => $background ? '' : $poster_url,
 				'class'       => $media_class,
 				'style'       => $media_style,
 				'preload'     => $preload,
@@ -281,7 +283,7 @@ class Wp_Mux_Public {
 			$attributes = array(
 				'class'   => $media_class,
 				'style'   => $media_style,
-				'poster'  => $poster_url,
+				'poster'  => $background ? '' : $poster_url,
 				'preload' => $preload ? $preload : ( $background ? 'metadata' : '' ),
 			);
 
@@ -298,11 +300,24 @@ class Wp_Mux_Public {
 			return $media;
 		}
 
-		$poster = '';
+		// The poster shows until the video's first frame plays, then the video
+		// fades in over it. A video preloaded eagerly (a hero) gets an eager poster.
+		$eager_poster = 'auto' === $preload;
+		$poster       = '';
 		if ( $poster_id ) {
-			$poster = wp_get_attachment_image( $poster_id, 'full', false, array( 'class' => 'wp-mux-background__poster', 'alt' => '', 'aria-hidden' => 'true' ) );
+			$poster = wp_get_attachment_image( $poster_id, 'full', false, array_filter( array(
+				'class'         => 'wp-mux-background__poster',
+				'alt'           => '',
+				'aria-hidden'   => 'true',
+				'loading'       => $eager_poster ? 'eager' : '',
+				'fetchpriority' => $eager_poster ? 'high' : '',
+			) ) );
 		} elseif ( $poster_url ) {
-			$poster = sprintf( '<img class="wp-mux-background__poster" src="%s" alt="" aria-hidden="true" loading="lazy" decoding="async">', esc_url( $poster_url ) );
+			$poster = sprintf(
+				'<img class="wp-mux-background__poster" src="%s" alt="" aria-hidden="true" %s decoding="async">',
+				esc_url( $poster_url ),
+				$eager_poster ? 'fetchpriority="high"' : 'loading="lazy"'
+			);
 		}
 
 		$button = '';
