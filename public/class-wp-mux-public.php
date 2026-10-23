@@ -82,6 +82,16 @@ class Wp_Mux_Public {
 
 		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-public.js', array( 'jquery', 'mux-player' ), $this->version, true );
 
+		// Pass privacy options to the JS fallback converter.
+		wp_localize_script(
+			$this->plugin_name,
+			'wpMuxPublic',
+			array(
+				'disableCookies' => (bool) get_option( 'wp_mux_player_disable_cookies', false ),
+				'disableTracking' => (bool) get_option( 'wp_mux_player_disable_mux_data', false ),
+			)
+		);
+
 	}
 
 	/**
@@ -761,6 +771,16 @@ class Wp_Mux_Public {
 		$debug = get_option( 'wp_mux_player_debug', false );
 		if ( $debug ) {
 			$attributes[] = 'debug';
+		}
+
+		// Cookieless / privacy mode: player will not set cookies or use localStorage.
+		if ( get_option( 'wp_mux_player_disable_cookies', false ) ) {
+			$attributes[] = 'disable-cookies';
+		}
+
+		// Disable Mux Data analytics beaconing entirely.
+		if ( get_option( 'wp_mux_player_disable_mux_data', false ) ) {
+			$attributes[] = 'disable-tracking';
 		}
 
 		return ! empty( $attributes ) ? ' ' . implode( ' ', $attributes ) : '';

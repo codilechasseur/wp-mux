@@ -3,7 +3,6 @@
     "description": "Provides a media library integration for the MUX video hosting platform.",
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
-    "version": "1.1.1",
     "authors": [
         {
             "name": "Codi Lechasseur",
@@ -12,15 +11,12 @@
     ],
     "homepage": "https://wpmux.com",
     "support": {
-        "source": "https://github.com/codilechasseur/wp-mux"
+        "source": "https://github.com/codilechasseur/wp-mux",
+        "issues": "https://github.com/codilechasseur/wp-mux/issues"
     },
     "require": {
         "php": ">=8.0",
-        "composer/installers": "^2.0",
-        "freemius/wordpress-sdk": "^2.10"
-    },
-    "extra": {
-        "installer-path": "wp-content/plugins/wp-mux"
+        "composer/installers": "^1.0 || ^2.0"
     },
     "config": {
         "allow-plugins": {

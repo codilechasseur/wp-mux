@@ -87,11 +87,6 @@ class Wp_Mux_Queue_Manager {
 	public function queue_video(int $attachment_id): bool {
 		Wp_Mux_Utils::log("Begin queueing video: {$attachment_id}", 'info');
 
-		// Pro gate: seamless upload override requires a WP Mux Pro license.
-		if ( ! wp_mux_is_pro() ) {
-			return false;
-		}
-
 		// Check if MUX override is enabled
 		if (get_option('wp_mux_override_video_upload', '0') !== '1') {
 			return false;

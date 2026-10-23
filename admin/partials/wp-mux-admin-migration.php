@@ -16,33 +16,6 @@ if ( ! defined( 'WPINC' ) ) {
 	die;
 }
 
-// Pro gate
-if ( ! wp_mux_is_pro() ) {
-	$upgrade_url = ( function_exists( 'wp_mux_fs' ) && wp_mux_fs() !== null )
-		? wp_mux_fs()->get_upgrade_url()
-		: 'https://wpmux.com/#pricing';
-	?>
-	<div class="wrap">
-		<h1><?php esc_html_e( 'Migrate Videos', 'wp-mux' ); ?></h1>
-		<div class="notice notice-info" style="padding:20px; margin-top:20px;">
-			<h2 style="margin-top:0;"><?php esc_html_e( 'WP Mux Pro Feature', 'wp-mux' ); ?></h2>
-			<p><?php esc_html_e( 'Video migration is available on the Pro plan. It lets you:', 'wp-mux' ); ?></p>
-			<ul style="list-style:disc; margin-left:24px;">
-				<li><?php esc_html_e( 'Bulk migrate all your locally hosted videos to Mux in one click', 'wp-mux' ); ?></li>
-				<li><?php esc_html_e( 'Import videos from an external URL directly into Mux', 'wp-mux' ); ?></li>
-				<li><?php esc_html_e( 'Migrate Mux videos back to local WordPress hosting', 'wp-mux' ); ?></li>
-			</ul>
-			<p style="margin-top:16px;">
-				<a href="<?php echo esc_url( $upgrade_url ); ?>" class="button button-primary button-large">
-					<?php esc_html_e( 'Upgrade to Pro', 'wp-mux' ); ?>
-				</a>
-			</p>
-		</div>
-	</div>
-	<?php
-	return;
-}
-
 // Check if MUX is configured
 $is_configured = get_option( 'wp_mux_access_token' ) && get_option( 'wp_mux_secret_key' );
 

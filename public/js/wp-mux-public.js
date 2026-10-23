@@ -52,7 +52,18 @@
 				// Add thumbnail as poster if not already set by user
 				if (!muxPlayer.getAttribute('poster')) {
 					muxPlayer.setAttribute('poster', thumbnailUrl);
-				}					// Replace the video element
+				}
+
+				// Apply privacy options (cookieless / no analytics) from settings.
+				if (typeof wpMuxPublic !== 'undefined') {
+					if (wpMuxPublic.disableCookies) {
+						muxPlayer.setAttribute('disable-cookies', '');
+					}
+					if (wpMuxPublic.disableTracking) {
+						muxPlayer.setAttribute('disable-tracking', '');
+					}
+				}
+					// Replace the video element
 					video.parentNode.replaceChild(muxPlayer, video);
 				} catch (error) {
 					// Silent error handling

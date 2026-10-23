@@ -106,6 +106,8 @@ if ( $delete_all_data ) {
 		'wp_mux_player_min_resolution',
 		'wp_mux_player_preload',
 		'wp_mux_player_debug',
+		'wp_mux_player_disable_cookies',
+		'wp_mux_player_disable_mux_data',
 		'wp_mux_themes',
 		'wp_mux_default_theme',
 		'wp_mux_delete_local_after_migration',
@@ -180,7 +182,7 @@ if ( $delete_all_data ) {
 		
 		// Update title to indicate it's disconnected
 		$current_title = get_the_title( $video->ID );
-		if ( ! strpos( $current_title, '[Disconnected]' ) ) {
+		if ( false === strpos( $current_title, '[Disconnected]' ) ) {
 			wp_update_post( array(
 				'ID' => $video->ID,
 				'post_title' => '[Disconnected] ' . $current_title,

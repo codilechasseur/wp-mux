@@ -4,7 +4,7 @@ Tags: video, mux, streaming, media, video hosting, hls, video player
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.1.1
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -50,6 +50,15 @@ You'll need a Mux account to use this plugin. Sign up at [mux.com](https://mux.c
 For detailed setup instructions and feature guides, visit the plugin documentation.
 
 == Installation ==
+
+= Composer =
+
+Add the GitHub repository and require the plugin from your site's `composer.json`:
+
+`composer config repositories.wp-mux vcs https://github.com/codilechasseur/wp-mux`
+`composer require codilechasseur/wp-mux:^1.2`
+
+Tagged releases (`v1.2.0`, `v1.2.1`, ...) are picked up by `composer update codilechasseur/wp-mux`.
 
 = Automatic Installation =
 
@@ -156,6 +165,12 @@ Mux has 99.9% uptime. In the rare case of an outage, videos will display a loadi
 
 == Changelog ==
 
+= 1.2.0 =
+* All features are now free: removed Freemius licensing, bulk migration and upload routing are no longer gated
+* New: Cookieless mode for the player
+* New: Option to disable Mux Data analytics tracking
+* Installable via Composer from GitHub
+
 = 1.1.1 =
 * Initial public release
 * Smart uninstall system that preserves attachment IDs
@@ -168,6 +183,9 @@ Mux has 99.9% uptime. In the rare case of an outage, videos will display a loadi
 * Account statistics overview
 
 == Upgrade Notice ==
+
+= 1.2.0 =
+Every feature is now free. Adds cookieless and no-analytics player options.
 
 = 1.1.1 =
 First stable release! Professional video streaming for WordPress with Mux integration.

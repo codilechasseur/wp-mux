@@ -815,9 +815,7 @@ class Wp_Mux_Admin {
 		add_submenu_page(
 			'wp-mux-videos',
 			__( 'Migrate Local Videos', 'wp-mux' ),
-			wp_mux_is_pro()
-				? __( 'Migrate Videos', 'wp-mux' )
-				: __( 'Migrate Videos ✨', 'wp-mux' ),
+			__( 'Migrate Videos', 'wp-mux' ),
 			'manage_options',
 			'wp-mux-migration',
 			array( $this, 'display_migration_page' )
@@ -1068,6 +1066,28 @@ class Wp_Mux_Admin {
 			)
 		);
 
+		// Cookieless / privacy mode: player will not set cookies or use localStorage.
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_player_disable_cookies',
+			array(
+				'type' => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default' => false,
+			)
+		);
+
+		// Disable Mux Data analytics beaconing entirely (maximum privacy).
+		register_setting(
+			'wp_mux_settings_group',
+			'wp_mux_player_disable_mux_data',
+			array(
+				'type' => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default' => false,
+			)
+		);
+
 		// Add player options section
 		add_settings_section(
 			'wp_mux_player_settings',
@@ -1117,6 +1137,24 @@ class Wp_Mux_Admin {
 			'wp_mux_player_debug',
 			__( 'Debug Mode', 'wp-mux' ),
 			array( $this, 'debug_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_player_settings'
+		);
+
+		// Add cookieless / privacy mode field
+		add_settings_field(
+			'wp_mux_player_disable_cookies',
+			__( 'Cookieless Mode', 'wp-mux' ),
+			array( $this, 'disable_cookies_field_callback' ),
+			'wp-mux-settings',
+			'wp_mux_player_settings'
+		);
+
+		// Add disable Mux Data analytics field
+		add_settings_field(
+			'wp_mux_player_disable_mux_data',
+			__( 'Disable Analytics', 'wp-mux' ),
+			array( $this, 'disable_mux_data_field_callback' ),
 			'wp-mux-settings',
 			'wp_mux_player_settings'
 		);
@@ -1383,19 +1421,6 @@ class Wp_Mux_Admin {
 	 * @since    1.1.0
 	 */
 	public function override_video_upload_field_callback() {
-		if ( ! wp_mux_is_pro() ) {
-			echo '<p>';
-			echo '<span class="dashicons dashicons-lock" style="vertical-align:middle;"></span> ';
-			echo '<strong>' . esc_html__( 'WP Mux Pro', 'wp-mux' ) . '</strong> &mdash; ';
-			echo esc_html__( 'Automatically route all media library video uploads to Mux.', 'wp-mux' );
-			echo '</p>';
-			if ( function_exists( 'wp_mux_fs' ) && wp_mux_fs() !== null ) {
-				echo '<a href="' . esc_url( wp_mux_fs()->get_upgrade_url() ) . '" class="button button-primary" style="margin-top:6px;">';
-				echo esc_html__( 'Upgrade to Pro', 'wp-mux' );
-				echo '</a>';
-			}
-			return;
-		}
 		$checked = checked( 1, get_option( 'wp_mux_override_video_upload', 0 ), false );
 		echo '<input type="checkbox" id="wp_mux_override_video_upload" name="wp_mux_override_video_upload" value="1" ' . $checked . ' /> ';
 		echo '<label for="wp_mux_override_video_upload">' . esc_html__( 'If enabled, all video uploads in the media library will be sent to MUX instead of stored locally.', 'wp-mux' ) . '</label>';
@@ -2017,6 +2042,42 @@ class Wp_Mux_Admin {
 	}
 
 	/**
+	 * Cookieless mode field callback.
+	 *
+	 * @since    1.4.0
+	 */
+	public function disable_cookies_field_callback() {
+		$checked = checked( 1, get_option( 'wp_mux_player_disable_cookies', 0 ), false );
+		?>
+		<label>
+			<input type="checkbox" name="wp_mux_player_disable_cookies" value="1" <?php echo $checked; ?> />
+			<?php esc_html_e( 'Deliver videos without cookies', 'wp-mux' ); ?>
+		</label>
+		<p class="description">
+			<?php esc_html_e( 'When enabled, the player will not set cookies or use browser storage (no viewer preferences or resume-position are persisted). Recommended for GDPR / privacy-first sites and cookie-consent-free delivery.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Disable Mux Data analytics field callback.
+	 *
+	 * @since    1.4.0
+	 */
+	public function disable_mux_data_field_callback() {
+		$checked = checked( 1, get_option( 'wp_mux_player_disable_mux_data', 0 ), false );
+		?>
+		<label>
+			<input type="checkbox" name="wp_mux_player_disable_mux_data" value="1" <?php echo $checked; ?> />
+			<?php esc_html_e( 'Disable Mux Data analytics tracking', 'wp-mux' ); ?>
+		</label>
+		<p class="description">
+			<?php esc_html_e( 'Stops the player from sending playback analytics to Mux Data. Enable for maximum privacy — note that you will lose view counts and playback performance metrics for your videos.', 'wp-mux' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
 	 * Uninstall settings section callback.
 	 *
 	 * @since    1.1.1
@@ -2321,6 +2382,8 @@ class Wp_Mux_Admin {
 			'metadata-video-title' => true,
 			'metadata-viewer-user-id' => true,
 			'metadata-video-id' => true,
+			'disable-cookies' => true,
+			'disable-tracking' => true,
 		);
 
 		$allowedposttags['mux-video'] = $mux_attributes;
@@ -2351,6 +2414,8 @@ class Wp_Mux_Admin {
 				'metadata-video-title' => true,
 				'metadata-viewer-user-id' => true,
 				'metadata-video-id' => true,
+				'disable-cookies' => true,
+				'disable-tracking' => true,
 			);
 
 			$tags['mux-video'] = $mux_attributes;

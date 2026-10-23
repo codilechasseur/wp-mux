@@ -55,7 +55,7 @@ class Wp_Mux_Admin_Ajax {
 		require_once plugin_dir_path(__FILE__) . 'class-wp-mux-utils.php';
 
 		$this->api = new Wp_Mux_Api();
-		$this->themeManager = new Wp_Mux_Theme_Manager();
+		$this->theme_manager = new Wp_Mux_Theme_Manager();
 	}
 
 	/**
@@ -277,10 +277,10 @@ class Wp_Mux_Admin_Ajax {
 
 		// Generate theme ID if creating new theme
 		if (empty($theme_id)) {
-			$theme_id = $this->themeManager->generate_theme_id($name);
+			$theme_id = $this->theme_manager->generate_theme_id($name);
 		}
 
-		$result = $this->themeManager->save_theme(
+		$result = $this->theme_manager->save_theme(
 			$theme_id,
 			$name,
 			$description,
@@ -320,7 +320,7 @@ class Wp_Mux_Admin_Ajax {
 			);
 		}
 
-		$result = $this->themeManager->delete_theme( $theme_id );
+		$result = $this->theme_manager->delete_theme( $theme_id );
 
 		if (is_wp_error($result)) {
 			wp_send_json_error(
@@ -360,7 +360,7 @@ class Wp_Mux_Admin_Ajax {
 			);
 		}
 
-		$result = $this->themeManager->set_default_theme( $theme_id );
+		$result = $this->theme_manager->set_default_theme( $theme_id );
 
 		if ($result === false) {
 			wp_send_json_error(

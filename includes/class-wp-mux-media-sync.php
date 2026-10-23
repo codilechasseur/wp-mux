@@ -495,6 +495,15 @@ class Wp_Mux_Media_Sync {
         // Get thumbnail for poster
         $thumbnail_url = get_post_meta( $post->ID, '_mux_thumbnail_url', true );
 
+        // Privacy attributes (mirror the frontend Player Options).
+        $privacy_attrs = '';
+        if ( get_option( 'wp_mux_player_disable_cookies', false ) ) {
+            $privacy_attrs .= ' disable-cookies';
+        }
+        if ( get_option( 'wp_mux_player_disable_mux_data', false ) ) {
+            $privacy_attrs .= ' disable-tracking';
+        }
+
         // Build MUX player HTML
         $mux_player = sprintf(
             '<div class="mux-attachment-player" style="max-width: 100%%; margin: 0 auto;">
@@ -502,12 +511,13 @@ class Wp_Mux_Media_Sync {
                     playback-id="%s"
                     controls
                     stream-type="on-demand"
-                    %s
+                    %s%s
                     style="width: 100%%; max-width: 100%%;">
                 </mux-player>
             </div>',
             esc_attr( $playback_id ),
-            $thumbnail_url ? 'poster="' . esc_attr( $thumbnail_url ) . '"' : ''
+            $thumbnail_url ? 'poster="' . esc_attr( $thumbnail_url ) . '"' : '',
+            $privacy_attrs
         );
 
         return $mux_player;
