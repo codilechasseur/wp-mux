@@ -4,7 +4,7 @@ Tags: video, mux, streaming, media, video hosting, hls, video player
 Requires at least: 5.0
 Tested up to: 6.4
 Requires PHP: 7.4
-Stable tag: 1.3.0
+Stable tag: 1.3.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.html
 
@@ -200,6 +200,9 @@ Mux has 99.9% uptime. In the rare case of an outage, videos will display a loadi
 6. Bulk video migration interface
 
 == Changelog ==
+= 1.3.1 =
+* Fix: Critical error after saving API keys on accounts with existing videos (Mux timestamps crashed the media library sync)
+
 = 1.3.0 =
 * New: `wp_mux_player()`, `wp_mux_is_mux_video()` and `wp_mux_get_playback_id()` for themes. `wp_mux_player()` renders any video attachment, from Mux or local
 * New: Background videos (`background` argument, `[video background="on"]`). They're muted and looping without controls, and only play while on screen. They start paused for reduced motion, have an accessible pause button, and show the poster until they play
