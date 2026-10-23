@@ -250,6 +250,7 @@ class Wp_Mux_Admin {
 		$api = new Wp_Mux_Api();
 		wp_localize_script( $this->plugin_name, 'wpMuxData', array(
 			'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+			'playerScriptUrl' => Wp_Mux_Utils::player_script_url(),
 			'nonce' => wp_create_nonce( 'wp_mux_admin_nonce' ),
 			'uploadNonce' => wp_create_nonce( 'wp_mux_upload_nonce' ),
 			'videosNonce' => wp_create_nonce( 'wp_mux_videos_nonce' ),
@@ -268,7 +269,7 @@ class Wp_Mux_Admin {
 
 		// Only enqueue mux-player once with consistent URL
 		if ( ! wp_script_is( 'mux-player', 'enqueued' ) ) {
-			wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, true );
+			wp_enqueue_script( 'mux-player', Wp_Mux_Utils::player_script_url(), array(), null, true );
 		}
 
 		// Re-enable media badge script with better targeting
@@ -2317,7 +2318,7 @@ class Wp_Mux_Admin {
 	public function enqueue_block_editor_assets() {
 		// Only enqueue mux-player once with consistent URL
 		if ( ! wp_script_is( 'mux-player', 'enqueued' ) ) {
-			wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, false );
+			wp_enqueue_script( 'mux-player', Wp_Mux_Utils::player_script_url(), array(), null, false );
 		}
 
 		// Enqueue custom block editor script for MUX video handling
@@ -2584,7 +2585,7 @@ class Wp_Mux_Admin {
 			$response['mux_processing'] = $mux_processing;
 
 			// Add MUX identifiers
-			$response['mux_asset_id'] = $asset_id;
+			$response['mux_asset_id'] = $mux_asset_id;
 			$response['mux_playback_id'] = get_post_meta( $attachment->ID, '_mux_playback_id', true );
 
 			// Add analytics data if video is complete

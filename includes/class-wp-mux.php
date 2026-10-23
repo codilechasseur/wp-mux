@@ -257,7 +257,8 @@ class Wp_Mux {
 		$this->loader->add_action( 'wp_enqueue_scripts', $plugin_public, 'enqueue_scripts' );
 
 		// Add filters to handle MUX video rendering in different contexts
-		$this->loader->add_filter( 'wp_video_shortcode', $plugin_public, 'render_mux_video', 10, 3 );
+		// [video] / wp_video_shortcode(): before core's extension check, which Mux stream URLs fail.
+		$this->loader->add_filter( 'wp_video_shortcode_override', $plugin_public, 'render_mux_video_override', 10, 2 );
 		$this->loader->add_filter( 'the_content', $plugin_public, 'process_content_videos', 20 );
 		$this->loader->add_filter( 'render_block', $plugin_public, 'process_video_blocks', 10, 2 );
 

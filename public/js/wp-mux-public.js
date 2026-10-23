@@ -2,11 +2,39 @@
 	'use strict';
 
 	/**
+	 * Load the Mux Player script once, if the server didn't already enqueue it
+	 * (it only does for players it rendered itself).
+	 */
+	function ensureMuxPlayer() {
+		if (window.customElements && window.customElements.get('mux-player')) {
+			return;
+		}
+
+		if (typeof wpMuxPublic === 'undefined' || !wpMuxPublic.playerScriptUrl) {
+			return;
+		}
+
+		if (document.querySelector('script[data-wp-mux-player], script#mux-player-js')) {
+			return;
+		}
+
+		const script = document.createElement('script');
+		script.src = wpMuxPublic.playerScriptUrl;
+		script.async = true;
+		script.setAttribute('data-wp-mux-player', '');
+		document.head.appendChild(script);
+	}
+
+	/**
 	 * Convert MUX videos from regular video elements to mux-player elements
 	 */
 	function convertMuxVideos() {
 		// Find all video elements with MUX URLs
 		const videos = document.querySelectorAll('video[src*="stream.mux.com"]');
+
+		if (videos.length) {
+			ensureMuxPlayer();
+		}
 
 		videos.forEach(function(video) {
 			const src = video.getAttribute('src');
@@ -72,9 +100,14 @@
 		});
 	}
 
-	// Convert videos when DOM is ready
+	// Convert videos when DOM is ready; load the player for any <mux-player>
+	// printed without it (e.g. by a theme).
 	$(document).ready(function() {
 		convertMuxVideos();
+
+		if (document.querySelector('mux-player')) {
+			ensureMuxPlayer();
+		}
 	});
 
 	// Also convert videos after a short delay (for dynamically loaded content)

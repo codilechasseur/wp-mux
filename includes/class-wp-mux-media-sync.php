@@ -520,6 +520,8 @@ class Wp_Mux_Media_Sync {
             $privacy_attrs
         );
 
+        Wp_Mux_Public::enqueue_player();
+
         return $mux_player;
     }
 

@@ -73,14 +73,18 @@ class Wp_Mux_Public {
 	/**
 	 * Register the JavaScript for the public-facing side of the site.
 	 *
+	 * Mux Player itself is only registered here: it is enqueued by whatever
+	 * renders a player (enqueue_player()), and wp-mux-public.js loads it for
+	 * any Mux <video> it converts in the browser — so pages without video
+	 * don't download it.
+	 *
 	 * @since    1.0.0
 	 */
 	public function enqueue_scripts() {
 
-		// Enqueue MUX player element for video playback
-		wp_enqueue_script( 'mux-player', 'https://unpkg.com/@mux/mux-player', array(), null, true );
+		self::register_player();
 
-		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-public.js', array( 'jquery', 'mux-player' ), $this->version, true );
+		wp_enqueue_script( $this->plugin_name, plugin_dir_url( __FILE__ ) . 'js/wp-mux-public.js', array( 'jquery' ), $this->version, true );
 
 		// Pass privacy options to the JS fallback converter.
 		wp_localize_script(
@@ -89,86 +93,137 @@ class Wp_Mux_Public {
 			array(
 				'disableCookies' => (bool) get_option( 'wp_mux_player_disable_cookies', false ),
 				'disableTracking' => (bool) get_option( 'wp_mux_player_disable_mux_data', false ),
+				'playerScriptUrl' => Wp_Mux_Utils::player_script_url(),
 			)
 		);
 
 	}
 
 	/**
-	 * Handle video rendering for MUX videos
+	 * Register the Mux Player script (pinned to WP_MUX_PLAYER_VERSION).
+	 *
+	 * @since    1.2.1
 	 */
-	public function render_mux_video( $html, $url, $attr ) {
-		// Handle case where $url might be an array (from wp_video_shortcode filter)
-		if ( is_array( $url ) ) {
-			// If $url is array, it's actually the attributes, shift parameters
-			$attr = $url;
-			$url = isset( $attr['src'] ) ? $attr['src'] : '';
+	public static function register_player() {
+		if ( ! wp_script_is( 'mux-player', 'registered' ) ) {
+			wp_register_script( 'mux-player', Wp_Mux_Utils::player_script_url(), array(), null, true );
+		}
+	}
+
+	/**
+	 * Enqueue the Mux Player script for a player being rendered. Safe to call
+	 * before wp_enqueue_scripts (block themes render blocks before wp_head).
+	 *
+	 * @since    1.2.1
+	 */
+	public static function enqueue_player() {
+		self::register_player();
+		wp_enqueue_script( 'mux-player' );
+	}
+
+	/**
+	 * Render Mux videos for the [video] shortcode and wp_video_shortcode().
+	 *
+	 * Hooked to wp_video_shortcode_override, which runs before core checks the
+	 * source's file extension: a Mux stream URL (…/{playback-id}.mp4?mux=1, as
+	 * wp_get_attachment_url() returns for Mux attachments) fails that check, so
+	 * core would otherwise print a plain link and no later filter would see it.
+	 *
+	 * Supported attributes: src (or mp4 / m4v / webm / ogv), poster, loop,
+	 * autoplay, muted, preload, width, height, class, style, and controls
+	 * (default on; "off" for a background video without player chrome).
+	 *
+	 * @since    1.2.1
+	 * @param    string  $output  Empty, or another plugin's override.
+	 * @param    array   $attr    Shortcode attributes.
+	 * @return   string           The player, or $output for non-Mux sources.
+	 */
+	public function render_mux_video_override( $output, $attr ) {
+		if ( '' !== $output || ! is_array( $attr ) ) {
+			return $output;
 		}
 
-		// Ensure $url is a string
-		if ( ! is_string( $url ) || empty( $url ) ) {
-			return $html;
+		$playback_id = '';
+		foreach ( array( 'src', 'mp4', 'm4v', 'webm', 'ogv' ) as $key ) {
+			if ( ! empty( $attr[ $key ] ) && is_string( $attr[ $key ] ) ) {
+				$playback_id = $this->playback_id_from_url( $attr[ $key ] );
+				if ( $playback_id ) {
+					break;
+				}
+			}
 		}
 
-		// Check if this is a MUX stream URL (both .m3u8 and .mp4, or has mux=1 parameter)
-		if ( strpos( $url, 'stream.mux.com' ) !== false &&
-			 ( strpos( $url, '.m3u8' ) !== false ||
-			   strpos( $url, '.mp4' ) !== false ||
-			   strpos( $url, 'mux=1' ) !== false ) ) {
-
-
-			// Extract playback ID from the URL
-			$parsed_url = parse_url( $url );
-			$path = $parsed_url['path'];
-			$playback_id = basename( $path, '.m3u8' );
-			$playback_id = basename( $playback_id, '.mp4' );
-
-
-			$poster = isset( $attr['poster'] ) ? $attr['poster'] : '';
-
-			// If no poster is provided, generate thumbnail URL from MUX with optional parameters
-			if ( empty( $poster ) ) {
-				$thumbnail_options = array(
-					'time'     => isset( $attr['poster_time'] ) ? floatval( $attr['poster_time'] ) : 0,
-					'width'    => isset( $attr['poster_width'] ) ? intval( $attr['poster_width'] ) : 640,
-					'height'   => isset( $attr['poster_height'] ) ? intval( $attr['poster_height'] ) : 360,
-					'fit_mode' => isset( $attr['poster_fit'] ) ? $attr['poster_fit'] : 'smartcrop',
-					'animated' => isset( $attr['animated_poster'] ) ? (bool) $attr['animated_poster'] : false,
-				);
-				$poster = $this->generate_mux_thumbnail_url( $playback_id, $thumbnail_options );
-			}
-
-			$controls = 'controls';
-			$width = isset( $attr['width'] ) ? $attr['width'] : '';
-			$height = isset( $attr['height'] ) ? $attr['height'] : '';
-
-			$style = '';
-			if ( $width ) {
-				$style .= 'width: ' . esc_attr( $width ) . ( is_numeric( $width ) ? 'px' : '' ) . ';';
-			}
-			if ( $height ) {
-				$style .= 'height: ' . esc_attr( $height ) . ( is_numeric( $height ) ? 'px' : '' ) . ';';
-			}
-
-			// Use mux-player element for optimal video playback
-			$html = sprintf(
-				'<mux-player playback-id="%s" %s poster="%s" style="%s" stream-type="on-demand"%s>
-					<p>%s</p>
-				</mux-player>',
-				esc_attr( $playback_id ),
-				$controls,
-				esc_attr( $poster ),
-				esc_attr( $style ),
-				$this->get_player_options_attributes(),
-				__( 'Your browser does not support HTML5 video.', 'wp-mux' )
-			);
-
-			// Apply theme to the player
-			$html = $this->apply_theme_to_player( $html );
-
+		if ( ! $playback_id ) {
+			return $output;
 		}
 
-		return $html;
+		// Shortcode booleans: "on" / "1" / "true" (as core's loop and autoplay),
+		// and "off" / "0" / "false" / "no" / "" for off.
+		$flag = static function ( $key, $default = false ) use ( $attr ) {
+			if ( ! isset( $attr[ $key ] ) ) {
+				return $default;
+			}
+
+			return ! in_array( strtolower( trim( (string) $attr[ $key ] ) ), array( '', '0', 'false', 'off', 'no' ), true );
+		};
+
+		$controls = $flag( 'controls', true );
+		$autoplay = $flag( 'autoplay' );
+		$preload  = isset( $attr['preload'] ) ? sanitize_key( $attr['preload'] ) : '';
+
+		$style = isset( $attr['style'] ) ? (string) $attr['style'] : '';
+		foreach ( array( 'width', 'height' ) as $dimension ) {
+			if ( ! empty( $attr[ $dimension ] ) ) {
+				$style .= ( $style ? '; ' : '' ) . $dimension . ': ' . $attr[ $dimension ] . ( is_numeric( $attr[ $dimension ] ) ? 'px' : '' );
+			}
+		}
+
+		$poster = ! empty( $attr['poster'] ) ? (string) $attr['poster'] : $this->generate_mux_thumbnail_url( $playback_id );
+
+		$attributes = array(
+			'playback-id' => $playback_id,
+			'stream-type' => 'on-demand',
+			'poster'      => $poster,
+			'class'       => isset( $attr['class'] ) ? (string) $attr['class'] : '',
+			'style'       => $style,
+			'preload'     => $preload,
+		) + Wp_Mux_Utils::signed_player_tokens( $playback_id );
+
+		$html = '<mux-player';
+		foreach ( array_filter( $attributes, 'strlen' ) as $name => $value ) {
+			$html .= sprintf( ' %s="%s"', $name, esc_attr( $value ) );
+		}
+		foreach ( array( 'controls' => $controls, 'autoplay' => $autoplay, 'muted' => $flag( 'muted' ), 'loop' => $flag( 'loop' ), 'playsinline' => $autoplay ) as $name => $on ) {
+			if ( $on ) {
+				$html .= ' ' . $name;
+			}
+		}
+
+		// Global Player Options; an explicit preload attribute wins over the setting.
+		$options = $this->get_player_options_attributes();
+		if ( $preload ) {
+			$options = preg_replace( '/\s*preload="[^"]*"/', '', $options );
+		}
+		$html .= $options . '></mux-player>';
+
+		self::enqueue_player();
+
+		return $this->apply_theme_to_player( $html, null, ! $controls );
+	}
+
+	/**
+	 * The playback ID in a Mux stream URL (stream.mux.com/{id}.mp4|.m3u8), or ''.
+	 *
+	 * @since    1.2.1
+	 */
+	private function playback_id_from_url( string $url ): string {
+		if ( false === strpos( $url, 'stream.mux.com' ) ) {
+			return '';
+		}
+
+		$path = (string) wp_parse_url( $url, PHP_URL_PATH );
+
+		return (string) preg_replace( '/\.(m3u8|mp4)$/i', '', basename( $path ) );
 	}
 
 	/**
@@ -200,6 +255,8 @@ class Wp_Mux_Public {
 				$replacement = str_replace( 'src="' . $url . '"', '', $replacement );
 
 				$content = str_replace( $full_match, $replacement, $content );
+
+				self::enqueue_player();
 
 				// Also replace closing video tags with mux-player
 				$content = str_replace( '</video>', '</mux-player>', $content );
@@ -362,6 +419,8 @@ class Wp_Mux_Public {
 				}
 
 				$mux_player_tag .= ' stream-type="on-demand" poster="' . esc_attr( $thumbnail_url ) . '"$1>';
+
+				self::enqueue_player();
 
 				// Replace video element with mux-player
 				$block_content = preg_replace(

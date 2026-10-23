@@ -36,6 +36,12 @@ if ( ! defined( 'WPINC' ) ) {
 define( 'WP_MUX_VERSION', '1.2.0' );
 
 /**
+ * The Mux Player release the plugin loads (pinned, so a new release can't
+ * change every player on the site unannounced). See Wp_Mux_Utils::player_script_url().
+ */
+define( 'WP_MUX_PLAYER_VERSION', '3.14.1' );
+
+/**
  * The code that runs during plugin activation.
  * This action is documented in includes/class-wp-mux-activator.php
  */

@@ -1,0 +1,8 @@
+# Left out of the GitHub archive Composer installs from (the zip release
+# uses .distignore instead).
+/.github export-ignore
+/.vscode export-ignore
+/docs export-ignore
+/.distignore export-ignore
+/.gitignore export-ignore
+/.gitattributes export-ignore

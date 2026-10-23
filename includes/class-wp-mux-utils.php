@@ -451,6 +451,67 @@ class Wp_Mux_Utils {
 	}
 
 	/**
+	 * The Mux Player script URL, pinned to WP_MUX_PLAYER_VERSION.
+	 *
+	 * @since 1.2.1
+	 *
+	 * @return string
+	 */
+	public static function player_script_url(): string {
+		$url = 'https://unpkg.com/@mux/mux-player@' . WP_MUX_PLAYER_VERSION . '/dist/mux-player.js';
+
+		/**
+		 * Filters the Mux Player script URL (e.g. to self-host it).
+		 *
+		 * @since 1.2.1
+		 *
+		 * @param string $url Script URL.
+		 */
+		return (string) apply_filters('wp_mux_player_script_url', $url);
+	}
+
+	/**
+	 * Signed playback, thumbnail and storyboard tokens for a playback ID, as
+	 * mux-player attributes — empty unless the attachment's policy is 'signed'.
+	 *
+	 * @since 1.2.1
+	 *
+	 * @param string $playback_id   Mux playback ID.
+	 * @param int    $attachment_id Attachment ID (0 to look it up by playback ID).
+	 * @param int    $expiry        Token lifetime in seconds; 0 for the global setting.
+	 *
+	 * @return array<string, string> e.g. ['playback-token' => …, 'thumbnail-token' => …]
+	 */
+	public static function signed_player_tokens(string $playback_id, int $attachment_id = 0, int $expiry = 0): array {
+		if (!$attachment_id) {
+			$attachment_id = (int) (get_posts([
+				'post_type'      => 'attachment',
+				'post_status'    => 'inherit',
+				'posts_per_page' => 1,
+				'fields'         => 'ids',
+				'meta_key'       => '_mux_playback_id',
+				'meta_value'     => $playback_id,
+			])[0] ?? 0);
+		}
+
+		if (!$attachment_id || get_post_meta($attachment_id, '_mux_playback_policy', true) !== 'signed') {
+			return [];
+		}
+
+		$expiry = $expiry > 0 ? $expiry : (int) get_option('wp_mux_signed_url_expiry', 14400);
+		$tokens = [];
+
+		foreach (['playback' => 'video', 'thumbnail' => 'thumbnail', 'storyboard' => 'storyboard'] as $attribute => $type) {
+			$token = self::generate_mux_jwt($playback_id, $type, $expiry);
+			if ($token !== '') {
+				$tokens[$attribute . '-token'] = $token;
+			}
+		}
+
+		return $tokens;
+	}
+
+	/**
 	 * Generate a signed Mux playback JWT (RS256) for a given playback ID.
 	 *
 	 * Falls back to returning an unsigned plain `https://stream.mux.com/{id}.m3u8`

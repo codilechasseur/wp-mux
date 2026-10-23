@@ -645,7 +645,7 @@
 		if (typeof window.MuxPlayerElement === 'undefined') {
 			// Load MUX player script dynamically
 			const script = document.createElement('script');
-			script.src = 'https://unpkg.com/@mux/mux-player';
+			script.src = window.wpMuxData.playerScriptUrl;
 			script.onload = function() {
 				insertMuxPlayer(playbackId);
 			};
