@@ -188,11 +188,17 @@ class Wp_Mux_Media_Sync {
             }
         }
 
+        // MUX sends created_at as a Unix timestamp string; strtotime() can't parse
+        // those (it returns false, which gmdate() rejects under strict_types)
+        $created_timestamp = false;
+        if ( ! empty( $asset['created_at'] ) ) {
+            $created_timestamp = is_numeric( $asset['created_at'] ) ? (int) $asset['created_at'] : strtotime( (string) $asset['created_at'] );
+        }
+
         // Generate a friendly title for the imported video
         $video_title = 'MUX Video';
-        if ( ! empty( $asset['created_at'] ) ) {
-            $created_date = gmdate( 'Y-m-d H:i', strtotime( $asset['created_at'] ) );
-            $video_title = 'MUX Video - ' . $created_date;
+        if ( false !== $created_timestamp ) {
+            $video_title = 'MUX Video - ' . gmdate( 'Y-m-d H:i', $created_timestamp );
         }
 
         // Insert attachment post
@@ -213,11 +219,9 @@ class Wp_Mux_Media_Sync {
             update_post_meta( $attach_id, '_mux_created_at', $asset['created_at'] ?? '' );
             update_post_meta( $attach_id, '_wp_mux_status', 'complete' );
             // Set post_date and post_date_gmt to MUX asset creation date
-            if ( !empty($asset['created_at']) ) {
+            if ( false !== $created_timestamp ) {
                 global $wpdb;
-                // $asset['created_at'] is already a Unix timestamp, use it directly
-                $timestamp = is_numeric($asset['created_at']) ? intval($asset['created_at']) : strtotime($asset['created_at']);
-                $gmt = gmdate( 'Y-m-d H:i:s', $timestamp );
+                $gmt = gmdate( 'Y-m-d H:i:s', $created_timestamp );
                 $wpdb->update( $wpdb->posts, array( 'post_date' => $gmt, 'post_date_gmt' => $gmt ), array( 'ID' => $attach_id ) );
                 if ( function_exists('clean_post_cache') ) clean_post_cache( $attach_id );
             }
